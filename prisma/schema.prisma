@@ -4,10 +4,41 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+model DocChunk {
+  id          String                       @id @default(cuid())
+  contentHash String                       @unique
+  content     String
+  headerPath  String
+  kind        String
+  tokenCount  Int
+  embedding   Unsupported("vector(3072)")
+  createdAt   DateTime                     @default(now())
+
+  urls DocChunkUrl[]
+
+  @@map("doc_chunks")
+}
+
+model DocChunkUrl {
+  id         String   @id @default(cuid())
+  chunkHash  String
+  url        String
+  title      String
+  lastSeenAt DateTime @default(now())
+
+  chunk DocChunk @relation(fields: [chunkHash], references: [contentHash], onDelete: Cascade)
+
+  @@unique([chunkHash, url])
+  @@index([url])
+  @@map("doc_chunk_urls")
 }

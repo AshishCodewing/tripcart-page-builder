@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "grapesjs-docs": {
+      "command": "pnpm",
+      "args": ["run", "--silent", "mcp:rag"]
+    }
+  }
+}
