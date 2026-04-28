@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: "Inter Variable", sans-serif;
+    --font-sans: "Inter Variable", sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -24,6 +24,10 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -37,6 +41,10 @@
     --color-card-foreground: var(--card-foreground);
     --color-card: var(--card);
     --color-foreground: var(--foreground);
+    --color-toast-success: var(--toast-success);
+    --color-toast-destructive: var(--toast-destructive);
+    --color-toast-warning: var(--toast-warning);
+    --color-toast-info: var(--toast-info);
     --color-background: var(--background);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
@@ -45,41 +53,106 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Toast pulse animations — two identical keyframes with distinct names so
+       alternating between them on updateKey change restarts the animation. */
+    --animate-toast-pulse-odd: toast-pulse-odd 0.6s ease-out;
+    --animate-toast-pulse-even: toast-pulse-even 0.6s ease-out;
+
+    @keyframes toast-pulse-odd {
+        0%,
+        100% {
+            scale: 1;
+        }
+        50% {
+            scale: 1.02;
+        }
+    }
+
+    @keyframes toast-pulse-even {
+        0%,
+        100% {
+            scale: 1;
+        }
+        50% {
+            scale: 1.02;
+        }
+    }
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --background: oklch(0.981 0.005 258.3);
+    --foreground: oklch(0.204 0.004 264.5);
+
+    /* Card — bg-surface / heading-default */
+    --card: oklch(0.981 0.005 258.3);
+    --card-foreground: oklch(0.204 0.004 264.5);
+
+    /* Popover — White / heading-default */
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --popover-foreground: oklch(0.204 0.004 264.5);
+
+    /* Primary — brand.500 / White */
+    --primary: oklch(0.631 0.2 257.6);
+    --primary-foreground: oklch(1 0 0);
+
+    /* Secondary — neutral.100 / neutral.800 */
+    --secondary: oklch(0.956 0.011 256.7);
+    --secondary-foreground: oklch(0.254 0.007 248.1);
+
+    /* Muted — neutral.200 / neutral.500 */
+    --muted: oklch(0.929 0.013 255.5);
+    --muted-foreground: oklch(0.473 0.018 260.7);
+
+    /* Accent — neutral.100 / neutral.900 */
+    --accent: oklch(0.956 0.011 256.7);
+    --accent-foreground: oklch(0.204 0.004 264.5);
+
+    /* Destructive — red.500 */
+    --destructive: oklch(0.637 0.21 28.5);
+
+    /* Warning — orange.500 / White */
+    --warning: oklch(0.747 0.17 62.1);
+    --warning-foreground: oklch(1 0 0);
+
+    /* Success — green.500 / White */
+    --success: oklch(0.673 0.16 155.6);
+    --success-foreground: oklch(1 0 0);
+
+    /* Border — neutral.200 */
+    --border: oklch(0.929 0.013 255.5);
+
+    /* Input — neutral.200 */
+    --input: oklch(0.929 0.013 255.5);
+
+    /* Ring — brand.500 (focus ring) */
+    --ring: oklch(0.631 0.2 257.6);
+
+    /* Chart colors — brand, green, orange, red, brand.300 */
+    --chart-1: oklch(0.631 0.2 257.6);
+    --chart-2: oklch(0.673 0.16 155.6);
+    --chart-3: oklch(0.747 0.17 62.1);
+    --chart-4: oklch(0.637 0.21 28.5);
+    --chart-5: oklch(0.767 0.12 255.8);
+
+    /* Toast tint backgrounds — Figma alert bg tokens, fully opaque */
+    --toast-success: oklch(0.979 0.022 160.5);
+    --toast-destructive: oklch(0.972 0.012 23.4);
+    --toast-warning: oklch(0.985 0.020 91.6);
+    --toast-info: oklch(0.944 0.027 255.1);
+
+    /* Border radius — maps to rad-8 (8px) */
+    --radius: 0.5rem;
+
+    /* Sidebar — bg-surface / heading-default / brand */
+    --sidebar: oklch(0.981 0.005 258.3);
+    --sidebar-foreground: oklch(0.204 0.004 264.5);
+    --sidebar-primary: oklch(0.631 0.2 257.6);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.956 0.011 256.7);
+    --sidebar-accent-foreground: oklch(0.204 0.004 264.5);
+    --sidebar-border: oklch(0.929 0.013 255.5);
+    --sidebar-ring: oklch(0.631 0.2 257.6);
 }
 
 .dark {
@@ -89,23 +162,31 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
+    --primary: oklch(0.631 0.2 257.6);
+    --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
     --muted-foreground: oklch(0.708 0 0);
     --accent: oklch(0.269 0 0);
     --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+    --destructive: oklch(0.637 0.21 28.5);
+    --warning: oklch(0.747 0.17 62.1);
+    --warning-foreground: oklch(1 0 0);
+    --success: oklch(0.673 0.16 155.6);
+    --success-foreground: oklch(1 0 0);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --toast-success: oklch(0.22 0.03 160.5);
+    --toast-destructive: oklch(0.22 0.02 23.4);
+    --toast-warning: oklch(0.22 0.03 91.6);
+    --toast-info: oklch(0.22 0.03 255.1);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -116,14 +197,95 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+@layer components {
+    .no-spinner {
+        appearance: textfield;
+    }
+
+    .no-spinner::-webkit-outer-spin-button,
+    .no-spinner::-webkit-inner-spin-button {
+        appearance: none;
+        margin: 0;
+    }
+
+    /* Animated selection indicator for ToggleGroup variant="pill".
+       Uses CSS anchor positioning so the primary-filled indicator glides
+       between items. Falls back to the item's own aria-pressed:bg-primary
+       (set via Tailwind in toggle-group.tsx) when anchor-name is unsupported. */
+    @supports (anchor-name: --x) {
+        [data-slot="toggle-group"][data-variant="pill"] {
+            position: relative;
+        }
+
+        [data-slot="toggle-group"][data-variant="pill"]::before {
+            content: "";
+            position: absolute;
+            position-anchor: --toggle-group-selected;
+            left: anchor(left);
+            top: anchor(top);
+            width: anchor-size(width);
+            height: anchor-size(height);
+            background-color: var(--primary);
+            border-radius: calc(var(--radius) - 2px);
+            box-shadow: 0 2px 2px -1px rgb(0 0 0 / 0.2);
+            /* Ease-out-quint — confident deceleration, glides to rest without bounce.
+               Explicit properties (vs. `all`) avoid animating unintended props. */
+            transition:
+                left 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                top 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                width 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                height 240ms cubic-bezier(0.22, 1, 0.36, 1);
+            pointer-events: none;
+        }
+
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"] {
+            position: relative;
+            z-index: 1;
+            /* Text color settles in sync with the indicator's arrival */
+            transition:
+                color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+                transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Tactile press feedback — subtle scale-down on click.
+           Safe with anchor(): transforms don't affect layout, so the indicator
+           stays anchored to the item's unscaled box. */
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"]:active {
+            transform: scale(0.97);
+        }
+
+        /* Let the ::before indicator show through the selected item */
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"][aria-pressed="true"],
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"][aria-pressed="true"]:hover {
+            anchor-name: --toggle-group-selected;
+            background-color: transparent;
+            box-shadow: none;
+        }
+    }
+
+    /* Respect motion preferences — snap to state instead of animating */
+    @media (prefers-reduced-motion: reduce) {
+        [data-slot="toggle-group"][data-variant="pill"]::before,
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"] {
+            transition-duration: 0.01ms;
+        }
+        [data-slot="toggle-group"][data-variant="pill"] > [data-slot="toggle-group-item"]:active {
+            transform: none;
+        }
+    }
+
+}
+
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+
+    body {
+        @apply bg-background text-foreground;
     }
-  html {
-    @apply font-sans;
+
+    html {
+        @apply font-sans;
     }
 }
