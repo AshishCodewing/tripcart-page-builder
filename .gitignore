@@ -29,7 +29,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # env files
-.env*.local
+.env
+.env.*
+!.env.example
+!.env*.local.example
 
 # typescript
 *.tsbuildinfo
