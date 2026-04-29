@@ -14,6 +14,79 @@ datasource db {
   extensions = [vector]
 }
 
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Page {
+  id          String        @id @default(cuid())
+  slug        String
+  path        String        @unique
+  parentId    String?
+  parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
+  children    Page[]        @relation("PageTree")
+  title       String
+  html        String        @default("")
+  css         String        @default("")
+  data        Json          @default("{}")
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([parentId, slug])
+  @@index([status])
+  @@map("pages")
+}
+
+model Post {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  excerpt     String?
+  html        String        @default("")
+  css         String        @default("")
+  data        Json          @default("{}")
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  categories  Category[]    @relation("PostCategories")
+  tags        Tag[]         @relation("PostTags")
+
+  @@index([status, publishedAt])
+  @@map("posts")
+}
+
+model Category {
+  id    String @id @default(cuid())
+  slug  String @unique
+  name  String
+  posts Post[] @relation("PostCategories")
+
+  @@map("categories")
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  slug  String @unique
+  name  String
+  posts Post[] @relation("PostTags")
+
+  @@map("tags")
+}
+
+// Stub for post-MVP slug-rename redirects. Unused at MVP.
+model Redirect {
+  id        String   @id @default(cuid())
+  fromPath  String   @unique
+  toPath    String
+  createdAt DateTime @default(now())
+
+  @@map("redirects")
+}
+
 model DocChunk {
   id          String                       @id @default(cuid())
   contentHash String                       @unique
