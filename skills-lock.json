@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "grapesjs": {
+      "source": "harold18m/grapesjs-mjml",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "022af9b40d2eef16164892557cdff52e75c7d9c1a626fc0fa100903f275184c3"
+    }
+  }
+}
