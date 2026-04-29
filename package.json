@@ -11,6 +11,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "ingest:grapesjs": "tsx scripts/ingest-grapesjs-docs.ts",
+    "ingest:grapesjs-react": "tsx scripts/ingest-grapesjs-react-docs.ts",
+    "ingest:grapesjs-source": "tsx scripts/ingest-grapesjs-source.ts",
     "mcp:rag": "tsx scripts/mcp-rag-server.ts"
   },
   "dependencies": {

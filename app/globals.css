@@ -156,45 +156,68 @@
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.631 0.2 257.6);
-    --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.637 0.21 28.5);
-    --warning: oklch(0.747 0.17 62.1);
-    --warning-foreground: oklch(1 0 0);
-    --success: oklch(0.673 0.16 155.6);
-    --success-foreground: oklch(1 0 0);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --toast-success: oklch(0.22 0.03 160.5);
-    --toast-destructive: oklch(0.22 0.02 23.4);
-    --toast-warning: oklch(0.22 0.03 91.6);
-    --toast-info: oklch(0.22 0.03 255.1);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    /* Backgrounds — lifted off pure black with a faint cool tint that
+       mirrors the light-mode neutrals (hue 258, chroma 0.005-0.008).
+       Pure #000 reads as a void; ~0.19 lightness lets cards layer on top. */
+    --background: oklch(0.19 0.005 258);
+    --foreground: oklch(0.97 0.003 258);
+
+    /* Card — one step up from background for elevation */
+    --card: oklch(0.232 0.006 258);
+    --card-foreground: oklch(0.97 0.003 258);
+
+    /* Popover — slightly higher elevation than card */
+    --popover: oklch(0.248 0.006 258);
+    --popover-foreground: oklch(0.97 0.003 258);
+
+    /* Primary — pulled back from the eye-watering 0.631/0.2.
+       Lower lightness + lower chroma reads as confident, not neon. */
+    --primary: oklch(0.575 0.155 257.6);
+    --primary-foreground: oklch(0.99 0 0);
+
+    /* Secondary / muted / accent — interactive surface tier */
+    --secondary: oklch(0.288 0.007 258);
+    --secondary-foreground: oklch(0.97 0.003 258);
+    --muted: oklch(0.288 0.007 258);
+    --muted-foreground: oklch(0.715 0.01 258);
+    --accent: oklch(0.32 0.008 258);
+    --accent-foreground: oklch(0.97 0.003 258);
+
+    /* Status colors — slightly tempered for dark backgrounds */
+    --destructive: oklch(0.62 0.19 28.5);
+    --warning: oklch(0.73 0.155 62.1);
+    --warning-foreground: oklch(0.18 0.02 62.1);
+    --success: oklch(0.66 0.145 155.6);
+    --success-foreground: oklch(0.16 0.03 155.6);
+
+    /* Hairlines — slightly more visible than 10% white to register on
+       the lifted background without drawing attention */
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 16%);
+    --ring: oklch(0.575 0.155 257.6);
+
+    /* Charts — brand-aligned, restrained chroma for dark surfaces */
+    --chart-1: oklch(0.575 0.155 257.6);
+    --chart-2: oklch(0.66 0.145 155.6);
+    --chart-3: oklch(0.73 0.155 62.1);
+    --chart-4: oklch(0.62 0.19 28.5);
+    --chart-5: oklch(0.7 0.1 257.6);
+
+    /* Toast tints — deep, low-chroma washes that sit on bg without glowing */
+    --toast-success: oklch(0.245 0.025 155.6);
+    --toast-destructive: oklch(0.245 0.022 28.5);
+    --toast-warning: oklch(0.245 0.025 91.6);
+    --toast-info: oklch(0.245 0.028 257.6);
+
+    /* Sidebar — matches card tier so it reads as a panel, not a void */
+    --sidebar: oklch(0.215 0.006 258);
+    --sidebar-foreground: oklch(0.97 0.003 258);
+    --sidebar-primary: oklch(0.575 0.155 257.6);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.288 0.007 258);
+    --sidebar-accent-foreground: oklch(0.97 0.003 258);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.575 0.155 257.6);
 }
 
 @layer components {
