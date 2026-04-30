@@ -21,7 +21,9 @@ export default async function AdminPagesList() {
     <div className="space-y-8">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">Pages</h1>
-        <span className="text-sm text-muted-foreground">{pages.length} total</span>
+        <span className="text-sm text-muted-foreground">
+          {pages.length} total
+        </span>
       </header>
 
       <section className="rounded-lg border p-4">

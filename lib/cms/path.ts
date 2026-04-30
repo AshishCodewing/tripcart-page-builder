@@ -12,7 +12,7 @@ const MAX_DEPTH = 32
 export function validateSlug(slug: string): void {
   if (!SLUG_RE.test(slug)) {
     throw new Error(
-      `Invalid slug "${slug}". Use lowercase letters, numbers, and hyphens only.`,
+      `Invalid slug "${slug}". Use lowercase letters, numbers, and hyphens only.`
     )
   }
 }
@@ -27,7 +27,7 @@ type ParentLookup = { slug: string; parentId: string | null } | null
 
 export async function buildPath(
   slug: string,
-  parentId: string | null,
+  parentId: string | null
 ): Promise<string> {
   if (parentId === null) return slug
   const segments: string[] = [slug]
@@ -48,7 +48,7 @@ export async function buildPath(
 // A page cannot be reparented under itself or any of its descendants.
 export async function assertNotDescendant(
   pageId: string,
-  candidateParentId: string | null,
+  candidateParentId: string | null
 ): Promise<void> {
   if (!candidateParentId) return
   let current: string | null = candidateParentId

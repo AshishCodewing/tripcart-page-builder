@@ -26,7 +26,8 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   const newSlug = String(form.get("slug") ?? existing.slug).trim()
   const title = String(form.get("title") ?? existing.title).trim()
   const excerpt = (form.get("excerpt") as string) || null
-  const status = (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
+  const status =
+    (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
 
   validateSlug(newSlug)
 
@@ -34,7 +35,7 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   // the Redirect table is wired up.
   if (newSlug !== existing.slug && existing.status === "PUBLISHED") {
     throw new Error(
-      "Renaming a published post is not supported yet (redirects are post-MVP). Move it back to draft first.",
+      "Renaming a published post is not supported yet (redirects are post-MVP). Move it back to draft first."
     )
   }
 

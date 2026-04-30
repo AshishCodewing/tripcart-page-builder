@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 type ToastType = "success" | "destructive" | "warning" | "info"
 
 const toastVariants = cva(
-  "group/toast flex w-full border shadow-lg bg-clip-padding select-none [--gap:0.75rem] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] absolute right-0 bottom-0 left-auto z-[calc(1000-var(--toast-index))] origin-bottom h-[var(--height)] [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_0.5s_cubic-bezier(0.22,1,0.36,1),opacity_0.5s,height_0.15s] after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-[''] data-[starting-style]:[transform:translateY(150%)] data-[ending-style]:opacity-0 data-[limited]:opacity-0 data-[expanded]:h-[var(--toast-height)] data-[expanded]:[transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--offset-y)))] [&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(150%)] data-[ending-style]:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))] data-[expanded]:data-[ending-style]:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))] data-[ending-style]:data-[swipe-direction=up]:[transform:translateY(calc(var(--toast-swipe-movement-y)-150%))] data-[expanded]:data-[ending-style]:data-[swipe-direction=up]:[transform:translateY(calc(var(--toast-swipe-movement-y)-150%))] data-[ending-style]:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))] data-[expanded]:data-[ending-style]:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))] data-[ending-style]:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))] data-[expanded]:data-[ending-style]:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))]",
+  "group/toast absolute right-0 bottom-0 left-auto z-[calc(1000-var(--toast-index))] flex h-[var(--height)] w-full origin-bottom [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] border bg-clip-padding shadow-lg select-none [--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))] [transition:transform_0.5s_cubic-bezier(0.22,1,0.36,1),opacity_0.5s,height_0.15s] after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-[''] data-[ending-style]:opacity-0 data-[expanded]:h-[var(--toast-height)] data-[expanded]:[transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--offset-y)))] data-[limited]:opacity-0 data-[starting-style]:[transform:translateY(150%)] data-[ending-style]:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))] data-[expanded]:data-[ending-style]:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+150%))] data-[ending-style]:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))] data-[expanded]:data-[ending-style]:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-150%))_translateY(var(--offset-y))] data-[ending-style]:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))] data-[expanded]:data-[ending-style]:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))] data-[ending-style]:data-[swipe-direction=up]:[transform:translateY(calc(var(--toast-swipe-movement-y)-150%))] data-[expanded]:data-[ending-style]:data-[swipe-direction=up]:[transform:translateY(calc(var(--toast-swipe-movement-y)-150%))] [&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(150%)]",
   {
     variants: {
       variant: {
@@ -20,7 +20,7 @@ const toastVariants = cva(
         default:
           "items-start gap-4 rounded-md bg-background p-6 before:absolute before:inset-y-[-1px] before:left-[-1px] before:w-1 before:rounded-l-md",
         compact:
-          "items-center gap-2 rounded-md p-3 [&>svg:not([class*='size-'])]:size-6 [&>svg]:shrink-0",
+          "items-center gap-2 rounded-md p-3 [&>svg]:shrink-0 [&>svg:not([class*='size-'])]:size-6",
       },
     },
     compoundVariants: [
@@ -51,7 +51,7 @@ const toastVariants = cva(
 )
 
 const toastIconVariants = cva(
-  "flex size-12 shrink-0 items-center justify-center rounded-lg shadow-[0px_12px_10.6px_-4px_rgba(0,0,0,0.24)] [&>svg:not([class*='size-'])]:size-7 [&>svg]:text-white",
+  "flex size-12 shrink-0 items-center justify-center rounded-lg shadow-[0px_12px_10.6px_-4px_rgba(0,0,0,0.24)] [&>svg]:text-white [&>svg:not([class*='size-'])]:size-7",
   {
     variants: {
       variant: {
@@ -81,7 +81,7 @@ function ToastViewport({
       <Toast.Viewport
         data-slot="toast-viewport"
         className={cn(
-          "fixed z-10 top-auto right-[1rem] bottom-[1rem] mx-auto flex w-full max-w-md sm:right-[2rem] sm:bottom-[2rem]",
+          "fixed top-auto right-[1rem] bottom-[1rem] z-10 mx-auto flex w-full max-w-md sm:right-[2rem] sm:bottom-[2rem]",
           className
         )}
         {...props}
@@ -119,8 +119,7 @@ function ToastRoot({
     })
     setPulseKey((k) => k + 1)
   }
-  const pulse =
-    pulseKey > 0 ? (pulseKey % 2 === 0 ? "even" : "odd") : undefined
+  const pulse = pulseKey > 0 ? (pulseKey % 2 === 0 ? "even" : "odd") : undefined
   return (
     <Toast.Root
       data-slot="toast"
@@ -161,8 +160,8 @@ function ToastTitle({
     <Toast.Title
       data-slot="toast-title"
       className={cn(
-        "text-lg font-bold leading-7 text-foreground",
-        "group-data-[size=compact]/toast:flex-1 group-data-[size=compact]/toast:text-base group-data-[size=compact]/toast:font-medium group-data-[size=compact]/toast:leading-6 group-data-[size=compact]/toast:text-current",
+        "text-lg leading-7 font-bold text-foreground",
+        "group-data-[size=compact]/toast:flex-1 group-data-[size=compact]/toast:text-base group-data-[size=compact]/toast:leading-6 group-data-[size=compact]/toast:font-medium group-data-[size=compact]/toast:text-current",
         className
       )}
       {...props}

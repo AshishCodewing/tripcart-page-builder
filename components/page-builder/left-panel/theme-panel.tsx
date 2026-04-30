@@ -1,22 +1,53 @@
 "use client"
 
-import { Palette } from "lucide-react"
-
+import { ChevronRight, CaseSensitive, PaintbrushVertical, PanelsTopLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { SidebarContent } from "@/components/ui/sidebar"
+import { useLeftPanel } from "./left-panel-context"
 
 export default function ThemePanel() {
+  const { activeMode, togglePanel } = useLeftPanel()
+
   return (
-    <SidebarContent className="items-center justify-center px-6 py-10">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <Palette className="size-5" />
+    <SidebarContent>
+      <div className="space-y-4 p-2">
+        <div className="w-full">
+          <Button
+            className="flex items-center justify-between w-full"
+            variant="ghost"
+            onClick={() => togglePanel("presets")}
+          >
+            Browser Styles
+            <ChevronRight />
+          </Button>
         </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">Theme</p>
-          <p className="text-xs text-muted-foreground">
-            Design tokens for the current page. Coming soon.
-          </p>
-        </div>
+      <div className="space-y-1">
+        <Button
+          className="flex items-center justify-start gap-2 w-full"
+          variant="ghost"
+          onClick={() => togglePanel("typography")}
+        >
+          <CaseSensitive />
+          Typography
+        </Button>
+        <Button
+          className="flex items-center justify-start gap-2 w-full"
+          variant="ghost"
+          onClick={() => togglePanel("colors")}
+        >
+          <PaintbrushVertical />
+          Colors
+        </Button>
+        <Button
+          className="flex items-center justify-start gap-2 w-full"
+          variant="ghost"
+          onClick={() => togglePanel("layout")}
+        >
+          <PanelsTopLeft />
+          Layout
+        </Button>
+        
+      </div>
       </div>
     </SidebarContent>
   )

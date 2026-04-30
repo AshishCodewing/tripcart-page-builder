@@ -1,13 +1,13 @@
-import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 function Switch({
   className,
   size = "default",
   ...props
 }: SwitchPrimitive.Root.Props & {
-  size?: "sm" | "default";
+  size?: "sm" | "default"
 }) {
   return (
     <SwitchPrimitive.Root
@@ -22,16 +22,16 @@ function Switch({
         "data-checked:bg-[#17b26a] data-unchecked:bg-[#e2e8f0] dark:data-unchecked:bg-input",
         // disabled
         "data-disabled:cursor-not-allowed data-disabled:opacity-[.32]",
-        className,
+        className
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
-        className="pointer-events-none block rounded-full bg-white shadow-[0px_1px_3px_0px_rgba(10,13,18,0.1),0px_1px_2px_-1px_rgba(10,13,18,0.1)] transition-transform data-unchecked:translate-x-0 group-data-[size=sm]/switch:size-4 group-data-[size=sm]/switch:data-checked:translate-x-4 group-data-[size=default]/switch:size-5 group-data-[size=default]/switch:data-checked:translate-x-5"
+        className="pointer-events-none block rounded-full bg-white shadow-[0px_1px_3px_0px_rgba(10,13,18,0.1),0px_1px_2px_-1px_rgba(10,13,18,0.1)] transition-transform group-data-[size=default]/switch:size-5 group-data-[size=sm]/switch:size-4 group-data-[size=default]/switch:data-checked:translate-x-5 group-data-[size=sm]/switch:data-checked:translate-x-4 data-unchecked:translate-x-0"
       />
     </SwitchPrimitive.Root>
-  );
+  )
 }
 
-export { Switch };
+export { Switch }

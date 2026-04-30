@@ -25,9 +25,7 @@ function toVectorLiteral(vec: number[]): string {
   return `[${vec.join(",")}]`
 }
 
-export async function existingHashes(
-  hashes: string[],
-): Promise<Set<string>> {
+export async function existingHashes(hashes: string[]): Promise<Set<string>> {
   if (hashes.length === 0) return new Set()
   const rows = await prisma.$queryRaw<{ contentHash: string }[]>`
     SELECT "contentHash" FROM doc_chunks
@@ -38,11 +36,11 @@ export async function existingHashes(
 
 export async function insertChunks(
   chunks: Chunk[],
-  embeddings: number[][],
+  embeddings: number[][]
 ): Promise<number> {
   if (chunks.length !== embeddings.length) {
     throw new Error(
-      `chunks/embeddings length mismatch: ${chunks.length} vs ${embeddings.length}`,
+      `chunks/embeddings length mismatch: ${chunks.length} vs ${embeddings.length}`
     )
   }
   let inserted = 0
@@ -52,7 +50,7 @@ export async function insertChunks(
     if (embeddings[i].length === 0) {
       skipped++
       console.warn(
-        `[store] skipping chunk with empty embedding: ${c.headerPath} (${c.sourceUrl})`,
+        `[store] skipping chunk with empty embedding: ${c.headerPath} (${c.sourceUrl})`
       )
       continue
     }
@@ -124,7 +122,7 @@ export async function upsertChunkUrls(chunks: Chunk[]): Promise<number> {
 
 export async function searchChunks(
   queryEmbedding: number[],
-  k: number,
+  k: number
 ): Promise<StoredChunk[]> {
   const vec = toVectorLiteral(queryEmbedding)
   const rows = await prisma.$queryRaw<

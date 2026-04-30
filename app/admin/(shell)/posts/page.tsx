@@ -21,7 +21,9 @@ export default async function AdminPostsList() {
     <div className="space-y-8">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">Posts</h1>
-        <span className="text-sm text-muted-foreground">{posts.length} total</span>
+        <span className="text-sm text-muted-foreground">
+          {posts.length} total
+        </span>
       </header>
 
       <section className="rounded-lg border p-4">

@@ -27,7 +27,7 @@ const sizeCapSplitter = RecursiveCharacterTextSplitter.fromLanguage(
   {
     chunkSize: NARRATIVE_TOKEN_TARGET * NARRATIVE_CHAR_PER_TOKEN,
     chunkOverlap: NARRATIVE_OVERLAP_TOKENS * NARRATIVE_CHAR_PER_TOKEN,
-  },
+  }
 )
 
 function tokenCount(text: string): number {
@@ -59,10 +59,7 @@ type HeaderSection = {
  * `MarkdownHeaderTextSplitter` (Python-only). A native implementation is
  * also the cleanest way to guarantee `# foo` inside a fence won't false-split.
  */
-function splitByHeaders(
-  markdown: string,
-  maxLevel = 3,
-): HeaderSection[] {
+function splitByHeaders(markdown: string, maxLevel = 3): HeaderSection[] {
   const lines = markdown.split("\n")
   const sections: HeaderSection[] = []
   const stack: (string | undefined)[] = [undefined, undefined, undefined]
@@ -109,7 +106,7 @@ function splitByHeaders(
 
 function buildHeaderPath(pageTitle: string, meta: HeaderMeta): string {
   const parts = [meta.h1, meta.h2, meta.h3].filter(
-    (s): s is string => !!s && s.trim().length > 0,
+    (s): s is string => !!s && s.trim().length > 0
   )
   if (parts.length === 0) return pageTitle
   return parts.join(" > ")
@@ -136,7 +133,7 @@ function restoreFences(text: string, fences: string[]): string {
 function makeChunk(
   content: string,
   headerPath: string,
-  page: CleanedPage,
+  page: CleanedPage
 ): Chunk {
   const trimmed = content.trim()
   return {

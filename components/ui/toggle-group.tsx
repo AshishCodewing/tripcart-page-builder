@@ -79,18 +79,18 @@ function ToggleGroupItem({
           size: context.size || size,
         }),
         // Figma: pressed/selected state uses primary colors
-        "font-bold aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:border-primary",
+        "font-bold aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90",
         // Spacing=0: flush items with no gap
-        "shrink-0 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:has-data-[icon=inline-end]:pe-1.5 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-start]:ps-1.5",
+        "shrink-0 group-data-[spacing=0]/toggle-group:rounded-none focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-end]:pe-1.5 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-start]:ps-1.5",
         // First/last corner rounding (horizontal + vertical)
-        "group-data-horizontal/toggle-group:data-[spacing=0]:first:rounded-s-lg group-data-horizontal/toggle-group:data-[spacing=0]:last:rounded-e-lg group-data-vertical/toggle-group:data-[spacing=0]:first:rounded-t-lg group-data-vertical/toggle-group:data-[spacing=0]:last:rounded-b-lg",
+        "group-data-horizontal/toggle-group:data-[spacing=0]:first:rounded-s-lg group-data-vertical/toggle-group:data-[spacing=0]:first:rounded-t-lg group-data-horizontal/toggle-group:data-[spacing=0]:last:rounded-e-lg group-data-vertical/toggle-group:data-[spacing=0]:last:rounded-b-lg",
         // Border collapse for outline variant
-        "group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:border-s-0 group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-s group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:border-t-0 group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-t",
+        "group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:border-s-0 group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:border-t-0 group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-s group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-t",
         // Pill variant item: override spacing=0 rounding, adjust typography + paddings.
         // The active segment has no bg/border/shadow of its own — the ::before indicator
         // (globals.css, @supports anchor-name) is the sole visual for the selected state.
         // Hover keeps bg transparent and only darkens text (muted-foreground → foreground).
-        "group-data-[variant=pill]/toggle-group:rounded-md! group-data-[variant=pill]/toggle-group:px-4 group-data-[variant=pill]/toggle-group:py-1.5 group-data-[variant=pill]/toggle-group:gap-1.5 group-data-[variant=pill]/toggle-group:font-medium group-data-[variant=pill]/toggle-group:text-muted-foreground group-data-[variant=pill]/toggle-group:hover:bg-transparent! group-data-[variant=pill]/toggle-group:aria-pressed:font-semibold group-data-[variant=pill]/toggle-group:aria-pressed:bg-transparent! group-data-[variant=pill]/toggle-group:aria-pressed:hover:bg-transparent! group-data-[variant=pill]/toggle-group:aria-pressed:border-transparent! group-data-[variant=pill]/toggle-group:has-data-[icon=inline-end]:pe-4 group-data-[variant=pill]/toggle-group:has-data-[icon=inline-start]:ps-4",
+        "group-data-[variant=pill]/toggle-group:gap-1.5 group-data-[variant=pill]/toggle-group:rounded-md! group-data-[variant=pill]/toggle-group:px-4 group-data-[variant=pill]/toggle-group:py-1.5 group-data-[variant=pill]/toggle-group:font-medium group-data-[variant=pill]/toggle-group:text-muted-foreground group-data-[variant=pill]/toggle-group:hover:bg-transparent! group-data-[variant=pill]/toggle-group:has-data-[icon=inline-end]:pe-4 group-data-[variant=pill]/toggle-group:has-data-[icon=inline-start]:ps-4 group-data-[variant=pill]/toggle-group:aria-pressed:border-transparent! group-data-[variant=pill]/toggle-group:aria-pressed:bg-transparent! group-data-[variant=pill]/toggle-group:aria-pressed:font-semibold group-data-[variant=pill]/toggle-group:aria-pressed:hover:bg-transparent!",
         className
       )}
       {...props}

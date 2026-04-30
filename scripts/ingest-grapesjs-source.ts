@@ -8,11 +8,7 @@ import {
   type GithubMarkdownSource,
 } from "@/lib/rag/github"
 import { splitMarkdown, type Chunk } from "@/lib/rag/split"
-import {
-  existingHashes,
-  insertChunks,
-  upsertChunkUrls,
-} from "@/lib/rag/store"
+import { existingHashes, insertChunks, upsertChunkUrls } from "@/lib/rag/store"
 
 const SOURCE: GithubMarkdownSource = {
   owner: "GrapesJS",
@@ -66,9 +62,7 @@ function parseArgs(argv: string[]): Args {
   return args
 }
 
-async function discoverTypePaths(
-  src: GithubMarkdownSource,
-): Promise<string[]> {
+async function discoverTypePaths(src: GithubMarkdownSource): Promise<string[]> {
   // Reuse listMarkdownFiles' tree-walk by calling the GitHub API
   // ourselves — listMarkdownFiles filters to .md/.mdx, which we don't want.
   const ref = src.ref ?? "main"
@@ -97,15 +91,13 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
 
   console.log(
-    `\n[ingest:source] starting (${args.dryRun ? "DRY RUN" : "live"}${args.discover ? ", discover mode" : ""})\n`,
+    `\n[ingest:source] starting (${args.dryRun ? "DRY RUN" : "live"}${args.discover ? ", discover mode" : ""})\n`
   )
 
-  const paths = args.discover
-    ? await discoverTypePaths(SOURCE)
-    : SOURCE_PATHS
+  const paths = args.discover ? await discoverTypePaths(SOURCE) : SOURCE_PATHS
 
   console.log(
-    `[ingest:source] processing ${paths.length} files from ${SOURCE.owner}/${SOURCE.repo}@${SOURCE.ref}\n`,
+    `[ingest:source] processing ${paths.length} files from ${SOURCE.owner}/${SOURCE.repo}@${SOURCE.ref}\n`
   )
 
   if (paths.length === 0) {
@@ -147,10 +139,12 @@ async function main(): Promise<void> {
     for (const c of chunks.slice(0, 5)) {
       const preview = c.content.slice(0, 200).replace(/\n/g, " ")
       console.log(
-        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`,
+        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`
       )
     }
-    console.log("[ingest:source] dry run complete — no DB writes, no embedding calls.")
+    console.log(
+      "[ingest:source] dry run complete — no DB writes, no embedding calls."
+    )
     return
   }
 
@@ -165,7 +159,7 @@ async function main(): Promise<void> {
   }
   const newChunks = [...uniqueByHash.values()]
   console.log(
-    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`,
+    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`
   )
 
   if (newChunks.length > 0) {

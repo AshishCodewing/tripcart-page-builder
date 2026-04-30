@@ -4,11 +4,7 @@ import { htmlToMarkdown, type CleanedPage } from "@/lib/rag/clean"
 import { embedBatch } from "@/lib/rag/embed"
 import { crawlDocs } from "@/lib/rag/scrape"
 import { splitMarkdown, type Chunk } from "@/lib/rag/split"
-import {
-  existingHashes,
-  insertChunks,
-  upsertChunkUrls,
-} from "@/lib/rag/store"
+import { existingHashes, insertChunks, upsertChunkUrls } from "@/lib/rag/store"
 
 const ROOT_URL = "https://grapesjs.com/docs/"
 const PATH_PREFIX = "/docs/"
@@ -32,7 +28,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
 
   console.log(
-    `\n[ingest] starting (${args.dryRun ? "DRY RUN" : "live"}, max ${args.maxPages} pages)\n`,
+    `\n[ingest] starting (${args.dryRun ? "DRY RUN" : "live"}, max ${args.maxPages} pages)\n`
   )
 
   console.log(`[ingest] crawling ${ROOT_URL}…`)
@@ -62,7 +58,7 @@ async function main(): Promise<void> {
     chunks.push(...pageChunks)
   }
   console.log(
-    `[ingest] produced ${chunks.length} chunks from ${cleanedPages.length} pages`,
+    `[ingest] produced ${chunks.length} chunks from ${cleanedPages.length} pages`
   )
   const apiCount = chunks.filter((c) => c.kind === "api").length
   const narrativeCount = chunks.length - apiCount
@@ -79,7 +75,7 @@ async function main(): Promise<void> {
     for (const c of sample) {
       const preview = c.content.slice(0, 200).replace(/\n/g, " ")
       console.log(
-        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`,
+        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`
       )
     }
     console.log("[ingest] dry run complete — no DB writes, no OpenAI calls.")
@@ -98,7 +94,7 @@ async function main(): Promise<void> {
   }
   const newChunks = [...uniqueByHash.values()]
   console.log(
-    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`,
+    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`
   )
 
   if (newChunks.length > 0) {

@@ -28,7 +28,7 @@ const radioGroupItemVariants = cva(
     // checked
     "data-checked:border-primary data-checked:bg-primary/5 data-checked:text-primary",
     // disabled
-    "data-disabled:cursor-not-allowed data-disabled:bg-card data-disabled:border-border",
+    "data-disabled:cursor-not-allowed data-disabled:border-border data-disabled:bg-card",
     // disabled overrides checked to neutral
     "data-disabled:data-checked:border-border data-disabled:data-checked:bg-card data-disabled:data-checked:text-muted-foreground",
   ].join(" "),
@@ -59,7 +59,7 @@ function RadioGroupItem({
     >
       <RadioPrimitive.Indicator
         data-slot="radio-group-indicator"
-        className="flex items-center justify-center size-full"
+        className="flex size-full items-center justify-center"
       >
         <span
           className={cn(

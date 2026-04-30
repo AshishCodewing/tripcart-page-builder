@@ -13,7 +13,7 @@ const TOOL_NAME = "search_grapesjs_docs"
 
 const server = new Server(
   { name: "grapesjs-docs", version: "0.1.0" },
-  { capabilities: { tools: {} } },
+  { capabilities: { tools: {} } }
 )
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -66,7 +66,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const text = chunks
     .map(
       (c, i) =>
-        `## Result ${i + 1} — ${formatChunkCitation(c)} (sim=${c.similarity.toFixed(3)})\n\n${c.content}`,
+        `## Result ${i + 1} — ${formatChunkCitation(c)} (sim=${c.similarity.toFixed(3)})\n\n${c.content}`
     )
     .join("\n\n---\n\n")
 

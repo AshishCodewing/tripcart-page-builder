@@ -48,19 +48,18 @@ function ProgressIndicator({
         "h-full rounded-full bg-primary transition-[width] duration-300 ease-in-out",
         className
       )}
-      style={{
-        anchorName: "--progress-indicator",
-        ...style,
-      } as React.CSSProperties}
+      style={
+        {
+          anchorName: "--progress-indicator",
+          ...style,
+        } as React.CSSProperties
+      }
       {...props}
     />
   )
 }
 
-function ProgressLabel({
-  className,
-  ...props
-}: ProgressPrimitive.Label.Props) {
+function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
   return (
     <ProgressPrimitive.Label
       data-slot="progress-label"
@@ -70,15 +69,12 @@ function ProgressLabel({
   )
 }
 
-function ProgressValue({
-  className,
-  ...props
-}: ProgressPrimitive.Value.Props) {
+function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
   return (
     <ProgressPrimitive.Value
       data-slot="progress-value"
       className={cn(
-        "text-sm font-medium tabular-nums text-foreground",
+        "text-sm font-medium text-foreground tabular-nums",
         className
       )}
       {...props}
@@ -107,15 +103,17 @@ function ProgressFloatingValue({
     <ProgressPrimitive.Value
       data-slot="progress-floating-value"
       className={cn(
-        "pointer-events-none rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold tabular-nums text-foreground shadow-lg opacity-0 transition-opacity group-hover:opacity-100",
+        "pointer-events-none rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground tabular-nums opacity-0 shadow-lg transition-opacity group-hover:opacity-100",
         className
       )}
-      style={{
-        position: "absolute",
-        positionAnchor: anchorName,
-        left: "anchor(right)",
-        ...positionProps,
-      } as React.CSSProperties}
+      style={
+        {
+          position: "absolute",
+          positionAnchor: anchorName,
+          left: "anchor(right)",
+          ...positionProps,
+        } as React.CSSProperties
+      }
       {...props}
     >
       {children}
@@ -190,7 +188,7 @@ function ProgressCircle({
         {children ?? (
           <span
             data-slot="progress-circle-value"
-            className="text-2xl font-bold leading-8 text-foreground"
+            className="text-2xl leading-8 font-bold text-foreground"
           >
             {Math.round(clampedValue)}%
           </span>

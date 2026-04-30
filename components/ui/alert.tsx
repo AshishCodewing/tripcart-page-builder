@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "group/alert relative grid w-full rounded-md border px-4 py-3 text-start text-sm has-data-[slot=alert-action]:relative has-[alert-description]:gap-1 has-data-[slot=alert-action]:pe-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3 *:[svg]:row-span-2 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-5",
+  "group/alert relative grid w-full rounded-md border px-4 py-3 text-start text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pe-18 has-[alert-description]:gap-1 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3 *:[svg]:row-span-2 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-5",
   {
     variants: {
       variant: {
@@ -12,10 +12,8 @@ const alertVariants = cva(
         info: "text-primary *:data-[slot=alert-description]:text-foreground",
         destructive:
           "text-destructive *:data-[slot=alert-description]:text-foreground",
-        warning:
-          "text-warning *:data-[slot=alert-description]:text-foreground",
-        success:
-          "text-success *:data-[slot=alert-description]:text-foreground",
+        warning: "text-warning *:data-[slot=alert-description]:text-foreground",
+        success: "text-success *:data-[slot=alert-description]:text-foreground",
         neutral:
           "text-muted-foreground *:data-[slot=alert-description]:text-foreground",
       },
@@ -28,27 +26,27 @@ const alertVariants = cva(
       {
         variant: "info",
         fill: "filled",
-        class: "bg-primary/5 border-primary",
+        class: "border-primary bg-primary/5",
       },
       {
         variant: "destructive",
         fill: "filled",
-        class: "bg-destructive/5 border-destructive",
+        class: "border-destructive bg-destructive/5",
       },
       {
         variant: "warning",
         fill: "filled",
-        class: "bg-warning/5 border-warning",
+        class: "border-warning bg-warning/5",
       },
       {
         variant: "success",
         fill: "filled",
-        class: "bg-success/5 border-success",
+        class: "border-success bg-success/5",
       },
       {
         variant: "neutral",
         fill: "filled",
-        class: "bg-muted/50 border-border",
+        class: "border-border bg-muted/50",
       },
     ],
     defaultVariants: {
@@ -79,7 +77,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="alert-title"
       className={cn(
-        "alert-title font-semibold leading-5 group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
+        "alert-title leading-5 font-semibold group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
         className
       )}
       {...props}
@@ -95,7 +93,7 @@ function AlertDescription({
     <div
       data-slot="alert-description"
       className={cn(
-        "alert-description text-sm leading-5 text-balance text-muted-foreground md:text-pretty group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+        "alert-description text-sm leading-5 text-balance text-muted-foreground group-has-[>svg]/alert:col-start-2 md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
         className
       )}
       {...props}
@@ -107,7 +105,7 @@ function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-action"
-      className={cn("absolute top-3 inset-e-3", className)}
+      className={cn("absolute inset-e-3 top-3", className)}
       {...props}
     />
   )

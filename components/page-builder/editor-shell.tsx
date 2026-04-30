@@ -6,11 +6,7 @@ import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 
-import {
-  Sidebar,
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import LeftPanel from "./left-panel/left-panel"
 import {
   LeftPanelProvider,
@@ -144,7 +140,7 @@ function EditorShellInner({
                 </Sidebar>
 
                 <SidebarInset className="bg-muted/20">
-                  <Canvas className="grow gjs-custom-editor-canvas" />
+                  <Canvas className="gjs-custom-editor-canvas grow" />
                 </SidebarInset>
               </SidebarProvider>
 

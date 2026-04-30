@@ -10,7 +10,10 @@ export default function Page() {
           <h1 className="font-medium">Project ready!</h1>
           <p>You may now add components and start building.</p>
           <p>We&apos;ve already added the button component for you.</p>
-          <Link href="/admin/pages" className={buttonVariants({ className: "mt-2" })}>
+          <Link
+            href="/admin/pages"
+            className={buttonVariants({ className: "mt-2" })}
+          >
             Manage pages
           </Link>
         </div>

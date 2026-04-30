@@ -8,11 +8,7 @@ import {
   type GithubMarkdownSource,
 } from "@/lib/rag/github"
 import { splitMarkdown, type Chunk } from "@/lib/rag/split"
-import {
-  existingHashes,
-  insertChunks,
-  upsertChunkUrls,
-} from "@/lib/rag/store"
+import { existingHashes, insertChunks, upsertChunkUrls } from "@/lib/rag/store"
 
 const SOURCE: GithubMarkdownSource = {
   owner: "GrapesJS",
@@ -40,16 +36,16 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
 
   console.log(
-    `\n[ingest:react] starting (${args.dryRun ? "DRY RUN" : "live"}, max ${args.maxFiles} files)\n`,
+    `\n[ingest:react] starting (${args.dryRun ? "DRY RUN" : "live"}, max ${args.maxFiles} files)\n`
   )
 
   console.log(
-    `[ingest:react] listing markdown in ${SOURCE.owner}/${SOURCE.repo}@${SOURCE.ref}…`,
+    `[ingest:react] listing markdown in ${SOURCE.owner}/${SOURCE.repo}@${SOURCE.ref}…`
   )
   const allPaths = await listMarkdownFiles(SOURCE)
   const paths = allPaths.slice(0, args.maxFiles)
   console.log(
-    `[ingest:react] found ${allPaths.length} files, processing ${paths.length}\n`,
+    `[ingest:react] found ${allPaths.length} files, processing ${paths.length}\n`
   )
 
   if (paths.length === 0) {
@@ -87,10 +83,12 @@ async function main(): Promise<void> {
     for (const c of sample) {
       const preview = c.content.slice(0, 200).replace(/\n/g, " ")
       console.log(
-        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`,
+        `  [${c.kind}] ${c.headerPath}  (${c.tokenCount} tok)\n    ${c.sourceUrl}\n    ${preview}…\n`
       )
     }
-    console.log("[ingest:react] dry run complete — no DB writes, no embedding calls.")
+    console.log(
+      "[ingest:react] dry run complete — no DB writes, no embedding calls."
+    )
     return
   }
 
@@ -105,7 +103,7 @@ async function main(): Promise<void> {
   }
   const newChunks = [...uniqueByHash.values()]
   console.log(
-    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`,
+    `         ${newChunks.length} new, ${existing.size} reused, ${chunks.length - newChunks.length - existing.size} dupes-in-batch\n`
   )
 
   if (newChunks.length > 0) {

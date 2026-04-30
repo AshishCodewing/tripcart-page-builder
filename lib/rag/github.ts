@@ -41,19 +41,21 @@ function isExcluded(path: string, excludePaths: string[]): boolean {
 }
 
 export async function listMarkdownFiles(
-  src: GithubMarkdownSource,
+  src: GithubMarkdownSource
 ): Promise<string[]> {
   const ref = src.ref ?? "main"
   const url = `${API_BASE}/repos/${src.owner}/${src.repo}/git/trees/${ref}?recursive=1`
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) {
     throw new Error(
-      `[github] tree fetch failed: ${res.status} ${res.statusText} (${url})`,
+      `[github] tree fetch failed: ${res.status} ${res.statusText} (${url})`
     )
   }
   const data = (await res.json()) as GithubTreeResponse
   if (data.truncated) {
-    console.warn("[github] tree response was truncated — some files may be missed")
+    console.warn(
+      "[github] tree response was truncated — some files may be missed"
+    )
   }
 
   const exclude = src.excludePaths ?? []
@@ -71,7 +73,7 @@ function extractTitle(markdown: string, fallback: string): string {
 
 export async function fetchMarkdownPage(
   src: GithubMarkdownSource,
-  path: string,
+  path: string
 ): Promise<CleanedPage | null> {
   const ref = src.ref ?? "main"
   const rawUrl = `${RAW_BASE}/${src.owner}/${src.repo}/${ref}/${path}`
@@ -117,9 +119,10 @@ function deriveLanguage(path: string): string {
 }
 
 function deriveSourceTitle(path: string, stripPrefix?: string): string {
-  const stripped = stripPrefix && path.startsWith(stripPrefix)
-    ? path.slice(stripPrefix.length)
-    : path
+  const stripped =
+    stripPrefix && path.startsWith(stripPrefix)
+      ? path.slice(stripPrefix.length)
+      : path
   return stripped.replace(/\.[^./]+$/, "")
 }
 
@@ -131,7 +134,7 @@ function deriveSourceTitle(path: string, stripPrefix?: string): string {
 export async function fetchSourcePage(
   src: GithubMarkdownSource,
   path: string,
-  options: SourcePageOptions = {},
+  options: SourcePageOptions = {}
 ): Promise<CleanedPage | null> {
   const ref = src.ref ?? "main"
   const rawUrl = `${RAW_BASE}/${src.owner}/${src.repo}/${ref}/${path}`

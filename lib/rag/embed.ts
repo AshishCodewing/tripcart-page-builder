@@ -11,7 +11,7 @@ function ensureKey(): string {
   const key = process.env.GOOGLE_API_KEY
   if (!key) {
     throw new Error(
-      "GOOGLE_API_KEY is required for Google AI Studio embeddings. Set it in .env.",
+      "GOOGLE_API_KEY is required for Google AI Studio embeddings. Set it in .env."
     )
   }
   return key

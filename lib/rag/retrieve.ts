@@ -5,7 +5,7 @@ export type RetrievedChunk = StoredChunk
 
 export async function retrieveDocs(
   query: string,
-  k = 5,
+  k = 5
 ): Promise<RetrievedChunk[]> {
   const trimmed = query.trim()
   if (!trimmed) return []

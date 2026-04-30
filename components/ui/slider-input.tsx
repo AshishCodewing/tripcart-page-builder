@@ -52,7 +52,7 @@ function SliderInput({
         onChange={(e) => handleInputChange(0, e.target.value)}
         min={min}
         max={max}
-        className="no-spinner h-8 w-16 tabular-nums px-2 text-xs font-medium text-center shadow-[0_12px_16px_-4px_rgba(16,24,40,0.08),0_4px_6px_-2px_rgba(16,24,40,0.03)]"
+        className="no-spinner h-8 w-16 px-2 text-center text-xs font-medium tabular-nums shadow-[0_12px_16px_-4px_rgba(16,24,40,0.08),0_4px_6px_-2px_rgba(16,24,40,0.03)]"
       />
       <Slider
         value={[...currentValues]}
@@ -65,10 +65,12 @@ function SliderInput({
         <Input
           type="number"
           value={currentValues[currentValues.length - 1]}
-          onChange={(e) => handleInputChange(currentValues.length - 1, e.target.value)}
+          onChange={(e) =>
+            handleInputChange(currentValues.length - 1, e.target.value)
+          }
           min={min}
           max={max}
-          className="no-spinner h-8 w-16 tabular-nums px-2 text-xs font-medium text-center shadow-[0_12px_16px_-4px_rgba(16,24,40,0.08),0_4px_6px_-2px_rgba(16,24,40,0.03)]"
+          className="no-spinner h-8 w-16 px-2 text-center text-xs font-medium tabular-nums shadow-[0_12px_16px_-4px_rgba(16,24,40,0.08),0_4px_6px_-2px_rgba(16,24,40,0.03)]"
         />
       )}
     </div>

@@ -44,13 +44,11 @@ function Clipboard({
       <div
         data-slot="clipboard-code"
         className={cn(
-          "flex items-center font-mono text-sm leading-5 overflow-hidden shadow-xs",
+          "flex items-center overflow-hidden font-mono text-sm leading-5 shadow-xs",
           variant === "field" &&
-            "flex-1 border border-border rounded-md h-10 bg-background px-3 py-1",
-          variant === "inline" &&
-            "bg-muted/50 rounded-[2px] px-3 py-0.5",
-          variant === "block" &&
-            "bg-foreground rounded-[2px] px-3 py-2.5"
+            "h-10 flex-1 rounded-md border border-border bg-background px-3 py-1",
+          variant === "inline" && "rounded-[2px] bg-muted/50 px-3 py-0.5",
+          variant === "block" && "rounded-[2px] bg-foreground px-3 py-2.5"
         )}
       >
         <span
@@ -70,11 +68,7 @@ function Clipboard({
           onClick={handleCopy}
           aria-label={copied ? "Copied" : "Copy to clipboard"}
         >
-          {copied ? (
-            <CheckIcon className="text-success" />
-          ) : (
-            <CopyIcon />
-          )}
+          {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
         </Button>
       )}
 

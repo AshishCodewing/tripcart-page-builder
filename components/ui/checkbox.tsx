@@ -22,7 +22,7 @@ const checkboxVariants = cva(
     // indeterminate
     "data-indeterminate:border-primary data-indeterminate:bg-background data-indeterminate:text-primary",
     // disabled overrides checked/indeterminate to neutral
-    "data-disabled:data-checked:border-border data-disabled:bg-muted data-disabled:data-checked:bg-muted data-disabled:data-checked:text-muted-foreground",
+    "data-disabled:bg-muted data-disabled:data-checked:border-border data-disabled:data-checked:bg-muted data-disabled:data-checked:text-muted-foreground",
     "data-disabled:data-indeterminate:border-border data-disabled:data-indeterminate:bg-muted/50 data-disabled:data-indeterminate:text-muted-foreground",
   ].join(" "),
   {

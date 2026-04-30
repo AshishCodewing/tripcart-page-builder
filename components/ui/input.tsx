@@ -17,7 +17,7 @@ const inputVariants = cva(
     defaultVariants: {
       inputSize: "default",
     },
-  },
+  }
 )
 
 function Input({

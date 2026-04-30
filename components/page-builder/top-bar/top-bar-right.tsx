@@ -21,10 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 type PageSummary = {
@@ -76,9 +73,7 @@ export default function TopBarRight({ page, className, ...rest }: Props) {
               .filter((device) => {
                 const id = String(device.id).toLowerCase()
                 const name = (device.getName() ?? "").toLowerCase()
-                return (
-                  !id.includes("landscape") && !name.includes("landscape")
-                )
+                return !id.includes("landscape") && !name.includes("landscape")
               })
               .map((device) => {
                 const id = String(device.id)

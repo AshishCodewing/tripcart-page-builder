@@ -28,23 +28,83 @@ const badgeVariants = cva(
     },
     compoundVariants: [
       // Filled
-      { variant: "default", fill: "filled", class: "bg-primary text-primary-foreground" },
-      { variant: "secondary", fill: "filled", class: "bg-foreground text-background" },
-      { variant: "success", fill: "filled", class: "bg-success text-success-foreground" },
-      { variant: "warning", fill: "filled", class: "bg-warning text-warning-foreground" },
-      { variant: "destructive", fill: "filled", class: "bg-destructive text-white" },
+      {
+        variant: "default",
+        fill: "filled",
+        class: "bg-primary text-primary-foreground",
+      },
+      {
+        variant: "secondary",
+        fill: "filled",
+        class: "bg-foreground text-background",
+      },
+      {
+        variant: "success",
+        fill: "filled",
+        class: "bg-success text-success-foreground",
+      },
+      {
+        variant: "warning",
+        fill: "filled",
+        class: "bg-warning text-warning-foreground",
+      },
+      {
+        variant: "destructive",
+        fill: "filled",
+        class: "bg-destructive text-white",
+      },
       // Faded
-      { variant: "default", fill: "faded", class: "bg-primary/10 border-primary/10 text-primary" },
-      { variant: "secondary", fill: "faded", class: "bg-muted/50 border-foreground/10 text-foreground" },
-      { variant: "success", fill: "faded", class: "bg-success/5 border-success/10 text-success" },
-      { variant: "warning", fill: "faded", class: "bg-warning/5 border-warning/10 text-warning" },
-      { variant: "destructive", fill: "faded", class: "bg-destructive/5 border-destructive/10 text-destructive" },
+      {
+        variant: "default",
+        fill: "faded",
+        class: "border-primary/10 bg-primary/10 text-primary",
+      },
+      {
+        variant: "secondary",
+        fill: "faded",
+        class: "border-foreground/10 bg-muted/50 text-foreground",
+      },
+      {
+        variant: "success",
+        fill: "faded",
+        class: "border-success/10 bg-success/5 text-success",
+      },
+      {
+        variant: "warning",
+        fill: "faded",
+        class: "border-warning/10 bg-warning/5 text-warning",
+      },
+      {
+        variant: "destructive",
+        fill: "faded",
+        class: "border-destructive/10 bg-destructive/5 text-destructive",
+      },
       // Outline
-      { variant: "default", fill: "outline", class: "border-primary text-primary" },
-      { variant: "secondary", fill: "outline", class: "border-border text-foreground" },
-      { variant: "success", fill: "outline", class: "border-success text-success" },
-      { variant: "warning", fill: "outline", class: "border-warning text-warning" },
-      { variant: "destructive", fill: "outline", class: "border-destructive text-destructive" },
+      {
+        variant: "default",
+        fill: "outline",
+        class: "border-primary text-primary",
+      },
+      {
+        variant: "secondary",
+        fill: "outline",
+        class: "border-border text-foreground",
+      },
+      {
+        variant: "success",
+        fill: "outline",
+        class: "border-success text-success",
+      },
+      {
+        variant: "warning",
+        fill: "outline",
+        class: "border-warning text-warning",
+      },
+      {
+        variant: "destructive",
+        fill: "outline",
+        class: "border-destructive text-destructive",
+      },
     ],
     defaultVariants: {
       variant: "default",

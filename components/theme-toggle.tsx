@@ -13,7 +13,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-type Props = Omit<React.ComponentProps<typeof Toggle>, "pressed" | "onPressedChange" | "size"> & {
+type Props = Omit<
+  React.ComponentProps<typeof Toggle>,
+  "pressed" | "onPressedChange" | "size"
+> & {
   size?: "default" | "sm" | "lg"
 }
 

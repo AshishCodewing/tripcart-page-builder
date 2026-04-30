@@ -22,7 +22,13 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { Tabs, TabsContent, TabsList, TabsTrigger, TabsIndicator } from "@/components/ui/tabs"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TabsIndicator,
+} from "@/components/ui/tabs"
 
 type PageSummary = {
   id: string
@@ -68,12 +74,8 @@ export default function PageSettingsSidebar({
   return (
     <Tabs defaultValue="page">
       <TabsList variant="line" className="w-full justify-start">
-        <TabsTrigger value="page">
-          Page
-        </TabsTrigger>
-        <TabsTrigger value="block">
-          Block
-        </TabsTrigger>
+        <TabsTrigger value="page">Page</TabsTrigger>
+        <TabsTrigger value="block">Block</TabsTrigger>
         <TabsIndicator />
       </TabsList>
 

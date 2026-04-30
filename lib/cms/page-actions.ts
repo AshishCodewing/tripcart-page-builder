@@ -39,7 +39,8 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   const newSlug = String(form.get("slug") ?? existing.slug).trim()
   const newParentId = (form.get("parentId") as string) || null
   const title = String(form.get("title") ?? existing.title).trim()
-  const status = (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
+  const status =
+    (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
 
   validateSlug(newSlug)
 
@@ -50,7 +51,7 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   // Lift this once the Redirect table is wired up post-MVP.
   if (wouldChangePath && existing.status === "PUBLISHED") {
     throw new Error(
-      "Renaming or reparenting a published page is not supported yet (redirects are post-MVP). Move it back to draft first.",
+      "Renaming or reparenting a published page is not supported yet (redirects are post-MVP). Move it back to draft first."
     )
   }
 
@@ -87,11 +88,17 @@ export async function savePage(id: string, form: FormData): Promise<void> {
 export async function deletePage(id: string): Promise<void> {
   const page = await prisma.page.findUnique({
     where: { id },
-    select: { path: true, status: true, _count: { select: { children: true } } },
+    select: {
+      path: true,
+      status: true,
+      _count: { select: { children: true } },
+    },
   })
   if (!page) return
   if (page._count.children > 0) {
-    throw new Error("Cannot delete a page that has child pages. Reparent or delete them first.")
+    throw new Error(
+      "Cannot delete a page that has child pages. Reparent or delete them first."
+    )
   }
   await prisma.page.delete({ where: { id } })
   updateTag(cacheTags.page(page.path))

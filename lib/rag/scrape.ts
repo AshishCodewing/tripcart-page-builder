@@ -108,7 +108,9 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
       if (!contentType.includes("text/html")) return
       html = await res.text()
     } catch (err) {
-      console.warn(`[scrape] fetch failed for ${url}: ${(err as Error).message}`)
+      console.warn(
+        `[scrape] fetch failed for ${url}: ${(err as Error).message}`
+      )
       return
     }
 

@@ -68,7 +68,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-[inherit] bg-card border border-border/50 font-bold text-foreground",
+        "flex size-full items-center justify-center rounded-[inherit] border border-border/50 bg-card font-bold text-foreground",
         // text sizes per avatar size
         "group-data-[size=xs]/avatar:text-xs",
         "group-data-[size=sm]/avatar:text-sm",
