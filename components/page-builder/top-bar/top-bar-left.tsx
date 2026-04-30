@@ -13,19 +13,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-import type { InserterMode } from "./inserter-sidebar"
+import { useLeftPanel } from "../left-panel/left-panel-context"
 
-type Props = React.HTMLAttributes<HTMLDivElement> & {
-  /** null when the left sidebar is closed; mode name when open. */
-  activeMode: InserterMode | null
-  onInserterClick: (mode: InserterMode) => void
-}
+type Props = React.HTMLAttributes<HTMLDivElement>
 
-export default function TopBarLeft({
-  className,
-  activeMode,
-  onInserterClick,
-}: Props) {
+export default function TopBarLeft({ className }: Props) {
+  const { activeMode, togglePanel } = useLeftPanel()
   const editor = useEditor()
   const [, setTick] = React.useState(0)
   const { UndoManager } = editor
@@ -53,7 +46,7 @@ export default function TopBarLeft({
                 size="icon-sm"
                 aria-label="Insert block"
                 aria-pressed={blocksActive}
-                onClick={() => onInserterClick("blocks")}
+                onClick={() => togglePanel("blocks")}
               >
                 <Plus />
               </Button>
@@ -107,7 +100,7 @@ export default function TopBarLeft({
                 size="icon-sm"
                 aria-label="Layers"
                 aria-pressed={layersActive}
-                onClick={() => onInserterClick("layers")}
+                onClick={() => togglePanel("layers")}
                 className={cn(
                   layersActive && "bg-accent text-accent-foreground"
                 )}

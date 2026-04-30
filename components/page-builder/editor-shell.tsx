@@ -11,9 +11,13 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import InserterSidebar, { type InserterMode } from "./inserter-sidebar"
-import PageSettingsSidebar from "./page-settings-sidebar"
-import TopBar from "./top-bar"
+import LeftPanel from "./left-panel/left-panel"
+import {
+  LeftPanelProvider,
+  useLeftPanel,
+} from "./left-panel/left-panel-context"
+import PageSettingsSidebar from "./page-settings/page-settings-sidebar"
+import TopBar from "./top-bar/top-bar"
 
 const STORAGE_KEY = "tripcart:page-builder:project"
 
@@ -85,14 +89,21 @@ type Props = {
   deleteAction: () => Promise<void>
 }
 
-export default function EditorShell({
+export default function EditorShell(props: Props) {
+  return (
+    <LeftPanelProvider>
+      <EditorShellInner {...props} />
+    </LeftPanelProvider>
+  )
+}
+
+function EditorShellInner({
   page,
   parentOptions,
   saveAction,
   deleteAction,
 }: Props) {
-  const [leftOpen, setLeftOpen] = React.useState(true)
-  const [leftMode, setLeftMode] = React.useState<InserterMode>("blocks")
+  const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
 
   const onEditor = React.useCallback((editor: Editor) => {
     if (typeof window !== "undefined") {
@@ -100,17 +111,6 @@ export default function EditorShell({
     }
     attachTracking(editor)
   }, [])
-
-  // Click toggles: same mode while open → close. Different mode → switch + open.
-  const handleInserterClick = React.useCallback((mode: InserterMode) => {
-    setLeftOpen((open) => {
-      if (open && leftMode === mode) return false
-      setLeftMode(mode)
-      return true
-    })
-  }, [leftMode])
-
-  const activeMode = leftOpen ? leftMode : null
 
   return (
     <form action={saveAction} className="contents">
@@ -123,14 +123,10 @@ export default function EditorShell({
           onEditor={onEditor}
         >
           <div className="flex h-dvh flex-col">
-            <TopBar
-              page={page}
-              activeMode={activeMode}
-              onInserterClick={handleInserterClick}
-            />
+            <TopBar page={page} />
 
             <div className="flex flex-1 overflow-hidden">
-              {/* Inner provider — controls the left (inserter) sidebar.
+              {/* Inner provider — controls the left panel sidebar.
                   `contents` keeps the wrapper layout-transparent so the
                   left Sidebar and the SidebarInset participate in the
                   outer flex row alongside the right Sidebar. */}
@@ -144,7 +140,7 @@ export default function EditorShell({
                   collapsible="offcanvas"
                   className="top-12 h-[calc(100svh-3rem)]"
                 >
-                  <InserterSidebar mode={leftMode} />
+                  <LeftPanel />
                 </Sidebar>
 
                 <SidebarInset className="bg-muted/20">

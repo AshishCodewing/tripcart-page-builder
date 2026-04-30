@@ -4,7 +4,6 @@ import * as React from "react"
 import { WithEditor } from "@grapesjs/react"
 
 import { cn } from "@/lib/utils"
-import type { InserterMode } from "./inserter-sidebar"
 import TopBarLeft from "./top-bar-left"
 import TopBarRight from "./top-bar-right"
 
@@ -16,17 +15,9 @@ type PageSummary = {
 
 type Props = React.HTMLAttributes<HTMLDivElement> & {
   page: PageSummary
-  activeMode: InserterMode | null
-  onInserterClick: (mode: InserterMode) => void
 }
 
-export default function TopBar({
-  page,
-  activeMode,
-  onInserterClick,
-  className,
-  ...rest
-}: Props) {
+export default function TopBar({ page, className, ...rest }: Props) {
   return (
     <div
       className={cn(
@@ -37,10 +28,7 @@ export default function TopBar({
     >
       <div className="justify-self-start">
         <WithEditor>
-          <TopBarLeft
-            activeMode={activeMode}
-            onInserterClick={onInserterClick}
-          />
+          <TopBarLeft />
         </WithEditor>
       </div>
 
