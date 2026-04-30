@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useEditor } from "@grapesjs/react"
-import { Layers, Plus, Redo, Undo } from "lucide-react"
+import { Layers, Palette, Plus, Redo, Undo } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,10 +33,31 @@ export default function TopBarLeft({ className }: Props) {
 
   const blocksActive = activeMode === "blocks"
   const layersActive = activeMode === "layers"
+  const themeActive = activeMode === "theme"
 
   return (
     <TooltipProvider>
       <div className={cn("flex items-center gap-1", className)}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Theme"
+                aria-pressed={themeActive}
+                onClick={() => togglePanel("theme")}
+                className={cn(
+                  themeActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Palette />
+              </Button>
+            }
+          />
+          <TooltipContent>Theme</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger
             render={

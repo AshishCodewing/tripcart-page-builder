@@ -3,11 +3,17 @@
 import * as React from "react"
 import { Trash2 } from "lucide-react"
 
-import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   SidebarContent,
   SidebarFooter,
@@ -101,6 +107,7 @@ export default function PageSettingsSidebar({
                   id="title"
                   name="title"
                   defaultValue={page.title}
+                  inputSize="sm"
                   required
                 />
               </div>
@@ -115,6 +122,7 @@ export default function PageSettingsSidebar({
                   defaultValue={page.slug}
                   pattern="[a-z0-9-]+"
                   required
+                  inputSize="sm"
                   disabled={isPublished}
                 />
                 {isPublished && (
@@ -128,23 +136,23 @@ export default function PageSettingsSidebar({
                 <Label htmlFor="parentId" className="text-xs">
                   Parent
                 </Label>
-                <select
-                  id="parentId"
+                <Select
                   name="parentId"
                   defaultValue={page.parentId ?? ""}
                   disabled={isPublished}
-                  className={cn(
-                    "w-full rounded-md border bg-background px-3 py-2 text-sm",
-                    "disabled:cursor-not-allowed disabled:opacity-50"
-                  )}
                 >
-                  <option value="">— Top level —</option>
-                  {parentOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.title} (/{opt.path})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="parentId" size="sm" className="w-full">
+                    <SelectValue placeholder="— Top level —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">— Top level —</SelectItem>
+                    {parentOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.title} (/{opt.path})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </SidebarGroupContent>
           </SidebarGroup>

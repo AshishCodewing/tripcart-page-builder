@@ -71,8 +71,9 @@ const inputGroupButtonVariants = cva(
         xs: "h-8 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
         sm: "",
         "icon-xs":
-          "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0",
-        "icon-sm": "size-8 p-0 has-[>svg]:p-0",
+          "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0 [&>svg:not([class*='size-'])]:size-3",
+        "icon-sm":
+          "size-8 p-0 has-[>svg]:p-0 [&>svg:not([class*='size-'])]:size-4",
       },
     },
     defaultVariants: {
@@ -117,7 +118,7 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
 function InputGroupInput({
   className,
   ...props
-}: React.ComponentProps<"input">) {
+}: React.ComponentProps<typeof Input>) {
   return (
     <Input
       data-slot="input-group-control"
