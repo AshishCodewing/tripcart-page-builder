@@ -1,7 +1,9 @@
-  /**
+/**
  * Source of truth for all Tripcart brand design tokens.
  * Default values intentionally reference Open Props variables so the desing system has a well-considered baseline out of the box
  */
+
+import { toKebab } from "@/lib/toKebab"
 
 export type TokenValue = {
   label: string
@@ -34,8 +36,31 @@ export const defaultTokens: TokenSchema = {
   },
 
   typography: {
-    fontPrimary: { label: 'Primary Font',  value: 'var(--font-sans)'  },
-    fontDisplay: { label: 'Display Font',  value: 'var(--font-sans)'  },
-    fontMono   : { label: 'Mono Font',     value: 'var(--font-mono)'  },
+    body:    { label: 'Body Font',    value: 'var(--font-sans)' },
+    heading: { label: 'Heading Font', value: 'var(--font-sans)' },
   }
+}
+
+export const tokenToCssVar = (category: keyof TokenSchema, key: string): string => {
+  // Colours follow the shadcn convention — no prefix (--background,
+  // --primary, --card-foreground, etc.). Other categories keep their
+  // namespace prefix so they don't collide with Open Props or shadcn.
+  const prefixMap: Record<keyof TokenSchema, string | null> = {
+    colors:     null,
+    typography: 'font',
+  }
+  const prefix = prefixMap[category]
+  const name   = toKebab(key)
+  return prefix ? `--${prefix}-${name}` : `--${name}`
+}
+
+export const tokensToStyleObject = (tokens: TokenSchema): Record<string, string> => {
+  const styles: Record<string, string> = {}
+  for (const [category, group] of Object.entries(tokens)) {
+    for (const [key, token] of Object.entries(group)) {
+      styles[tokenToCssVar(category as keyof TokenSchema, key)] = token.value
+    }
+  }
+
+  return styles
 }
