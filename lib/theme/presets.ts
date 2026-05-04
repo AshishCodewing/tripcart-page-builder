@@ -106,271 +106,129 @@ export const COLOR_PRESETS: Preset[] = [
   ),
 ]
 
+/**
+ * Typography presets pair a heading font with a body font. Each pairing is
+ * picked for tonal coherence (display weight + reading texture) rather than
+ * variety alone. `system-sans` is the default (see `defaultActivePresetId`).
+ */
+const buildTypographyPreset = (
+  id: string,
+  name: string,
+  description: string,
+  heading: string,
+  body: string
+): Preset => ({
+  id,
+  name,
+  category: "typography",
+  description,
+  tokens: {
+    typography: {
+      heading: { label: "Heading Font", value: heading },
+      body: { label: "Body Font", value: body },
+    },
+  },
+})
+
 export const TYPOGRAPHY_PRESETS: Preset[] = [
-  {
-    id: "system-sans",
-    name: "System Sans",
-    category: "typography",
-    description: "Native UI sans-serif everywhere",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-sans)" },
-        heading: { label: "Heading Font", value: "var(--font-sans)" },
-      },
-    },
-  },
-  {
-    id: "editorial-serif",
-    name: "Editorial Serif",
-    category: "typography",
-    description: "Serif headlines, sans body",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-sans)" },
-        heading: { label: "Heading Font", value: "var(--font-serif)" },
-      },
-    },
-  },
-  {
-    id: "monospace",
-    name: "Monospace",
-    category: "typography",
-    description: "Technical, code-driven look",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-mono)" },
-        heading: { label: "Heading Font", value: "var(--font-mono)" },
-      },
-    },
-  },
-  {
-    id: "system-ui",
-    name: "System UI",
-    category: "typography",
-    description: "Native OS interface font",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-system-ui)" },
-        heading: { label: "Heading Font", value: "var(--font-system-ui)" },
-      },
-    },
-  },
-  {
-    id: "transitional",
-    name: "Transitional",
-    category: "typography",
-    description: "Charter-led editorial serif",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-transitional)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-transitional)",
-        },
-      },
-    },
-  },
-  {
-    id: "old-style",
-    name: "Old Style",
-    category: "typography",
-    description: "Classic Iowan / Palatino serif",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-old-style)" },
-        heading: { label: "Heading Font", value: "var(--font-old-style)" },
-      },
-    },
-  },
-  {
-    id: "humanist",
-    name: "Humanist",
-    category: "typography",
-    description: "Warm Seravek / Gill Sans",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-humanist)" },
-        heading: { label: "Heading Font", value: "var(--font-humanist)" },
-      },
-    },
-  },
-  {
-    id: "geometric-humanist",
-    name: "Geometric Humanist",
-    category: "typography",
-    description: "Avenir / Montserrat geometry",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-geometric-humanist)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-geometric-humanist)",
-        },
-      },
-    },
-  },
-  {
-    id: "classical-humanist",
-    name: "Classical Humanist",
-    category: "typography",
-    description: "Optima / Candara elegance",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-classical-humanist)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-classical-humanist)",
-        },
-      },
-    },
-  },
-  {
-    id: "neo-grotesque",
-    name: "Neo-Grotesque",
-    category: "typography",
-    description: "Inter / Helvetica precision",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-neo-grotesque)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-neo-grotesque)",
-        },
-      },
-    },
-  },
-  {
-    id: "monospace-slab-serif",
-    name: "Monospace Slab",
-    category: "typography",
-    description: "Typewriter-style monospace",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-monospace-slab-serif)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-monospace-slab-serif)",
-        },
-      },
-    },
-  },
-  {
-    id: "monospace-code",
-    name: "Monospace Code",
-    category: "typography",
-    description: "Developer-grade monospace",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-monospace-code)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-monospace-code)",
-        },
-      },
-    },
-  },
-  {
-    id: "industrial",
-    name: "Industrial",
-    category: "typography",
-    description: "Bahnschrift / DIN engineering",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-industrial)" },
-        heading: { label: "Heading Font", value: "var(--font-industrial)" },
-      },
-    },
-  },
-  {
-    id: "rounded-sans",
-    name: "Rounded Sans",
-    category: "typography",
-    description: "Soft, friendly Quicksand",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-rounded-sans)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-rounded-sans)",
-        },
-      },
-    },
-  },
-  {
-    id: "slab-serif",
-    name: "Slab Serif",
-    category: "typography",
-    description: "Bold Rockwell impact",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-slab-serif)" },
-        heading: { label: "Heading Font", value: "var(--font-slab-serif)" },
-      },
-    },
-  },
-  {
-    id: "antique",
-    name: "Antique",
-    category: "typography",
-    description: "Bookman editorial warmth",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-antique)" },
-        heading: { label: "Heading Font", value: "var(--font-antique)" },
-      },
-    },
-  },
-  {
-    id: "didone",
-    name: "Didone",
-    category: "typography",
-    description: "High-fashion Didot / Bodoni",
-    tokens: {
-      typography: {
-        body: { label: "Body Font", value: "var(--font-didone)" },
-        heading: { label: "Heading Font", value: "var(--font-didone)" },
-      },
-    },
-  },
-  {
-    id: "handwritten",
-    name: "Handwritten",
-    category: "typography",
-    description: "Casual Bradley Hand cursive",
-    tokens: {
-      typography: {
-        body: {
-          label: "Body Font",
-          value: "var(--font-handwritten)",
-        },
-        heading: {
-          label: "Heading Font",
-          value: "var(--font-handwritten)",
-        },
-      },
-    },
-  },
+  buildTypographyPreset(
+    "system-sans",
+    "System Sans",
+    "Native UI sans throughout",
+    "var(--font-sans)",
+    "var(--font-sans)"
+  ),
+  buildTypographyPreset(
+    "modern-sans",
+    "Modern Sans",
+    "Inter / Helvetica precision",
+    "var(--font-neo-grotesque)",
+    "var(--font-neo-grotesque)"
+  ),
+  buildTypographyPreset(
+    "editorial-display",
+    "Editorial Display",
+    "Didot headlines, Iowan body",
+    "var(--font-didone)",
+    "var(--font-old-style)"
+  ),
+  buildTypographyPreset(
+    "classic-book",
+    "Classic Book",
+    "Literary Iowan throughout",
+    "var(--font-old-style)",
+    "var(--font-old-style)"
+  ),
+  buildTypographyPreset(
+    "slab-and-humanist",
+    "Slab & Humanist",
+    "Rockwell heads, Avenir body",
+    "var(--font-slab-serif)",
+    "var(--font-geometric-humanist)"
+  ),
+  buildTypographyPreset(
+    "neo-and-mono-slab",
+    "Neo & Mono Slab",
+    "Inter heads, Courier body",
+    "var(--font-neo-grotesque)",
+    "var(--font-monospace-slab-serif)"
+  ),
+  buildTypographyPreset(
+    "mono-terminal",
+    "Mono Terminal",
+    "Code heads, neutral sans body",
+    "var(--font-monospace-code)",
+    "var(--font-neo-grotesque)"
+  ),
+  buildTypographyPreset(
+    "brutalist-mono",
+    "Brutalist Mono",
+    "Courier slab end-to-end",
+    "var(--font-monospace-slab-serif)",
+    "var(--font-monospace-slab-serif)"
+  ),
+  buildTypographyPreset(
+    "industrial-engineer",
+    "Industrial",
+    "Bahnschrift heads, Inter body",
+    "var(--font-industrial)",
+    "var(--font-neo-grotesque)"
+  ),
+  buildTypographyPreset(
+    "rounded-friendly",
+    "Rounded & Warm",
+    "Quicksand heads, Seravek body",
+    "var(--font-rounded-sans)",
+    "var(--font-humanist)"
+  ),
+  buildTypographyPreset(
+    "didone-fashion",
+    "Didone Fashion",
+    "Didot heads, Charter body",
+    "var(--font-didone)",
+    "var(--font-transitional)"
+  ),
+  buildTypographyPreset(
+    "optima-classical",
+    "Classical",
+    "Optima heads, Iowan body",
+    "var(--font-classical-humanist)",
+    "var(--font-old-style)"
+  ),
+  buildTypographyPreset(
+    "antique-editorial",
+    "Antique",
+    "Bookman editorial warmth",
+    "var(--font-antique)",
+    "var(--font-antique)"
+  ),
+  buildTypographyPreset(
+    "handwritten-personal",
+    "Handwritten",
+    "Bradley heads, Iowan body",
+    "var(--font-handwritten)",
+    "var(--font-old-style)"
+  ),
 ]
 
 export const ALL_PRESETS: Preset[] = [...COLOR_PRESETS, ...TYPOGRAPHY_PRESETS]

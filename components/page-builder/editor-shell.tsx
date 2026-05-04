@@ -7,6 +7,7 @@ import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
+import { patternsPlugin } from "@/lib/plugins/patterns"
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import LeftPanel from "./left-panel/left-panel"
@@ -46,7 +47,7 @@ const gjsOptions: EditorConfig = {
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.
   panels: { defaults: [] },
-  plugins: [parserPostCSS, designSystemPlugin, gjsBlocksBasic],
+  plugins: [parserPostCSS, designSystemPlugin, gjsBlocksBasic, patternsPlugin],
   canvas: {
     styles: OPEN_PROPS_PACKS,
   },

@@ -20,34 +20,38 @@ export type TokenSchema = {
   typography: Record<string, TokenValue>
 }
 
+// Default theme is "blue + system-sans" — a light, neutral baseline. It
+// matches `COLOR_PRESETS[blue]` and `TYPOGRAPHY_PRESETS[system-sans]` exactly,
+// so on first run the preset cards reflect the active state and applying a
+// different preset is a clean swap rather than a custom-token edit.
 export const defaultTokens: TokenSchema = {
   colors: {
-    background: { label: "Background", value: "var(--gray-12)" },
-    foreground: { label: "Foreground", value: "var(--gray-0)" },
-    card: { label: "Card", value: "var(--gray-10)" },
-    cardForeground: { label: "Card Foreground", value: "var(--gray-0)" },
-    popover: { label: "Popover", value: "var(--gray-10)" },
-    popoverForeground: { label: "Popover Foreground", value: "var(--gray-0)" },
+    background: { label: "Background", value: "var(--gray-0)" },
+    foreground: { label: "Foreground", value: "var(--gray-12)" },
+    card: { label: "Card", value: "var(--gray-0)" },
+    cardForeground: { label: "Card Foreground", value: "var(--gray-12)" },
+    popover: { label: "Popover", value: "var(--gray-0)" },
+    popoverForeground: { label: "Popover Foreground", value: "var(--gray-12)" },
     primary: { label: "Primary", value: "var(--blue-6)" },
     primaryForeground: { label: "Primary Foreground", value: "var(--gray-0)" },
-    secondary: { label: "Secondary", value: "var(--gray-9)" },
+    secondary: { label: "Secondary", value: "var(--gray-2)" },
     secondaryForeground: {
       label: "Secondary Foreground",
-      value: "var(--gray-0)",
+      value: "var(--gray-12)",
     },
-    muted: { label: "Muted", value: "var(--gray-9)" },
-    mutedForeground: { label: "Muted Foreground", value: "var(--gray-5)" },
-    accent: { label: "Accent", value: "var(--gray-9)" },
-    accentForeground: { label: "Accent Foreground", value: "var(--gray-0)" },
+    muted: { label: "Muted", value: "var(--gray-2)" },
+    mutedForeground: { label: "Muted Foreground", value: "var(--gray-7)" },
+    accent: { label: "Accent", value: "var(--gray-2)" },
+    accentForeground: { label: "Accent Foreground", value: "var(--gray-12)" },
     // Open Props ships solid palette steps; alpha overlays are derived via
     // color-mix so border/input still track the active foreground.
     border: {
       label: "Border",
-      value: "color-mix(in oklch, var(--gray-0) 10%, transparent)",
+      value: "color-mix(in oklch, var(--gray-12) 10%, transparent)",
     },
     input: {
       label: "Input",
-      value: "color-mix(in oklch, var(--gray-0) 15%, transparent)",
+      value: "color-mix(in oklch, var(--gray-12) 15%, transparent)",
     },
   },
 
@@ -56,6 +60,12 @@ export const defaultTokens: TokenSchema = {
     heading: { label: "Heading Font", value: "var(--font-sans)" },
   },
 }
+
+/** Preset IDs the default theme is built on. Drives initial selection in UI. */
+export const defaultActivePresetId = {
+  colors: "blue",
+  typography: "system-sans",
+} as const
 
 export const tokenToCssVar = (
   category: keyof TokenSchema,

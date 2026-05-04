@@ -24,10 +24,7 @@ export function PanelBackButton({
       data-slot="panel-back-button"
       variant="link"
       size="sm"
-      className={cn(
-        "flex w-full items-center justify-start ps-0 pe-2",
-        className
-      )}
+      className="flex w-full items-center justify-start ps-0 pe-2 text-foreground"
       onClick={(event) => {
         onClick?.(event)
         togglePanel(to)

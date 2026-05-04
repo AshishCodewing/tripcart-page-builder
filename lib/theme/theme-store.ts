@@ -18,7 +18,12 @@
  * useThemeSelector() to render current values.
  */
 
-import { defaultTokens, type TokenSchema, type TokenValue } from "@/lib/tokens"
+import {
+  defaultActivePresetId,
+  defaultTokens,
+  type TokenSchema,
+  type TokenValue,
+} from "@/lib/tokens"
 import type { Preset, PresetCategory } from "@/lib/theme/presets"
 
 export type ActivePresetId = Partial<Record<PresetCategory, string>>
@@ -39,7 +44,7 @@ const cloneTheme = (theme: TokenSchema): TokenSchema => structuredClone(theme)
 
 let snapshot: ThemeSnapshot = {
   theme: cloneTheme(defaultTokens),
-  activePresetId: {},
+  activePresetId: { ...defaultActivePresetId },
 }
 const listeners = new Set<Listener>()
 
@@ -108,7 +113,10 @@ export const themeStore = {
   },
 
   resetTheme(): void {
-    snapshot = { theme: cloneTheme(defaultTokens), activePresetId: {} }
+    snapshot = {
+      theme: cloneTheme(defaultTokens),
+      activePresetId: { ...defaultActivePresetId },
+    }
     emit()
   },
 
