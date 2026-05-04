@@ -18,7 +18,7 @@ const PANELS: Record<LeftPanelMode, ComponentType> = {
   presets: PresetsPanel,
   typography: TypographyPanel,
   colors: ColorsPanel,
-  layout: LayoutPanel
+  layout: LayoutPanel,
 }
 
 export default function LeftPanel() {
@@ -27,7 +27,7 @@ export default function LeftPanel() {
   return (
     <div
       key={mode}
-      className="opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
+      className="flex min-h-0 flex-1 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
     >
       <Panel />
     </div>

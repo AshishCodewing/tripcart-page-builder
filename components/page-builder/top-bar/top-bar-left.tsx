@@ -63,11 +63,14 @@ export default function TopBarLeft({ className }: Props) {
             render={
               <Button
                 type="button"
-                variant="default"
+                variant="ghost"
                 size="icon-sm"
                 aria-label="Insert block"
                 aria-pressed={blocksActive}
                 onClick={() => togglePanel("blocks")}
+                className={cn(
+                  blocksActive && "bg-accent text-accent-foreground"
+                )}
               >
                 <Plus />
               </Button>
