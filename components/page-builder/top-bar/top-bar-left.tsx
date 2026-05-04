@@ -36,7 +36,7 @@ export default function TopBarLeft({ className }: Props) {
   const themeActive = activeMode === "theme"
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delay={500}>
       <div className={cn("flex items-center gap-1", className)}>
         <Tooltip>
           <TooltipTrigger

@@ -66,7 +66,7 @@ export default function PresetsPanel() {
               <FieldLabel
                 key={p.id}
                 htmlFor={p.id}
-                className="rounded-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+                className="rounded-lg has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
               >
                 <Field orientation="horizontal">
                   <FieldContent>
@@ -108,13 +108,15 @@ export default function PresetsPanel() {
               <FieldLabel
                 key={t.id}
                 htmlFor={t.id}
-                className="rounded-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+                className="rounded-lg has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
               >
                 <Field orientation="horizontal">
                   <FieldContent className="gap-1">
-                    <FieldTitle className="font-medium">{t.name}</FieldTitle>
+                    <FieldTitle className="font-medium" >{t.name}</FieldTitle>
                     {t.description && (
-                      <FieldDescription className="text-xs">{t.description}</FieldDescription>
+                      <FieldDescription className="text-xs">
+                        {t.description}
+                      </FieldDescription>
                     )}
                     <RadioGroupItem
                       value={t.id}

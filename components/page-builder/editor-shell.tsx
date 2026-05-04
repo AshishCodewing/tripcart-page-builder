@@ -5,6 +5,8 @@ import GjsEditor, { Canvas } from "@grapesjs/react"
 import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
+import parserPostCSS from "grapesjs-parser-postcss"
+import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import LeftPanel from "./left-panel/left-panel"
@@ -12,8 +14,15 @@ import {
   LeftPanelProvider,
   useLeftPanel,
 } from "./left-panel/left-panel-context"
-import PageSettingsSidebar from "./page-settings/page-settings-sidebar"
+import RightPanel from "./right-panel/right-panel"
 import TopBar from "./top-bar/top-bar"
+// Open Props is the source of truth for the design system. The bundle is
+// copied into public/vendor/ by scripts/sync-vendor-css.mjs (predev /
+// prebuild) so canvas.styles can load it by a stable, framework-agnostic URL.
+// We don't use `import "open-props/...?url"` because Turbopack handles CSS as
+// a side-effect import, not a URL import. Published pages must also serve
+// /vendor/open-props.min.css for authored content to render correctly.
+const OPEN_PROPS_PACKS = ["/vendor/open-props.min.css"]
 
 const STORAGE_KEY = "tripcart:page-builder:project"
 
@@ -37,7 +46,10 @@ const gjsOptions: EditorConfig = {
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.
   panels: { defaults: [] },
-  plugins: [gjsBlocksBasic],
+  plugins: [parserPostCSS, designSystemPlugin, gjsBlocksBasic],
+  canvas: {
+    styles: OPEN_PROPS_PACKS,
+  },
 }
 
 const isDev = process.env.NODE_ENV !== "production"
@@ -149,7 +161,7 @@ function EditorShellInner({
                 collapsible="offcanvas"
                 className="top-12 h-[calc(100svh-3rem)]"
               >
-                <PageSettingsSidebar
+                <RightPanel
                   page={page}
                   parentOptions={parentOptions}
                   deleteAction={deleteAction}

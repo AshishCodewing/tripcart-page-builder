@@ -45,60 +45,62 @@ const buildColorPreset = (
   },
 })
 
-// Background / foreground pairs are tuned for WCAG AAA (>= 7:1) on body text.
-// Light presets : oklch(1 0 0) bg + oklch(0.145 0 0) fg  -> ~17.6:1
-// Dark zinc     : oklch(0.205 0 0) bg + oklch(0.985 0 0) fg -> ~13.4:1
-const LIGHT_BG = "oklch(1 0 0)"
-const LIGHT_FG = "oklch(0.145 0 0)"
-const DARK_BG = "oklch(0.205 0 0)"
-const DARK_FG = "oklch(0.985 0 0)"
+// Backgrounds and foregrounds reference Open Props gray steps so they swap
+// coherently with the rest of the palette. `--gray-0` is near-white (#f8f9fa),
+// `--gray-12` is near-black (#030507); contrast on body text exceeds WCAG AAA.
+const LIGHT_BG = "var(--gray-0)"
+const LIGHT_FG = "var(--gray-12)"
+const DARK_BG = "var(--gray-10)"
+const DARK_FG = "var(--gray-0)"
 
 export const COLOR_PRESETS: Preset[] = [
   buildColorPreset(
     "blue",
     "Blue",
-    "oklch(0.631 0.2 257.6)",
-    "oklch(0.556 0 0)",
+    "var(--blue-6)",
+    "var(--gray-0)",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "violet",
     "Violet",
-    "oklch(0.606 0.25 292.7)",
-    "oklch(0.541 0.225 292.7)",
+    "var(--violet-6)",
+    "var(--gray-0)",
     LIGHT_BG,
     LIGHT_FG
   ),
+  // Open Props ships `pink` (no `rose`); pink-6 is the closest equivalent.
   buildColorPreset(
     "rose",
     "Rose",
-    "oklch(0.645 0.246 16.4)",
-    "oklch(0.586 0.225 16.4)",
+    "var(--pink-6)",
+    "var(--gray-0)",
     LIGHT_BG,
     LIGHT_FG
   ),
+  // Open Props ships `teal` and `green` (no `emerald`); teal-6 reads as emerald.
   buildColorPreset(
     "emerald",
     "Emerald",
-    "oklch(0.696 0.17 162.5)",
-    "oklch(0.62 0.155 162.5)",
+    "var(--teal-6)",
+    "var(--gray-0)",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "orange",
     "Orange",
-    "oklch(0.705 0.19 56.1)",
-    "oklch(0.625 0.18 56.1)",
+    "var(--orange-6)",
+    "var(--gray-0)",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "zinc",
     "Zinc",
-    "oklch(0.985 0 0)",
-    "oklch(0.708 0 0)",
+    "var(--gray-0)",
+    "var(--gray-5)",
     DARK_BG,
     DARK_FG
   ),
@@ -112,8 +114,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Native UI sans-serif everywhere",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-sans)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-sans)" },
+        body: { label: "Body Font", value: "var(--font-sans)" },
+        heading: { label: "Heading Font", value: "var(--font-sans)" },
       },
     },
   },
@@ -124,8 +126,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Serif headlines, sans body",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-sans)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-serif)" },
+        body: { label: "Body Font", value: "var(--font-sans)" },
+        heading: { label: "Heading Font", value: "var(--font-serif)" },
       },
     },
   },
@@ -136,8 +138,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Technical, code-driven look",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-mono)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-mono)" },
+        body: { label: "Body Font", value: "var(--font-mono)" },
+        heading: { label: "Heading Font", value: "var(--font-mono)" },
       },
     },
   },
@@ -148,8 +150,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Native OS interface font",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-system-ui)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-system-ui)" },
+        body: { label: "Body Font", value: "var(--font-system-ui)" },
+        heading: { label: "Heading Font", value: "var(--font-system-ui)" },
       },
     },
   },
@@ -160,12 +162,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Charter-led editorial serif",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-transitional)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-transitional)",
         },
       },
@@ -178,8 +180,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Classic Iowan / Palatino serif",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-old-style)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-old-style)" },
+        body: { label: "Body Font", value: "var(--font-old-style)" },
+        heading: { label: "Heading Font", value: "var(--font-old-style)" },
       },
     },
   },
@@ -190,8 +192,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Warm Seravek / Gill Sans",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-humanist)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-humanist)" },
+        body: { label: "Body Font", value: "var(--font-humanist)" },
+        heading: { label: "Heading Font", value: "var(--font-humanist)" },
       },
     },
   },
@@ -202,12 +204,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Avenir / Montserrat geometry",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-geometric-humanist)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-geometric-humanist)",
         },
       },
@@ -220,12 +222,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Optima / Candara elegance",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-classical-humanist)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-classical-humanist)",
         },
       },
@@ -238,12 +240,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Inter / Helvetica precision",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-neo-grotesque)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-neo-grotesque)",
         },
       },
@@ -256,12 +258,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Typewriter-style monospace",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-monospace-slab-serif)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-monospace-slab-serif)",
         },
       },
@@ -274,12 +276,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Developer-grade monospace",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-monospace-code)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-monospace-code)",
         },
       },
@@ -292,8 +294,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Bahnschrift / DIN engineering",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-industrial)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-industrial)" },
+        body: { label: "Body Font", value: "var(--font-industrial)" },
+        heading: { label: "Heading Font", value: "var(--font-industrial)" },
       },
     },
   },
@@ -304,12 +306,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Soft, friendly Quicksand",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-rounded-sans)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-rounded-sans)",
         },
       },
@@ -322,8 +324,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Bold Rockwell impact",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-slab-serif)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-slab-serif)" },
+        body: { label: "Body Font", value: "var(--font-slab-serif)" },
+        heading: { label: "Heading Font", value: "var(--font-slab-serif)" },
       },
     },
   },
@@ -334,8 +336,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Bookman editorial warmth",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-antique)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-antique)" },
+        body: { label: "Body Font", value: "var(--font-antique)" },
+        heading: { label: "Heading Font", value: "var(--font-antique)" },
       },
     },
   },
@@ -346,8 +348,8 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "High-fashion Didot / Bodoni",
     tokens: {
       typography: {
-        fontPrimary: { label: "Primary Font", value: "var(--font-didone)" },
-        fontDisplay: { label: "Display Font", value: "var(--font-didone)" },
+        body: { label: "Body Font", value: "var(--font-didone)" },
+        heading: { label: "Heading Font", value: "var(--font-didone)" },
       },
     },
   },
@@ -358,12 +360,12 @@ export const TYPOGRAPHY_PRESETS: Preset[] = [
     description: "Casual Bradley Hand cursive",
     tokens: {
       typography: {
-        fontPrimary: {
-          label: "Primary Font",
+        body: {
+          label: "Body Font",
           value: "var(--font-handwritten)",
         },
-        fontDisplay: {
-          label: "Display Font",
+        heading: {
+          label: "Heading Font",
           value: "var(--font-handwritten)",
         },
       },

@@ -1,6 +1,11 @@
 /**
  * Source of truth for all Tripcart brand design tokens.
- * Default values intentionally reference Open Props variables so the desing system has a well-considered baseline out of the box
+ *
+ * Defaults reference Open Props variables (https://open-props.style) so the
+ * design system has a well-considered baseline out of the box. Open Props is
+ * loaded into the GrapesJS canvas iframe via `canvas.styles` in editor-shell;
+ * any environment that renders authored content must also load Open Props for
+ * these `var(...)` references to resolve.
  */
 
 import { toKebab } from "@/lib/toKebab"
@@ -17,28 +22,33 @@ export type TokenSchema = {
 
 export const defaultTokens: TokenSchema = {
   colors: {
-    background: { label: "Background", value: "oklch(0.145 0 0)" },
-    foreground: { label: "Foreground", value: "oklch(0.985 0 0)" },
-    card: { label: "Card", value: "oklch(0.205 0 0)" },
-    cardForeground: { label: "Card Foreground", value: "oklch(0.985 0 0)" },
-    popover: { label: "Popover", value: "oklch(0.205 0 0)" },
-    popoverForeground: {
-      label: "Popover Foreground",
-      value: "oklch(0.985 0 0)",
-    },
-    primary: { label: "Primary", value: "oklch(0.631 0.2 257.6)" },
-    primaryForeground: { label: "Primary Foreground", value: "oklch(1 0 0)" },
-    secondary: { label: "Secondary", value: "oklch(0.269 0 0)" },
+    background: { label: "Background", value: "var(--gray-12)" },
+    foreground: { label: "Foreground", value: "var(--gray-0)" },
+    card: { label: "Card", value: "var(--gray-10)" },
+    cardForeground: { label: "Card Foreground", value: "var(--gray-0)" },
+    popover: { label: "Popover", value: "var(--gray-10)" },
+    popoverForeground: { label: "Popover Foreground", value: "var(--gray-0)" },
+    primary: { label: "Primary", value: "var(--blue-6)" },
+    primaryForeground: { label: "Primary Foreground", value: "var(--gray-0)" },
+    secondary: { label: "Secondary", value: "var(--gray-9)" },
     secondaryForeground: {
       label: "Secondary Foreground",
-      value: "oklch(0.985 0 0)",
+      value: "var(--gray-0)",
     },
-    muted: { label: "Muted", value: "oklch(0.269 0 0)" },
-    mutedForeground: { label: "Muted Foreground", value: "oklch(0.708 0 0)" },
-    accent: { label: "Accent", value: "oklch(0.269 0 0)" },
-    accentForeground: { label: "Accent Foreground", value: "oklch(0.985 0 0)" },
-    border: { label: "Border", value: "oklch(1 0 0 / 10%)" },
-    input: { label: "Input", value: "oklch(1 0 0 / 15%)" },
+    muted: { label: "Muted", value: "var(--gray-9)" },
+    mutedForeground: { label: "Muted Foreground", value: "var(--gray-5)" },
+    accent: { label: "Accent", value: "var(--gray-9)" },
+    accentForeground: { label: "Accent Foreground", value: "var(--gray-0)" },
+    // Open Props ships solid palette steps; alpha overlays are derived via
+    // color-mix so border/input still track the active foreground.
+    border: {
+      label: "Border",
+      value: "color-mix(in oklch, var(--gray-0) 10%, transparent)",
+    },
+    input: {
+      label: "Input",
+      value: "color-mix(in oklch, var(--gray-0) 15%, transparent)",
+    },
   },
 
   typography: {
@@ -74,4 +84,27 @@ export const tokensToStyleObject = (
   }
 
   return styles
+}
+
+/**
+ * Build a TokenSchema by overlaying values pulled from a CSS style object
+ * (typically the styles attached to the persisted `:root` CssRule). Token
+ * keys absent from the style object keep their existing value, so this is
+ * safe across schema additions.
+ */
+export const tokensFromStyleObject = (
+  base: TokenSchema,
+  styles: Record<string, string>
+): TokenSchema => {
+  const next = structuredClone(base)
+  for (const [category, group] of Object.entries(next)) {
+    for (const [key, token] of Object.entries(group)) {
+      const varName = tokenToCssVar(category as keyof TokenSchema, key)
+      const stored = styles[varName]
+      if (typeof stored === "string" && stored.length > 0) {
+        token.value = stored
+      }
+    }
+  }
+  return next
 }

@@ -19,15 +19,14 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import {
   Tabs,
   TabsContent,
+  TabsIndicator,
   TabsList,
   TabsTrigger,
-  TabsIndicator,
 } from "@/components/ui/tabs"
 
 type PageSummary = {
@@ -64,7 +63,22 @@ function formatRelative(date: Date): string {
   return RTF.format(Math.round(diffMs / 86_400_000), "day")
 }
 
-export default function PageSettingsSidebar({
+function FieldRow({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+export default function RightPanel({
   page,
   parentOptions,
   deleteAction,
@@ -72,16 +86,16 @@ export default function PageSettingsSidebar({
   const isPublished = page.status === "PUBLISHED"
 
   return (
-    <Tabs defaultValue="page">
+    <Tabs defaultValue="page" className="h-full">
       <TabsList variant="line" className="w-full justify-start">
         <TabsTrigger value="page">Page</TabsTrigger>
         <TabsTrigger value="block">Block</TabsTrigger>
         <TabsIndicator />
       </TabsList>
 
-      <TabsContent value="page">
+      <TabsContent value="page" className="flex min-h-0 flex-col">
         <SidebarContent className="px-3 py-4">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <p className="text-sm font-medium">{page.title}</p>
             <p className="text-xs text-muted-foreground">
               Last edited {formatRelative(page.updatedAt)}
@@ -91,7 +105,7 @@ export default function PageSettingsSidebar({
           <SidebarSeparator className="my-4" />
 
           <SidebarGroup className="p-0">
-            <SidebarGroupContent className="space-y-3">
+            <SidebarGroupContent className="flex flex-col gap-3">
               <FieldRow label="Status">
                 <Badge
                   variant={isPublished ? "default" : "secondary"}
@@ -101,7 +115,7 @@ export default function PageSettingsSidebar({
                 </Badge>
               </FieldRow>
 
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="title" className="text-xs">
                   Title
                 </Label>
@@ -114,7 +128,7 @@ export default function PageSettingsSidebar({
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="slug" className="text-xs">
                   Slug
                 </Label>
@@ -134,7 +148,7 @@ export default function PageSettingsSidebar({
                 )}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="parentId" className="text-xs">
                   Parent
                 </Label>
@@ -169,32 +183,17 @@ export default function PageSettingsSidebar({
             size="sm"
             className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
-            <Trash2 className="size-4" />
+            <Trash2 data-icon="inline-start" />
             Move to trash
           </Button>
         </SidebarFooter>
       </TabsContent>
 
-      <TabsContent value="block">
+      <TabsContent value="block" className="flex min-h-0 flex-col">
         <div className="px-3 py-4 text-sm text-muted-foreground">
           Select a component to edit its block settings.
         </div>
       </TabsContent>
     </Tabs>
-  )
-}
-
-function FieldRow({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div>{children}</div>
-    </div>
   )
 }

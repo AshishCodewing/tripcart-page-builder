@@ -39,3 +39,6 @@ pnpm-debug.log*
 next-env.d.ts
 
 /generated/prisma
+
+# vendored CSS copied from node_modules by scripts/sync-vendor-css.mjs
+/public/vendor/

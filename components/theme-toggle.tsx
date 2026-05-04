@@ -37,7 +37,7 @@ export function ThemeToggle({ className, size = "sm", ...props }: Props) {
     : "Toggle theme"
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delay={500}>
       <Tooltip>
         <TooltipTrigger
           render={

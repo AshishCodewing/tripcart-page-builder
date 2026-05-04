@@ -64,7 +64,9 @@ export const themeStore = {
 
     const nextActive = PRESET_CATEGORIES.has(category)
       ? (() => {
-          if (snapshot.activePresetId[category as PresetCategory] === undefined) {
+          if (
+            snapshot.activePresetId[category as PresetCategory] === undefined
+          ) {
             return snapshot.activePresetId
           }
           const { [category as PresetCategory]: _, ...rest } =
