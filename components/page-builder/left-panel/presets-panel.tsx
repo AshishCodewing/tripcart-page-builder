@@ -63,10 +63,14 @@ export default function PresetsPanel() {
             onValueChange={handleColorChange}
           >
             {COLOR_PRESETS.map((p) => (
-              <FieldLabel key={p.id} htmlFor={p.id}>
+              <FieldLabel
+                key={p.id}
+                htmlFor={p.id}
+                className="rounded-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+              >
                 <Field orientation="horizontal">
                   <FieldContent>
-                    <FieldTitle>{p.name}</FieldTitle>
+                    <FieldTitle className="font-medium">{p.name}</FieldTitle>
                     {p.description && (
                       <FieldDescription>{p.description}</FieldDescription>
                     )}
@@ -92,21 +96,25 @@ export default function PresetsPanel() {
             ))}
           </RadioGroup>
 
-          <h2 className="my-2 text-xs font-semibold text-muted-foreground uppercase">
+          <h2 className="mt-4 mb-2 text-xs font-semibold text-muted-foreground uppercase">
             Typography
           </h2>
           <RadioGroup
-            className="grid grid-cols-1"
+            className="grid grid-cols-2"
             value={selectedTypographyId}
             onValueChange={handleTypographyChange}
           >
             {TYPOGRAPHY_PRESETS.map((t) => (
-              <FieldLabel key={t.id} htmlFor={t.id}>
+              <FieldLabel
+                key={t.id}
+                htmlFor={t.id}
+                className="rounded-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+              >
                 <Field orientation="horizontal">
-                  <FieldContent>
-                    <FieldTitle>{t.name}</FieldTitle>
+                  <FieldContent className="gap-1">
+                    <FieldTitle className="font-medium">{t.name}</FieldTitle>
                     {t.description && (
-                      <FieldDescription>{t.description}</FieldDescription>
+                      <FieldDescription className="text-xs">{t.description}</FieldDescription>
                     )}
                     <RadioGroupItem
                       value={t.id}
