@@ -104,29 +104,41 @@ export default function PresetsPanel() {
             value={selectedTypographyId}
             onValueChange={handleTypographyChange}
           >
-            {TYPOGRAPHY_PRESETS.map((t) => (
-              <FieldLabel
-                key={t.id}
-                htmlFor={t.id}
-                className="rounded-lg has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
-              >
-                <Field orientation="horizontal">
-                  <FieldContent className="gap-1">
-                    <FieldTitle className="font-medium" >{t.name}</FieldTitle>
-                    {t.description && (
-                      <FieldDescription className="text-xs">
-                        {t.description}
-                      </FieldDescription>
-                    )}
-                    <RadioGroupItem
-                      value={t.id}
-                      id={t.id}
-                      className="sr-only"
-                    />
-                  </FieldContent>
-                </Field>
-              </FieldLabel>
-            ))}
+            {TYPOGRAPHY_PRESETS.map((t) => {
+              const headingFont = t.tokens.typography?.heading?.value
+              const bodyFont = t.tokens.typography?.body?.value
+              return (
+                <FieldLabel
+                  key={t.id}
+                  htmlFor={t.id}
+                  className="rounded-lg has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
+                >
+                  <Field orientation="horizontal">
+                    <FieldContent className="gap-1">
+                      <FieldTitle
+                        className="font-medium"
+                        style={{ fontFamily: headingFont }}
+                      >
+                        {t.name}
+                      </FieldTitle>
+                      {t.description && (
+                        <FieldDescription
+                          className="text-xs"
+                          style={{ fontFamily: bodyFont }}
+                        >
+                          {t.description}
+                        </FieldDescription>
+                      )}
+                      <RadioGroupItem
+                        value={t.id}
+                        id={t.id}
+                        className="sr-only"
+                      />
+                    </FieldContent>
+                  </Field>
+                </FieldLabel>
+              )
+            })}
           </RadioGroup>
         </div>
       </SidebarContent>
