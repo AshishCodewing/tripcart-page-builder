@@ -40,11 +40,11 @@ export default function BlockManager({
                   variant="outline"
                   draggable
                   title={block.getLabel()}
-                  onClick={() => {
-                    const target = editor.getSelected() ?? editor.getWrapper()
-                    const content = block.getContent()
-                    if (content) target?.append(content)
-                  }}
+                  // onClick={() => {
+                  //   const target = editor.getSelected() ?? editor.getWrapper()
+                  //   const content = block.getContent()
+                  //   if (content) target?.append(content)
+                  // }}
                   onDragStart={(ev) => dragStart(block, ev.nativeEvent)}
                   onDragEnd={() => dragStop(false)}
                   className="flex h-auto cursor-grab flex-col items-center gap-1.5 px-2 py-3 whitespace-normal active:cursor-grabbing"

@@ -30,7 +30,7 @@ import type { EditorContent } from "./types"
 // content to render correctly.
 const CANVAS_STYLE_URLS = [
   "/vendor/open-props.min.css",
-  "/vendor/tailwind.css",
+  // "/vendor/tailwind.css",
 ]
 
 // Per-record local-storage key. Without scoping by id, every page and post
