@@ -23,14 +23,16 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  contentIndexHref,
+  contentIndexLabel,
+  previewPath,
+  type EditorContent,
+} from "@/components/page-builder/types"
 
-type PageSummary = {
-  id: string
-  path: string
-}
-
-type Props = React.HTMLAttributes<HTMLDivElement> & {
-  page: PageSummary
+type Props = {
+  content: EditorContent
+  className?: string
 }
 
 function getDeviceIcon(id: string): LucideIcon {
@@ -40,12 +42,12 @@ function getDeviceIcon(id: string): LucideIcon {
   return Monitor
 }
 
-export default function TopBarRight({ page, className, ...rest }: Props) {
+export default function TopBarRight({ content, className }: Props) {
+  const previewHref = `/api/preview?path=${encodeURIComponent(previewPath(content))}`
+  const indexHref = contentIndexHref(content)
+  const indexLabel = contentIndexLabel(content)
   return (
-    <div
-      className={cn("flex items-center justify-end gap-2", className)}
-      {...rest}
-    >
+    <div className={cn("flex items-center justify-end gap-2", className)}>
       <Button
         type="submit"
         name="status"
@@ -118,21 +120,17 @@ export default function TopBarRight({ page, className, ...rest }: Props) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             render={
-              <a
-                href={`/api/preview?path=/${encodeURIComponent(page.path)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a href={previewHref} target="_blank" rel="noreferrer">
                 Preview
               </a>
             }
           />
-          <DropdownMenuItem render={<Link href="/admin/pages" />}>
-            Back to pages
+          <DropdownMenuItem render={<Link href={indexHref} />}>
+            {indexLabel}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled className="font-mono text-xs">
-            /{page.path}
+            {previewPath(content)}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

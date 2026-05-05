@@ -29,6 +29,19 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   const status =
     (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
 
+  // The editor populates this on submit (see EditorShell). Optional here
+  // because non-editor callers (e.g. metadata-only updates from the post
+  // index) will omit it — in which case we keep the previous value.
+  const dataField = form.get("data")
+  let data: unknown = undefined
+  if (typeof dataField === "string" && dataField.length) {
+    try {
+      data = JSON.parse(dataField)
+    } catch {
+      throw new Error("Invalid project payload — could not parse JSON.")
+    }
+  }
+
   validateSlug(newSlug)
 
   // Same MVP rule as pages: don't allow renaming a published post until
@@ -51,6 +64,7 @@ export async function savePost(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
+      ...(data !== undefined ? { data: data as object } : {}),
     },
   })
 

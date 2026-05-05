@@ -1,9 +1,14 @@
 import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
+import { PagePreview } from "@/components/page-builder/page-preview"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only single post. Public rendering happens elsewhere.
+//
+// Same render path as pages: persisted project JSON (`post.data`) goes
+// through the React-renderer project module so React-component patterns
+// stay in React end-to-end.
 export default async function BlogPostPreview({
   params,
 }: {
@@ -32,8 +37,7 @@ export default async function BlogPostPreview({
           </div>
         )}
       </header>
-      <style dangerouslySetInnerHTML={{ __html: post.css }} />
-      <div dangerouslySetInnerHTML={{ __html: post.html }} />
+      <PagePreview projectData={post.data} />
     </article>
   )
 }

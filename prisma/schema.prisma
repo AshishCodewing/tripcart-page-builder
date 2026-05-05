@@ -27,8 +27,6 @@ model Page {
   parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
   children    Page[]        @relation("PageTree")
   title       String
-  html        String        @default("")
-  css         String        @default("")
   data        Json          @default("{}")
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
@@ -45,8 +43,6 @@ model Post {
   slug        String        @unique
   title       String
   excerpt     String?
-  html        String        @default("")
-  css         String        @default("")
   data        Json          @default("{}")
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?

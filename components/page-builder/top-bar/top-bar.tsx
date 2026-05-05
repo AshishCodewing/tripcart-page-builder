@@ -4,27 +4,26 @@ import * as React from "react"
 import { WithEditor } from "@grapesjs/react"
 
 import { cn } from "@/lib/utils"
+import {
+  contentKindLabel,
+  contentTitle,
+  type EditorContent,
+} from "@/components/page-builder/types"
 import TopBarLeft from "./top-bar-left"
 import TopBarRight from "./top-bar-right"
 
-type PageSummary = {
-  id: string
-  title: string
-  path: string
+type Props = {
+  content: EditorContent
+  className?: string
 }
 
-type Props = React.HTMLAttributes<HTMLDivElement> & {
-  page: PageSummary
-}
-
-export default function TopBar({ page, className, ...rest }: Props) {
+export default function TopBar({ content, className }: Props) {
   return (
     <div
       className={cn(
         "gjs-top-bar grid grid-cols-3 items-center gap-2 border-b bg-background px-2 py-1",
         className
       )}
-      {...rest}
     >
       <div className="justify-self-start">
         <WithEditor>
@@ -33,12 +32,14 @@ export default function TopBar({ page, className, ...rest }: Props) {
       </div>
 
       <div className="justify-self-center text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{page.title}</span>
+        <span className="font-medium text-foreground">
+          {contentTitle(content)}
+        </span>
         <span className="mx-2">·</span>
-        <span>Page</span>
+        <span>{contentKindLabel(content)}</span>
       </div>
 
-      <TopBarRight page={page} />
+      <TopBarRight content={content} />
     </div>
   )
 }

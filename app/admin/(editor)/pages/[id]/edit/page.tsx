@@ -21,8 +21,7 @@ export default async function EditPagePage({
 
   return (
     <EditorShell
-      page={page}
-      parentOptions={parentOptions}
+      content={{ kind: "page", page, parentOptions }}
       saveAction={saveAction}
       deleteAction={deleteAction}
     />

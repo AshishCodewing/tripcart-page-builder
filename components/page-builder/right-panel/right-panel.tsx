@@ -28,27 +28,17 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-
-type PageSummary = {
-  id: string
-  title: string
-  slug: string
-  parentId: string | null
-  path: string
-  status: "DRAFT" | "PUBLISHED"
-  updatedAt: Date
-}
-
-type ParentOption = {
-  id: string
-  title: string
-  path: string
-}
+import { Textarea } from "@/components/ui/textarea"
+import {
+  contentKindLabel,
+  type EditorContent,
+  type PageContent,
+  type PostContent,
+} from "@/components/page-builder/types"
 
 type Props = {
-  page: PageSummary
-  parentOptions: ParentOption[]
-  /** Server action bound to the page id. */
+  content: EditorContent
+  /** Server action bound to the record id. */
   deleteAction: () => Promise<void>
 }
 
@@ -78,27 +68,26 @@ function FieldRow({
   )
 }
 
-export default function RightPanel({
-  page,
-  parentOptions,
-  deleteAction,
-}: Props) {
-  const isPublished = page.status === "PUBLISHED"
+export default function RightPanel({ content, deleteAction }: Props) {
+  const record = content.kind === "page" ? content.page : content.post
+  const isPublished = record.status === "PUBLISHED"
+  const kindLabel = contentKindLabel(content)
+  const tabValue = content.kind
 
   return (
-    <Tabs defaultValue="page" className="h-full">
+    <Tabs defaultValue={tabValue} className="h-full">
       <TabsList variant="line" className="w-full justify-start">
-        <TabsTrigger value="page">Page</TabsTrigger>
+        <TabsTrigger value={tabValue}>{kindLabel}</TabsTrigger>
         <TabsTrigger value="block">Block</TabsTrigger>
         <TabsIndicator />
       </TabsList>
 
-      <TabsContent value="page" className="flex min-h-0 flex-col">
+      <TabsContent value={tabValue} className="flex min-h-0 flex-col">
         <SidebarContent className="px-3 py-4">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">{page.title}</p>
+            <p className="text-sm font-medium">{record.title}</p>
             <p className="text-xs text-muted-foreground">
-              Last edited {formatRelative(page.updatedAt)}
+              Last edited {formatRelative(record.updatedAt)}
             </p>
           </div>
 
@@ -111,7 +100,7 @@ export default function RightPanel({
                   variant={isPublished ? "default" : "secondary"}
                   className="capitalize"
                 >
-                  {page.status.toLowerCase()}
+                  {record.status.toLowerCase()}
                 </Badge>
               </FieldRow>
 
@@ -122,7 +111,7 @@ export default function RightPanel({
                 <Input
                   id="title"
                   name="title"
-                  defaultValue={page.title}
+                  defaultValue={record.title}
                   inputSize="sm"
                   required
                 />
@@ -135,7 +124,7 @@ export default function RightPanel({
                 <Input
                   id="slug"
                   name="slug"
-                  defaultValue={page.slug}
+                  defaultValue={record.slug}
                   pattern="[a-z0-9-]+"
                   required
                   inputSize="sm"
@@ -148,28 +137,11 @@ export default function RightPanel({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="parentId" className="text-xs">
-                  Parent
-                </Label>
-                <Select
-                  name="parentId"
-                  defaultValue={page.parentId ?? ""}
-                  disabled={isPublished}
-                >
-                  <SelectTrigger id="parentId" size="sm" className="w-full">
-                    <SelectValue placeholder="— Top level —" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">— Top level —</SelectItem>
-                    {parentOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.title} (/{opt.path})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {content.kind === "page" ? (
+                <PageOnlyFields content={content} isPublished={isPublished} />
+              ) : (
+                <PostOnlyFields content={content} />
+              )}
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
@@ -195,5 +167,54 @@ export default function RightPanel({
         </div>
       </TabsContent>
     </Tabs>
+  )
+}
+
+function PageOnlyFields({
+  content,
+  isPublished,
+}: {
+  content: PageContent
+  isPublished: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="parentId" className="text-xs">
+        Parent
+      </Label>
+      <Select
+        name="parentId"
+        defaultValue={content.page.parentId ?? ""}
+        disabled={isPublished}
+      >
+        <SelectTrigger id="parentId" size="sm" className="w-full">
+          <SelectValue placeholder="— Top level —" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">— Top level —</SelectItem>
+          {content.parentOptions.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>
+              {opt.title} (/{opt.path})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function PostOnlyFields({ content }: { content: PostContent }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="excerpt" className="text-xs">
+        Excerpt
+      </Label>
+      <Textarea
+        id="excerpt"
+        name="excerpt"
+        defaultValue={content.post.excerpt ?? ""}
+        rows={3}
+      />
+    </div>
   )
 }

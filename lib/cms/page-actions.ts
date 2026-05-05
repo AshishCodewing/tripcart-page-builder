@@ -42,6 +42,19 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   const status =
     (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
 
+  // The editor populates this on submit (see EditorShell). Optional here
+  // because non-editor callers (e.g. metadata-only updates from the page
+  // index) will omit it — in which case we keep the previous value.
+  const dataField = form.get("data")
+  let data: unknown = undefined
+  if (typeof dataField === "string" && dataField.length) {
+    try {
+      data = JSON.parse(dataField)
+    } catch {
+      throw new Error("Invalid project payload — could not parse JSON.")
+    }
+  }
+
   validateSlug(newSlug)
 
   const wouldChangePath =
@@ -77,6 +90,7 @@ export async function savePage(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
+      ...(data !== undefined ? { data: data as object } : {}),
     },
   })
 
