@@ -4,22 +4,15 @@
 
 import type { CSSProperties } from "react"
 
-// Hoisted regexes so the hot string converters don't allocate per call
-// (`attrsToReactProps` runs them across every attribute on every node, every
-// render). String.replace with a global regex doesn't read `lastIndex`, so
-// sharing is safe.
-const CAMEL_TO_KEBAB_RE = /[A-Z]+(?![a-z])|[A-Z]/g
-const KEBAB_TO_CAMEL_RE = /-([a-z])/g
-
 export const camelToKebab = (input: string): string =>
   input.replace(
-    CAMEL_TO_KEBAB_RE,
+    /[A-Z]+(?![a-z])|[A-Z]/g,
     (match, offset) => (offset ? "-" : "") + match.toLowerCase()
   )
 
 export const kebabToCamel = (input: string): string =>
   input.includes("-")
-    ? input.replace(KEBAB_TO_CAMEL_RE, (_, c: string) => c.toUpperCase())
+    ? input.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
     : input
 
 // React style obj (camelCase keys) → GrapesJS style obj (kebab-case keys).

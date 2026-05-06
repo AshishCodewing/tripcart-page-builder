@@ -60,7 +60,13 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
     trackSelection: true,
     maximumStackLength: 500,
   },
-  selectorManager: { componentFirst: true },
+  selectorManager: {
+    componentFirst: true,
+    states: [
+      { name: "hover", label: "Hover" },
+      { name: "focus", label: "Focused" },
+    ],
+  },
   // Default panels removed in favor of the WP-style React chrome.
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.

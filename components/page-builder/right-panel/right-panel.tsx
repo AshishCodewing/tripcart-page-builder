@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useEditorMaybe } from "@grapesjs/react"
 import { Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +36,7 @@ import {
   type PageContent,
   type PostContent,
 } from "@/components/page-builder/types"
-
+import BlockSettings from "./block-settings"
 type Props = {
   content: EditorContent
   /** Server action bound to the record id. */
@@ -69,20 +70,39 @@ function FieldRow({
 }
 
 export default function RightPanel({ content, deleteAction }: Props) {
+  const editor = useEditorMaybe()
   const record = content.kind === "page" ? content.page : content.post
   const isPublished = record.status === "PUBLISHED"
   const kindLabel = contentKindLabel(content)
   const tabValue = content.kind
 
+  const [activeTab, setActiveTab] = React.useState<string>(tabValue)
+
+  React.useEffect(() => {
+    if (!editor) return
+    const showBlock = () => setActiveTab("block")
+    const showRecord = () => setActiveTab(tabValue)
+    editor.on("component:selected", showBlock)
+    editor.on("component:deselected", showRecord)
+    return () => {
+      editor.off("component:selected", showBlock)
+      editor.off("component:deselected", showRecord)
+    }
+  }, [editor, tabValue])
+
   return (
-    <Tabs defaultValue={tabValue} className="h-full">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="h-full gap-0"
+    >
       <TabsList variant="line" className="w-full justify-start">
         <TabsTrigger value={tabValue}>{kindLabel}</TabsTrigger>
         <TabsTrigger value="block">Block</TabsTrigger>
         <TabsIndicator />
       </TabsList>
 
-      <TabsContent value={tabValue} className="flex min-h-0 flex-col">
+      <TabsContent value={tabValue} className="@apply opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0 flex min-h-0 flex-col">
         <SidebarContent className="px-3 py-4">
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium">{record.title}</p>
@@ -161,10 +181,8 @@ export default function RightPanel({ content, deleteAction }: Props) {
         </SidebarFooter>
       </TabsContent>
 
-      <TabsContent value="block" className="flex min-h-0 flex-col">
-        <div className="px-3 py-4 text-sm text-muted-foreground">
-          Select a component to edit its block settings.
-        </div>
+      <TabsContent value="block" className="@apply opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0 flex min-h-0 flex-col">
+        <BlockSettings />
       </TabsContent>
     </Tabs>
   )

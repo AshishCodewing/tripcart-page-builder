@@ -5,7 +5,8 @@
 import { kebabToCamel, normalizeStyleObject } from "./style"
 
 // HTML/SVG attribute name → React prop name (the few cases where mechanical
-// kebab→camel isn't enough).
+// kebab→camel isn't enough). Includes lowercased single-word HTML attributes
+// that React expects in camelCase (e.g. `frameborder` → `frameBorder`).
 const ATTR_CASE_MAP: Record<string, string> = {
   class: "className",
   for: "htmlFor",
@@ -23,6 +24,42 @@ const ATTR_CASE_MAP: Record<string, string> = {
   "font-family": "fontFamily",
   "font-size": "fontSize",
   "text-anchor": "textAnchor",
+  // HTML one-word attributes React expects camelCased.
+  frameborder: "frameBorder",
+  marginheight: "marginHeight",
+  marginwidth: "marginWidth",
+  allowfullscreen: "allowFullScreen",
+  allowtransparency: "allowTransparency",
+  referrerpolicy: "referrerPolicy",
+  tabindex: "tabIndex",
+  colspan: "colSpan",
+  rowspan: "rowSpan",
+  crossorigin: "crossOrigin",
+  srcset: "srcSet",
+  srclang: "srcLang",
+  srcdoc: "srcDoc",
+  usemap: "useMap",
+  accesskey: "accessKey",
+  contenteditable: "contentEditable",
+  inputmode: "inputMode",
+  spellcheck: "spellCheck",
+  autoplay: "autoPlay",
+  playsinline: "playsInline",
+  controlslist: "controlsList",
+  disablepictureinpicture: "disablePictureInPicture",
+  disableremoteplayback: "disableRemotePlayback",
+  enctype: "encType",
+  formaction: "formAction",
+  formenctype: "formEncType",
+  formmethod: "formMethod",
+  formnovalidate: "formNoValidate",
+  formtarget: "formTarget",
+  novalidate: "noValidate",
+  readonly: "readOnly",
+  maxlength: "maxLength",
+  minlength: "minLength",
+  autofocus: "autoFocus",
+  autocomplete: "autoComplete",
 }
 
 // Common HTML props that React treats as camelCase.
@@ -116,9 +153,6 @@ const SVG_PROPS = new Set([
   "pointerEvents",
 ])
 
-const htmlAttrToReactProp = (attr: string): string =>
-  ATTR_CASE_MAP[attr] ?? kebabToCamel(attr)
-
 export const attrsToReactProps = (
   attrs: Record<string, unknown>
 ): Record<string, unknown> => {
@@ -139,7 +173,12 @@ export const attrsToReactProps = (
       out[key] = value
       continue
     }
-    const camel = htmlAttrToReactProp(key)
+    // Explicit map entries are React-recognized prop names — always use them.
+    if (ATTR_CASE_MAP[key]) {
+      out[ATTR_CASE_MAP[key]] = value
+      continue
+    }
+    const camel = kebabToCamel(key)
     if (isSvgContext || SVG_PROPS.has(camel) || camel.startsWith("svg")) {
       out[camel] = value
       continue
