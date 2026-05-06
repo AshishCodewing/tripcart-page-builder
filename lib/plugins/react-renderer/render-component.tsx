@@ -6,7 +6,16 @@
 
 "use client"
 
-import { createElement, useEffect, useState, type ReactNode } from "react"
+import {
+  createElement,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+  type ReactNode,
+} from "react"
 import type { Component, ComponentView, Editor } from "grapesjs"
 import { attrsToReactProps } from "./attrs"
 import { bindComponentToElement } from "./bind"
@@ -33,13 +42,14 @@ export interface RenderCanvasComponentProps extends RenderArgs {
 // path passes to its host element to (re)bind the view.
 const useCanvasRender = (args: RenderArgs) => {
   const { editor, component, frameView } = args
-  const [renderKey, setRenderKey] = useState(0)
+  // useReducer's dispatch is referentially stable, so we can hand it straight
+  // to Backbone's `.on` without capturing a fresh closure each effect run.
+  const [renderKey, bumpKey] = useReducer((n: number) => n + 1, 0)
   const [view, setView] = useState<ComponentView | undefined>(undefined)
 
   useEffect(() => {
     if (!component) return
 
-    const bumpKey = () => setRenderKey((k) => k + 1)
     const dropView = () => {
       ;[...component.views].forEach((v) => v.remove())
       setView(undefined)
@@ -64,20 +74,25 @@ const useCanvasRender = (args: RenderArgs) => {
       component.off(removeEvents, dropView)
       dropView()
     }
-  }, [component])
+  }, [component, bumpKey])
 
-  const connectDom = (el: HTMLElement | null) => {
-    if (!el) return
-    const bound = bindComponentToElement({ editor, component, el, frameView })
-    setView(bound)
-  }
+  // Stable callback ref. Without useCallback, every render creates a new fn,
+  // which causes React to detach (call with null) and reattach the ref —
+  // and every reattach triggers `setView`, scheduling another render.
+  const connectDom = useCallback(
+    (el: HTMLElement | null) => {
+      if (!el) return
+      setView(bindComponentToElement({ editor, component, el, frameView }))
+    },
+    [editor, component, frameView]
+  )
 
   return { key: renderKey, view, connectDom }
 }
 
-export function RenderCanvasComponent(
+const RenderCanvasComponentInner = (
   props: RenderCanvasComponentProps
-): ReactNode {
+): ReactNode => {
   const { component, config, editor, frameView, onMount, tagName, children } =
     props
   const { key, view, connectDom } = useCanvasRender({
@@ -88,16 +103,20 @@ export function RenderCanvasComponent(
 
   // Wait one tick so the wrapping ref has been attached before the parent
   // tree is told the root is mounted; postRender is then queued one more
-  // tick so the view's children have rendered too.
+  // tick so the view's children have rendered too. Track both timers so a
+  // mid-flight unmount can cancel the inner one too.
   useEffect(() => {
     if (!view && !onMount) return
-    const t = setTimeout(() => {
-      if (view) {
-        onMount?.(view)
-        setTimeout(() => view.postRender())
-      }
+    let inner: ReturnType<typeof setTimeout> | undefined
+    const outer = setTimeout(() => {
+      if (!view) return
+      onMount?.(view)
+      inner = setTimeout(() => view.postRender())
     })
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(outer)
+      if (inner) clearTimeout(inner)
+    }
   }, [view, onMount])
 
   const cmpType = (component.get("type") as string) || "default"
@@ -122,8 +141,13 @@ export function RenderCanvasComponent(
       ))
     : [content || undefined]
 
-  const reactProps = attrsToReactProps(
-    component.getAttributes() as Record<string, unknown>
+  // Recompute the attribute → React-prop translation only when the model
+  // identity changes or `key` bumps (signaling an attributes/classes update).
+  const reactProps = useMemo(
+    () =>
+      attrsToReactProps(component.getAttributes() as Record<string, unknown>),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [component, key]
   )
   const EditorRender = cfgEntry?.editorRender
   const merged = [...childNodes, children].filter(
@@ -171,3 +195,9 @@ export function RenderCanvasComponent(
   )
   /* eslint-enable react-hooks/refs */
 }
+
+// `React.memo` with default shallow comparison: in the recursive case the
+// parent passes `{component, config, editor, frameView}` — all referentially
+// stable per node — so children skip re-render when an ancestor's bumpKey
+// fires. Updates only descend through nodes whose own model fired.
+export const RenderCanvasComponent = memo(RenderCanvasComponentInner)
