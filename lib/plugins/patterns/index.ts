@@ -6,23 +6,29 @@
  * "Patterns" tab while leaving atomic blocks (text, image, columns, …) in
  * the "Blocks" tab.
  *
- * `patternComponents` exposes the React-component configs (currently only the
- * hero) so `editor-shell` can pass them to `reactRendererPlugin.init()` and
- * the public preview can re-use the same map for SSR.
+ * `patternComponents` exposes the React-component configs so `editor-shell`
+ * can pass them to `reactRendererPlugin.init()` and the public preview can
+ * re-use the same map for SSR.
  */
 
 import type { Block, Editor } from "grapesjs"
 import type { ComponentConfig } from "@/lib/plugins/react-renderer"
-import {
-  registerHeroBlock,
-} from "./hero-block/hero-block"
+import { registerHeroBlock } from "./hero-block/hero-block"
 import { registerAboutBlock } from "./about-block/about-block"
-import { registerCtaBlock } from "./cta-block/cta-block"
+import {
+  ctaSectionConfig,
+  ctaSectionType,
+  registerCtaBlock,
+} from "./cta-block/cta-block"
 
 export const patternsPlugin = (editor: Editor): void => {
   registerHeroBlock(editor)
   registerAboutBlock(editor)
   registerCtaBlock(editor)
+}
+
+export const patternComponents: Record<string, ComponentConfig> = {
+  [ctaSectionType]: ctaSectionConfig,
 }
 
 /**

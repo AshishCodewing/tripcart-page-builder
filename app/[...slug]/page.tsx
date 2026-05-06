@@ -2,6 +2,7 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { patternComponents } from "@/lib/plugins/patterns"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only catch-all. Public rendering of CMS pages happens in a
@@ -24,5 +25,10 @@ export default async function PreviewCatchAllPage({
   const page = await prisma.page.findUnique({ where: { path } })
   if (!page) notFound()
 
-  return <PagePreview projectData={page.data} />
+  return (
+    <PagePreview
+      projectData={page.data}
+      config={{ components: patternComponents }}
+    />
+  )
 }

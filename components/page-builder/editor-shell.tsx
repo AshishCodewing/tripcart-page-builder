@@ -7,7 +7,7 @@ import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
-import { patternsPlugin } from "@/lib/plugins/patterns"
+import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -30,7 +30,7 @@ import type { EditorContent } from "./types"
 // content to render correctly.
 const CANVAS_STYLE_URLS = [
   "/vendor/open-props.min.css",
-  // "/vendor/tailwind.css",
+  "/vendor/tailwind.css",
 ]
 
 // Per-record local-storage key. Without scoping by id, every page and post
@@ -72,7 +72,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
   plugins: [
     parserPostCSS,
     designSystemPlugin,
-    reactRendererPlugin,
+    reactRendererPlugin.init({ components: patternComponents }),
     gjsBlocksBasic,
     patternsPlugin,
   ],
