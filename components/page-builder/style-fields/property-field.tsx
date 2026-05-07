@@ -101,11 +101,12 @@ function PropertyRow({
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
-            "min-w-0 flex-1 truncate text-xs",
-            inherited ? "italic text-muted-foreground" : "text-muted-foreground"
+            "min-w-0 flex-1 truncate text-xs text-muted-foreground",
+            inherited ? "flex items-center gap-2" : ""
           )}
         >
           {label}
+          {inherited && <span className="size-1.5 shrink-0 rounded-full bg-warning"/>}
         </span>
         {canClear ? (
           <Button

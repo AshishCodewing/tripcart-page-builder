@@ -81,17 +81,6 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: true,
         properties: [
           "display",
-          "position",
-          "top",
-          "right",
-          "bottom",
-          "left",
-          "width",
-          "height",
-          "min-width",
-          "min-height",
-          "max-width",
-          "max-height",
           // Flex container — gated to display: flex by visibility.ts.
           "flex-direction",
           "justify-content",
@@ -138,6 +127,31 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             ],
           },
         ],
+      },
+      {
+        id: "size",
+        name: "Size",
+        open: false,
+        properties: [
+          "width",
+          "height",
+          "min-width",
+          "min-height",
+          "max-width",
+          "max-height",
+        ]
+      },
+      {
+        id: "position",
+        name: "Position",
+        open: false,
+        properties: [
+          "position",
+          "top",
+          "right",
+          "bottom",
+          "left",
+        ]
       },
       {
         id: "spacing",
