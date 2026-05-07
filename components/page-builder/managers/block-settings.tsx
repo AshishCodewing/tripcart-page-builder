@@ -14,7 +14,7 @@ import {
 
 import SelectorManager from "./selector-manager"
 import StyleManager from "./style-manager"
-import TraitSettings from "./trait-settings"
+import TraitManager from "./trait-manager"
 
 export default function BlockSettings() {
   return (
@@ -46,7 +46,7 @@ export default function BlockSettings() {
         className="flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
       >
         <SidebarContent className="p-3">
-          <TraitSettings />
+          <TraitManager />
         </SidebarContent>
       </TabsContent>
     </Tabs>

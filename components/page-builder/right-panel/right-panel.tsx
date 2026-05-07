@@ -36,7 +36,7 @@ import {
   type PageContent,
   type PostContent,
 } from "@/components/page-builder/types"
-import BlockSettings from "./block-settings"
+import BlockSettings from "../managers/block-settings"
 type Props = {
   content: EditorContent
   /** Server action bound to the record id. */

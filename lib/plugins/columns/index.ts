@@ -11,7 +11,7 @@
 //
 // Behavior matches `node_modules/@grapesjs/studio-sdk/dist/index.es.js` (see
 // the column-block-and-style-manager.md study) so the Style Manager flex-
-// container / flex-child gating in `right-panel/style-fields/visibility.ts`
+// container / flex-child gating in `style-fields/visibility.ts`
 // surfaces the right controls automatically.
 
 import type { Component, Editor } from "grapesjs"

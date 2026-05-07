@@ -4,8 +4,8 @@ import * as React from "react"
 import { StylesProvider, useEditor } from "@grapesjs/react"
 import type { Sector } from "grapesjs"
 
-import StyleSector from "./style-fields/style-sector"
-import { StyleContextProvider } from "./style-fields/use-style-context"
+import StyleSector from "../style-fields/style-sector"
+import { StyleContextProvider } from "../style-fields/use-style-context"
 
 export default function StyleManager() {
   return (
