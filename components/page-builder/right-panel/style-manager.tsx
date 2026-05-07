@@ -5,16 +5,19 @@ import { StylesProvider, useEditor } from "@grapesjs/react"
 import type { Sector } from "grapesjs"
 
 import StyleSector from "./style-fields/style-sector"
+import { StyleContextProvider } from "./style-fields/use-style-context"
 
-export default function StyleSettings() {
+export default function StyleManager() {
   return (
-    <StylesProvider>
-      {({ sectors }) => <StyleSettingsInner sectors={sectors} />}
-    </StylesProvider>
+    <StyleContextProvider>
+      <StylesProvider>
+        {({ sectors }) => <StyleManagerInner sectors={sectors} />}
+      </StylesProvider>
+    </StyleContextProvider>
   )
 }
 
-function StyleSettingsInner({ sectors }: { sectors: Sector[] }) {
+function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   const editor = useEditor()
   const [hasTarget, setHasTarget] = React.useState<boolean>(
     () => editor.StyleManager.getSelected() != null

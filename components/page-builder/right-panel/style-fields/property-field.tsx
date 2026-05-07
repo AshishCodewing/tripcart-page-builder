@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import BaseField from "./base-field"
 import ColorField from "./color-field"
 import FileField from "./file-field"
+import FlexPresetField from "./flex-preset-field"
 import NumberField from "./number-field"
 import RadioField from "./radio-field"
 import SelectField from "./select-field"
@@ -132,9 +133,13 @@ function PropertyRow({
 
 function CompositeField({ property }: { property: PropertyComposite }) {
   const properties = property.getProperties()
+  // The `flex` composite gets a preset picker on top of the sub-property rows,
+  // matching the Auto / Fill / Hug radio the Studio SDK ships.
+  const isFlexShorthand = property.getName() === "flex"
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
+      {isFlexShorthand ? <FlexPresetField property={property} /> : null}
       {properties.map((p) => (
         <PropertyField key={p.getId()} property={p} />
       ))}

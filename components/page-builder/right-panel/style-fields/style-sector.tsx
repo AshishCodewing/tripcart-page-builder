@@ -11,10 +11,19 @@ import {
 } from "@/components/ui/collapsible"
 
 import PropertyField from "./property-field"
+import { useStyleContext } from "./use-style-context"
+import { isPropertyVisible } from "./visibility"
 
 export default function StyleSector({ sector }: { sector: Sector }) {
   const [open, setOpen] = React.useState<boolean>(() => sector.isOpen())
-  const properties = sector.getProperties()
+  const ctx = useStyleContext()
+  const properties = sector
+    .getProperties()
+    .filter((p) => isPropertyVisible(p.getName(), ctx))
+
+  // If every property in the sector was filtered out, hide the sector entirely
+  // — an empty collapsible reads as a bug.
+  if (properties.length === 0) return null
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)

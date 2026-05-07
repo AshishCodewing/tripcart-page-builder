@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tabs"
 
 import SelectorManager from "./selector-manager"
-import StyleSettings from "./style-settings"
+import StyleManager from "./style-manager"
 import TraitSettings from "./trait-settings"
 
 export default function BlockSettings() {
@@ -37,7 +37,7 @@ export default function BlockSettings() {
         <SidebarContent className="p-3">
           <div className="space-y-2">
             <SelectorManager />
-            <StyleSettings />
+            <StyleManager />
           </div>
         </SidebarContent>
       </TabsContent>

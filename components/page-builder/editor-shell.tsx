@@ -6,6 +6,7 @@ import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
+import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
@@ -91,10 +92,51 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "min-height",
           "max-width",
           "max-height",
+          // Flex container — gated to display: flex by visibility.ts.
           "flex-direction",
           "justify-content",
           "align-items",
           "gap",
+          "flex-wrap",
+          "align-content",
+          // Flex child — gated to parent display: flex by visibility.ts.
+          "align-self",
+          {
+            extend: "order",
+            type: "integer",
+            default: "0",
+          },
+          // Composite that backs the Flex preset radio (Auto / Fill / Hug).
+          // The preset UI lives in property-field.tsx → FlexPresetField; the
+          // sub-properties below are also surfaced for power users who want
+          // to type exact grow/shrink/basis values.
+          {
+            property: "flex",
+            type: "composite",
+            default: "0 0 auto",
+            properties: [
+              {
+                property: "flex-grow",
+                type: "integer",
+                default: "0",
+                min: 0,
+              },
+              {
+                property: "flex-shrink",
+                type: "integer",
+                default: "0",
+                min: 0,
+              },
+              {
+                property: "flex-basis",
+                type: "number",
+                default: "auto",
+                units: ["px", "%", "vw", "vh"],
+                fixedValues: ["auto"],
+                min: 0,
+              },
+            ],
+          },
         ],
       },
       {
@@ -143,7 +185,17 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
     parserPostCSS,
     designSystemPlugin,
     reactRendererPlugin.init({ components: patternComponents }),
-    gjsBlocksBasic,
+    // gjsBlocksBasic ships its own column blocks (table-based by default,
+    // `flexGrid: true` makes them flex). We replace those with columnsPlugin
+    // — a re-implementation of the Studio SDK gridRow / gridColumn types
+    // (Add-column trait, Center-content trait, flex-basis resize, …) — so
+    // we keep the plain blocks (text, link, image, video, map) but get the
+    // full SDK-equivalent column behavior on top.
+    (editor) =>
+      gjsBlocksBasic(editor, {
+        blocks: ["text", "link", "image", "video", "map"],
+      }),
+    columnsPlugin,
     patternsPlugin,
   ],
   canvas: {

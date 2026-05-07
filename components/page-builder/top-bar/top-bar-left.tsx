@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { useEditor } from "@grapesjs/react"
-import { Layers, Palette, Plus, Redo, Undo } from "lucide-react"
+import { Layers, Palette, Plus, Redo, SquareDashed, Undo } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Toggle } from "@/components/ui/toggle"
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +35,28 @@ export default function TopBarLeft({ className }: Props) {
   const blocksActive = activeMode === "blocks"
   const layersActive = activeMode === "layers"
   const themeActive = activeMode === "theme"
+
+  // Tracks the GrapesJS core outline command (runs the dashed-border overlay
+  // on every component). The `update` listener above already re-renders this
+  // bar on every editor change, but command run/stop don't fire `update` —
+  // we sync local state from the run/stop events directly.
+  const OUTLINE_CMD = "core:component-outline"
+  const [outlineActive, setOutlineActive] = React.useState<boolean>(() =>
+    editor.Commands.isActive(OUTLINE_CMD)
+  )
+  React.useEffect(() => {
+    const sync = () => setOutlineActive(editor.Commands.isActive(OUTLINE_CMD))
+    editor.on(`command:run:${OUTLINE_CMD}`, sync)
+    editor.on(`command:stop:${OUTLINE_CMD}`, sync)
+    return () => {
+      editor.off(`command:run:${OUTLINE_CMD}`, sync)
+      editor.off(`command:stop:${OUTLINE_CMD}`, sync)
+    }
+  }, [editor])
+  const toggleOutline = () => {
+    if (editor.Commands.isActive(OUTLINE_CMD)) editor.stopCommand(OUTLINE_CMD)
+    else editor.runCommand(OUTLINE_CMD)
+  }
 
   return (
     <TooltipProvider delay={500}>
@@ -134,6 +157,22 @@ export default function TopBarLeft({ className }: Props) {
             }
           />
           <TooltipContent>Layers</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Toggle
+                size="sm"
+                aria-label="Toggle outline"
+                pressed={outlineActive}
+                onPressedChange={toggleOutline}
+              >
+                <SquareDashed />
+              </Toggle>
+            }
+          />
+          <TooltipContent>Toggle outline</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
