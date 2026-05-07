@@ -67,6 +67,70 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       { name: "focus", label: "Focused" },
     ],
   },
+    // Sectors drive what CSS our custom Style Manager (style-settings.tsx)
+  // exposes. Strings are buildProps shorthand — GrapesJS resolves them
+  // through its built-in property registry (units, options, composite
+  // sub-properties, etc.). Use `{ extend: 'name', ... }` to tweak a
+  // built-in, or a fully-defined object to introduce a custom property.
+  styleManager: {
+    sectors: [
+      {
+        id: "layout",
+        name: "Layout",
+        open: true,
+        properties: [
+          "display",
+          "position",
+          "top",
+          "right",
+          "bottom",
+          "left",
+          "width",
+          "height",
+          "min-width",
+          "min-height",
+          "max-width",
+          "max-height",
+          "flex-direction",
+          "justify-content",
+          "align-items",
+          "gap",
+        ],
+      },
+      {
+        id: "spacing",
+        name: "Spacing",
+        open: false,
+        properties: ["margin", "padding"],
+      },
+      {
+        id: "typography",
+        name: "Typography",
+        open: false,
+        properties: [
+          "font-family",
+          "font-size",
+          "font-weight",
+          "line-height",
+          "letter-spacing",
+          "color",
+          "text-align",
+        ],
+      },
+      {
+        id: "background-border",
+        name: "Background & Border",
+        open: false,
+        properties: [
+          "background-color",
+          "background-image",
+          "border",
+          "border-radius",
+          "box-shadow",
+        ],
+      },
+    ],
+  },
   // Default panels removed in favor of the WP-style React chrome.
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.

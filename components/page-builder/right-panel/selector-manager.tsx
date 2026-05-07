@@ -167,9 +167,14 @@ function SelectorManagerInner({
 
         <TargetRow
           active={!componentFirst}
-          tooltip="Apply Styles to Classes"
+          tooltip={
+            selectors.length === 0
+              ? "No Selectors applied"
+              : "Apply Styles to Classes"
+          }
           icon={<Tag className="size-3.5" aria-hidden="true" />}
           onActivate={() => setComponentFirst(false)}
+          disabled={selectors.length === 0}
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             {adding ? (
@@ -248,20 +253,23 @@ function TargetRow({
   tooltip,
   icon,
   onActivate,
+  disabled = false,
   children,
 }: {
   active: boolean
   tooltip: string
   icon: React.ReactNode
   onActivate: () => void
+  disabled?: boolean
   children: React.ReactNode
 }) {
   return (
     <div
       data-active={active}
+      data-disabled={disabled}
       className={cn(
         "flex min-h-9 items-stretch overflow-hidden rounded-md border bg-card transition-colors duration-150 motion-reduce:transition-none",
-        active
+        active && !disabled
           ? "border-primary/50"
           : "border-border/60 hover:border-border"
       )}
@@ -272,13 +280,14 @@ function TargetRow({
             <button
               type="button"
               onClick={onActivate}
+              disabled={disabled}
               aria-pressed={active}
               aria-label={tooltip}
               className={cn(
-                "flex w-9 shrink-0 items-center justify-center self-stretch border-e outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-inset motion-reduce:transition-none",
-                active
+                "flex w-9 shrink-0 items-center justify-center self-stretch border-e outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-inset motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50",
+                active && !disabled
                   ? "border-primary/50 bg-primary text-primary-foreground"
-                  : "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "border-border/60 bg-muted/50 text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground"
               )}
             >
               {icon}
