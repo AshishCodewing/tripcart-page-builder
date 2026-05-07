@@ -6,7 +6,7 @@
 //   • `column1`, `column2`, `column3`, `column3-7` blocks
 //   • `Add column` button trait on rows  (runs the `columns:add-column` cmd)
 //   • `Center content` checkbox trait on columns
-//   • Resize handles wired to `flex-basis` (column width) / `min-height` (row)
+//   • Vertical resize handle on rows wired to `min-height`
 //   • Default stylesheet for `.gjs-grid-row` and `.gjs-grid-column`
 //
 // Behavior matches `node_modules/@grapesjs/studio-sdk/dist/index.es.js` (see
@@ -22,19 +22,15 @@ const ADD_COLUMN_CMD = "columns:add-column"
 
 const ROW_CSS = `
 .${ROW_CLASS} {
+  padding: 10px;
   display: flex;
-  justify-content: flex-start;
-  align-items: stretch;
   flex-direction: row;
-  min-height: auto;
-  padding: 10px 0;
-}
-@media (max-width: 992px) {
-  .${ROW_CLASS} { flex-direction: column; }
 }
 .${COLUMN_CLASS} {
-  flex: 1 1 0%;
-  padding: 5px 0;
+  min-width: 30px;
+  padding: 10px;
+  display: block;
+  width: 100%;
 }
 `
 
@@ -48,25 +44,19 @@ type CenterContentModel = Component & {
 
 export const columnsPlugin = (editor: Editor): void => {
   // 1. Default stylesheet — added once, lives in the iframe alongside any
-  //    user-authored CSS. Setting `mediaText` keeps the stacking rule scoped
-  //    to mobile widths.
+  //    user-authored CSS. Mirrors `ROW_CSS` above so the canvas defaults match
+  //    the inline styles embedded in dropped blocks.
   const css = editor.Css
   css.setRule(`.${ROW_CLASS}`, {
+    padding: "10px",
     display: "flex",
-    "justify-content": "flex-start",
-    "align-items": "stretch",
     "flex-direction": "row",
-    "min-height": "auto",
-    padding: "10px 0",
   })
-  css.setRule(
-    `.${ROW_CLASS}`,
-    { "flex-direction": "column" },
-    { atRuleType: "media", atRuleParams: "(max-width: 992px)" }
-  )
   css.setRule(`.${COLUMN_CLASS}`, {
-    flex: "1 1 0%",
-    padding: "5px 0",
+    "min-width": "30px",
+    padding: "10px",
+    display: "block",
+    width: "100%"
   })
 
   // 2. `gridRow` — flex container, only accepts gridColumn children, vertical
@@ -110,10 +100,8 @@ export const columnsPlugin = (editor: Editor): void => {
     },
   })
 
-  // 3. `gridColumn` — flex item, may only be dragged onto a gridRow,
-  //    horizontal resize writes `flex-basis`, hides the `width` style field
-  //    (it's the wrong knob for a flex item), exposes the Center-content
-  //    checkbox trait.
+  // 3. `gridColumn` — flex item, may only be dragged onto a gridRow, exposes
+  //    the Center-content checkbox trait.
   editor.Components.addType("gridColumn", {
     isComponent: (el) =>
       el instanceof HTMLElement && el.classList.contains(COLUMN_CLASS)
@@ -121,25 +109,10 @@ export const columnsPlugin = (editor: Editor): void => {
         : undefined,
     model: {
       defaults: {
-        name: "Cell",
+        name: "Column",
         tagName: "div",
         classes: [COLUMN_CLASS],
         draggable: `[data-gjs-type=gridRow]`,
-        unstylable: ["width"],
-        resizable: {
-          tl: 0,
-          tc: 0,
-          tr: 0,
-          cl: 0,
-          cr: 1,
-          bl: 0,
-          bc: 0,
-          br: 0,
-          keyWidth: "flex-basis",
-          currentUnit: 1,
-          minDim: 30,
-          step: 0.2,
-        },
         // Default value of the prop the Center-content trait binds to. Stored
         // on the component so it round-trips through save/load.
         "center-content": false,
