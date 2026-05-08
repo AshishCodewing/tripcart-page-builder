@@ -18,7 +18,7 @@ import BoxCornersField from "./box-corners-field"
 import BoxSidesField from "./box-sides-field"
 import ColorField from "./color-field"
 import FileField from "./file-field"
-import FlexPresetField from "./flex-preset-field"
+import FlexPresetField, { getFlexPreset } from "./flex-preset-field"
 import GapField from "./gap-field"
 import NumberField from "./number-field"
 import RadioField from "./radio-field"
@@ -164,18 +164,43 @@ function CompositeField({ property }: { property: PropertyComposite }) {
   if (name === "border-radius") {
     return <BoxCornersField property={property} />
   }
+  // `flex` shows the Auto / Fill / Hug preset picker; the raw grow / shrink /
+  // basis sub-rows are revealed only when Custom is active.
+  if (name === "flex") {
+    return <FlexCompositeField property={property} />
+  }
 
   const properties = property.getProperties()
-  // The `flex` composite gets a preset picker on top of the sub-property rows,
-  // matching the Auto / Fill / Hug radio the Studio SDK ships.
-  const isFlexShorthand = name === "flex"
-
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
-      {isFlexShorthand ? <FlexPresetField property={property} /> : null}
       {properties.map((p) => (
         <PropertyField key={p.getId()} property={p} />
       ))}
+    </div>
+  )
+}
+
+function FlexCompositeField({ property }: { property: PropertyComposite }) {
+  const properties = property.getProperties()
+  const preset = getFlexPreset(property)
+  // Custom stays open until the user picks a preset; if the underlying values
+  // don't match any preset, Custom is implicitly active so the sub-rows are
+  // always reachable for editing.
+  const [customForced, setCustomForced] = React.useState(false)
+  const customActive = customForced || preset === null
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
+      <FlexPresetField
+        property={property}
+        customForced={customForced}
+        onSelect={(id) => setCustomForced(id === "custom")}
+      />
+      {customActive
+        ? properties.map((p) => (
+            <PropertyField key={p.getId()} property={p} />
+          ))
+        : null}
     </div>
   )
 }
