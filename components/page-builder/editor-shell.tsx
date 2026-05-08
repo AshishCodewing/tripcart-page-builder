@@ -111,7 +111,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             ],
           },
           "flex-wrap",
-          "align-content",
+          { extend: "align-content", type: "radio" },
           // Flex child — gated to parent display: flex by visibility.ts.
           { extend: "align-self", type: "radio" },
           {

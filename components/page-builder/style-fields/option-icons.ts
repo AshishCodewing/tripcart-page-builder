@@ -12,6 +12,8 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
+  AlignVerticalSpaceAround,
+  AlignVerticalSpaceBetween,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -85,6 +87,16 @@ export const OPTION_ICONS: Record<string, Record<string, LucideIcon>> = {
     center: AlignVerticalJustifyCenter,
     "flex-end": AlignVerticalJustifyEnd,
     baseline: Baseline,
+    stretch: StretchVertical,
+  },
+  // Cross-axis distribution between wrapped lines. Same axis (and so same
+  // icon family) as align-items, with space-* variants like justify-content.
+  "align-content": {
+    "flex-start": AlignVerticalJustifyStart,
+    center: AlignVerticalJustifyCenter,
+    "flex-end": AlignVerticalJustifyEnd,
+    "space-between": AlignVerticalSpaceBetween,
+    "space-around": AlignVerticalSpaceAround,
     stretch: StretchVertical,
   },
   // Per-child override of align-items. Adds `auto` (= inherit from parent).

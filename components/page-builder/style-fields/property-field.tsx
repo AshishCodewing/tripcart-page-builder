@@ -36,6 +36,7 @@ const FLEX_AXIS_BLOCK_PROPS = new Set([
   "justify-content",
   "align-items",
   "align-self",
+  "align-content"
 ])
 
 type PropertyFieldProps = {

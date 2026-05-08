@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+import { cn, humanizeLabel } from "@/lib/utils"
 
 import { OPTION_ICONS } from "./option-icons"
 import SelectField from "./select-field"
@@ -20,7 +20,11 @@ const SENTINEL = "__radio_unset__"
 // Properties whose icons depend on the relevant flex container's axis.
 // `align-self` looks at the parent (it's a flex-child property), the others
 // at the element's own flex-direction.
-const FLEX_AXIS_OWN = new Set(["justify-content", "align-items"])
+const FLEX_AXIS_OWN = new Set([
+  "justify-content",
+  "align-items",
+  "align-content",
+])
 const FLEX_AXIS_PARENT = new Set(["align-self"])
 
 // In column-flow the main and cross axes swap orientation, so we rotate the
@@ -30,7 +34,11 @@ const FLEX_AXIS_PARENT = new Set(["align-self"])
 function getIconRotation(propName: string, direction: string): string {
   if (direction !== "column" && direction !== "column-reverse") return ""
   if (propName === "justify-content") return "rotate-90"
-  if (propName === "align-items" || propName === "align-self") {
+  if (
+    propName === "align-items" ||
+    propName === "align-self" ||
+    propName === "align-content"
+  ) {
     return "-rotate-90"
   }
   return ""
@@ -79,7 +87,7 @@ export default function RadioField({
       >
         {options.map((opt: SelectOption) => {
           const id = property.getOptionId(opt)
-          const label = property.getOptionLabel(opt)
+          const label = humanizeLabel(property.getOptionLabel(opt))
           const Icon = propIcons![id]
 
           return (
