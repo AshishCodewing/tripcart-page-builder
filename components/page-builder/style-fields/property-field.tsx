@@ -28,6 +28,16 @@ import SelectField from "./select-field"
 // public types, so we derive it from the API surface that does return it.
 type StackLayer = NonNullable<ReturnType<PropertyStack["getLayer"]>>
 
+// Radio fields that should stack their label above the toggle group. These
+// render 4–6 icon buttons that don't fit cleanly inside the inline-layout
+// max-w-[60%] field column.
+const FLEX_AXIS_BLOCK_PROPS = new Set([
+  "flex-direction",
+  "justify-content",
+  "align-items",
+  "align-self",
+])
+
 type PropertyFieldProps = {
   property: Property
   /**
@@ -82,7 +92,14 @@ export default function PropertyField({
 
   // Stack/composite render their own headers (with layer rows or sub-fields),
   // so the row label would duplicate. Plain leaves get the standard label row.
-  const layout = type === "stack" || type === "composite" ? "block" : "inline"
+  // Flex-axis radios stack the label above the toggle group so the 4–6 icon
+  // buttons get full width instead of being crammed into max-w-[60%].
+  const isFlexAxisRadio =
+    type === "radio" && FLEX_AXIS_BLOCK_PROPS.has(property.getName())
+  const layout =
+    type === "stack" || type === "composite" || isFlexAxisRadio
+      ? "block"
+      : "inline"
 
   return (
     <PropertyRow property={property} layout={layout}>

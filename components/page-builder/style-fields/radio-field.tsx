@@ -3,20 +3,49 @@
 import type { PropertySelect, SelectOption } from "grapesjs"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import { OPTION_ICONS } from "./option-icons"
 import SelectField from "./select-field"
+import { useStyleContext } from "./use-style-context"
 
 const SENTINEL = "__radio_unset__"
+
+// Properties whose icons depend on the relevant flex container's axis.
+// `align-self` looks at the parent (it's a flex-child property), the others
+// at the element's own flex-direction.
+const FLEX_AXIS_OWN = new Set(["justify-content", "align-items"])
+const FLEX_AXIS_PARENT = new Set(["align-self"])
+
+// In column-flow the main and cross axes swap orientation, so we rotate the
+// horizontal-family / vertical-family icons accordingly. Justify rotates
+// clockwise (left→top reads as start), Align rotates counter-clockwise so
+// "start" still visually points to the cross-axis start (top→left).
+function getIconRotation(propName: string, direction: string): string {
+  if (direction !== "column" && direction !== "column-reverse") return ""
+  if (propName === "justify-content") return "rotate-90"
+  if (propName === "align-items" || propName === "align-self") {
+    return "-rotate-90"
+  }
+  return ""
+}
 
 export default function RadioField({
   property,
 }: {
   property: PropertySelect
 }) {
+  const ctx = useStyleContext()
   const value = String(property.getValue() ?? "")
   const options = property.getOptions() ?? []
-  const propIcons = OPTION_ICONS[property.getName()]
+  const propName = property.getName()
+  const propIcons = OPTION_ICONS[propName]
   const allHaveIcons =
     !!propIcons &&
     options.length > 0 &&
@@ -28,35 +57,55 @@ export default function RadioField({
     return <SelectField property={property} />
   }
 
-  return (
-    <ToggleGroup
-      value={[value || SENTINEL]}
-      onValueChange={(values: string[]) => {
-        const next = values[0]
-        if (!next || next === SENTINEL) return
-        property.upValue(next)
-      }}
-      aria-label={property.getLabel()}
-      className="w-full"
-      variant="outline"
-    >
-      {options.map((opt: SelectOption) => {
-        const id = property.getOptionId(opt)
-        const label = property.getOptionLabel(opt)
-        const Icon = propIcons![id]
+  const direction = FLEX_AXIS_PARENT.has(propName)
+    ? ctx.parentFlexDirection
+    : FLEX_AXIS_OWN.has(propName)
+      ? ctx.flexDirection
+      : "row"
+  const rotation = getIconRotation(propName, direction)
 
-        return (
-          <ToggleGroupItem
-            key={id}
-            value={id}
-            aria-label={label}
-            title={label}
-            className="min-w-0 flex-1 px-2 py-1 text-xs"
-          >
-            <Icon className="size-3.5" aria-hidden="true" />
-          </ToggleGroupItem>
-        )
-      })}
-    </ToggleGroup>
+  return (
+    <TooltipProvider delay={500}>
+      <ToggleGroup
+        value={[value || SENTINEL]}
+        onValueChange={(values: string[]) => {
+          const next = values[0]
+          if (!next || next === SENTINEL) return
+          property.upValue(next)
+        }}
+        aria-label={property.getLabel()}
+        className="w-full"
+        variant="outline"
+      >
+        {options.map((opt: SelectOption) => {
+          const id = property.getOptionId(opt)
+          const label = property.getOptionLabel(opt)
+          const Icon = propIcons![id]
+
+          return (
+            <Tooltip key={id}>
+              <TooltipTrigger
+                render={
+                  <ToggleGroupItem
+                    value={id}
+                    aria-label={label}
+                    className="min-w-0 flex-1 px-2 py-1 text-xs"
+                  >
+                    <Icon
+                      className={cn(
+                        "size-3.5 transition-transform duration-150 motion-reduce:transition-none",
+                        rotation
+                      )}
+                      aria-hidden="true"
+                    />
+                  </ToggleGroupItem>
+                }
+              />
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          )
+        })}
+      </ToggleGroup>
+    </TooltipProvider>
   )
 }

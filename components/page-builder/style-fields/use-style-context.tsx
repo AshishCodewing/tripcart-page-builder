@@ -10,6 +10,10 @@ export type StyleContext = {
   isFlex: boolean
   parentIsFlex: boolean
   flexDirection: string
+  // Parent's computed flex-direction. Used by flex-child fields (align-self)
+  // to rotate their axis-icons in the same way the container's own
+  // justify-content / align-items do.
+  parentFlexDirection: string
   flexWrap: string
   position: string
 }
@@ -18,6 +22,7 @@ const DEFAULT_CONTEXT: StyleContext = {
   isFlex: false,
   parentIsFlex: false,
   flexDirection: "row",
+  parentFlexDirection: "row",
   flexWrap: "nowrap",
   position: "static",
 }
@@ -61,6 +66,7 @@ export function StyleContextProvider({
           isFlex: display.includes("flex"),
           parentIsFlex: parentDisplay.includes("flex"),
           flexDirection: cs.flexDirection || "row",
+          parentFlexDirection: ps?.flexDirection || "row",
           flexWrap: cs.flexWrap || "nowrap",
           position: cs.position || "static",
         })

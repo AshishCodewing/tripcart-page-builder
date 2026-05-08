@@ -82,9 +82,11 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "display",
           // Flex container — gated to display: flex by visibility.ts.
-          "flex-direction",
-          "justify-content",
-          "align-items",
+          // Override to `radio` so RadioField picks up the icon set in
+          // option-icons.ts (the GrapesJS built-in is a `select` dropdown).
+          { extend: "flex-direction", type: "radio" },
+          { extend: "justify-content", type: "radio" },
+          { extend: "align-items", type: "radio" },
           // `gap` shorthand expanded into row-gap / column-gap so the custom
           // GapField can edit each axis independently (see gap-field.tsx).
           {
@@ -111,7 +113,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "flex-wrap",
           "align-content",
           // Flex child — gated to parent display: flex by visibility.ts.
-          "align-self",
+          { extend: "align-self", type: "radio" },
           {
             extend: "order",
             type: "integer",
