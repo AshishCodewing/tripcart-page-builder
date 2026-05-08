@@ -214,7 +214,7 @@ export default function NumberField({
   property: PropertyNumber
   slider: boolean
 }) {
-  const rawValue = property.getValue()
+  const rawValue = property.getValue({ noDefault: true })
   const value = rawValue == null ? "" : String(rawValue)
   const unit = property.getUnit() ?? ""
   // If the property defines any units it's a length-typed property — give it
