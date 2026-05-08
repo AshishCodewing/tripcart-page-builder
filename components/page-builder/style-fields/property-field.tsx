@@ -126,7 +126,7 @@ function PropertyRow({
     <div
       data-inherited={inherited || undefined}
       className={cn(
-        "flex gap-2",
+        "flex gap-1",
         layout === "inline"
           ? "items-center justify-between"
           : "flex-col items-stretch"
