@@ -27,6 +27,8 @@ export default function StyleSector({ sector }: { sector: Sector }) {
   // — an empty collapsible reads as a bug.
   if (properties.length === 0) return null
 
+  const hasSetValue = properties.some((p) => p.hasValue({ noParent: true }))
+
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     sector.setOpen(next)
@@ -44,7 +46,12 @@ export default function StyleSector({ sector }: { sector: Sector }) {
           />
         }
       >
-        <span>{sector.getName()}</span>
+        <div className="flex items-center gap-2">
+          <span>{sector.getName()}</span>
+          {hasSetValue && (
+            <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+          )}
+        </div>
         <ChevronDown
           className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-panel-open/sector:rotate-180 motion-reduce:transition-none"
           aria-hidden="true"
