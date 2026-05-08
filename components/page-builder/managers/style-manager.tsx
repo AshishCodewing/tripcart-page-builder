@@ -49,7 +49,7 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col border-t">
       {sectors.map((sector) => (
         <StyleSector key={sector.getId()} sector={sector} />
       ))}

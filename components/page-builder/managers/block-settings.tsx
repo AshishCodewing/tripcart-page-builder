@@ -19,7 +19,7 @@ import TraitManager from "./trait-manager"
 export default function BlockSettings() {
   return (
     <Tabs defaultValue="style" className="h-full min-h-0 gap-0">
-      <SidebarHeader className="p-3 pb-0">
+      <SidebarHeader className="p-2">
         <TabsList variant="fill" className="w-full justify-between">
           <TabsTrigger value="style" className="flex-1">
             <Paintbrush />
@@ -34,9 +34,11 @@ export default function BlockSettings() {
         value="style"
         className="flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
       >
-        <SidebarContent className="p-3">
+        <SidebarContent>
           <div className="space-y-2">
-            <SelectorManager />
+            <div className="p-2">
+              <SelectorManager />
+            </div>
             <StyleManager />
           </div>
         </SidebarContent>
@@ -45,7 +47,7 @@ export default function BlockSettings() {
         value="traits"
         className="flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
       >
-        <SidebarContent className="p-3">
+        <SidebarContent className="p-2">
           <TraitManager />
         </SidebarContent>
       </TabsContent>

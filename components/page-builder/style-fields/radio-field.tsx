@@ -38,6 +38,7 @@ export default function RadioField({
       }}
       aria-label={property.getLabel()}
       className="w-full"
+      variant="outline"
     >
       {options.map((opt: SelectOption) => {
         const id = property.getOptionId(opt)

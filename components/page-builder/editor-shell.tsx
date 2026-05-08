@@ -85,7 +85,29 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "flex-direction",
           "justify-content",
           "align-items",
-          "gap",
+          // `gap` shorthand expanded into row-gap / column-gap so the custom
+          // GapField can edit each axis independently (see gap-field.tsx).
+          {
+            property: "gap",
+            type: "composite",
+            default: "0px",
+            properties: [
+              {
+                property: "row-gap",
+                type: "number",
+                default: "0",
+                units: ["px", "%", "em", "rem"],
+                min: 0,
+              },
+              {
+                property: "column-gap",
+                type: "number",
+                default: "0",
+                units: ["px", "%", "em", "rem"],
+                min: 0,
+              },
+            ],
+          },
           "flex-wrap",
           "align-content",
           // Flex child — gated to parent display: flex by visibility.ts.
@@ -139,7 +161,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "min-height",
           "max-width",
           "max-height",
-        ]
+        ],
       },
       {
         id: "position",
@@ -174,17 +196,24 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         ],
       },
       {
-        id: "background-border",
-        name: "Background & Border",
+        id: "background",
+        name: "Background",
         open: false,
         properties: [
           "background-color",
           "background-image",
+        ],
+      },
+      {
+        id: "border",
+        name: "Border",
+        open: false,
+        properties: [
           "border",
           "border-radius",
           "box-shadow",
         ],
-      },
+      }
     ],
   },
   // Default panels removed in favor of the WP-style React chrome.

@@ -17,6 +17,122 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 
+export type NumberInputProps = {
+  /** Bare number string (no unit). Empty string = unset. */
+  value: string
+  /** Current unit. Empty string = no unit. */
+  unit: string
+  /** Unit dropdown options. Empty = hide the dropdown. */
+  units?: string[]
+  min?: number
+  max?: number
+  step?: number
+  slider?: boolean
+  placeholder?: string
+  ariaLabel?: string
+  /** Fired with the bare value (no unit). Composition is the caller's job. */
+  onCommit: (value: string, opts?: { partial?: boolean }) => void
+  onUnitChange?: (unit: string) => void
+}
+
+/**
+ * Presentational number/slider input with optional unit dropdown. No
+ * `Property` knowledge — emits raw value/unit changes so callers can decide
+ * how to compose them and where to write (one Property, several
+ * sub-Properties, etc.).
+ */
+export function NumberInput({
+  value,
+  unit,
+  units = [],
+  min,
+  max,
+  step = 1,
+  slider,
+  placeholder,
+  ariaLabel,
+  onCommit,
+  onUnitChange,
+}: NumberInputProps) {
+  const showSlider =
+    slider && typeof min === "number" && typeof max === "number"
+  if (showSlider) {
+    const minN = min as number
+    const maxN = max as number
+    const numeric = Number(value)
+    const safe = Number.isFinite(numeric) ? numeric : minN
+    return (
+      <div className="flex w-full items-center gap-2">
+        <Slider
+          min={minN}
+          max={maxN}
+          step={step}
+          value={[safe]}
+          onValueChange={(v) => {
+            const next = Array.isArray(v) ? v[0] : v
+            onCommit(String(next), { partial: true })
+          }}
+          onValueCommitted={(v) => {
+            const next = Array.isArray(v) ? v[0] : v
+            onCommit(String(next))
+          }}
+          className="min-w-0 flex-1"
+          aria-label={ariaLabel}
+        />
+        <Input
+          type="number"
+          min={minN}
+          max={maxN}
+          step={step}
+          value={value}
+          onChange={(e) => onCommit(e.target.value)}
+          className="w-14 text-end tabular-nums"
+          aria-label={ariaLabel}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <InputGroup className="h-8">
+      <InputGroupInput
+        type="number"
+        step={step}
+        inputSize="sm"
+        value={value}
+        onChange={(e) => onCommit(e.target.value)}
+        placeholder={placeholder ?? ""}
+        className="text-xs tabular-nums"
+        aria-label={ariaLabel}
+      />
+      {units.length > 0 ? (
+        <InputGroupAddon align="inline-end">
+          <Select
+            value={unit || units[0]}
+            onValueChange={(next) => {
+              if (next != null) onUnitChange?.(next)
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="gap-0 rounded-l-none rounded-r-md px-1 py-1 border-0 bg-transparent! text-xs shadow-none [&>svg]:hidden"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end" className="p-1 min-w-14">
+              {units.map((u) => (
+                <SelectItem key={u} value={u} className="text-xs">
+                  {u}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </InputGroupAddon>
+      ) : null}
+    </InputGroup>
+  )
+}
+
 export default function NumberField({
   property,
   slider,
@@ -28,85 +144,23 @@ export default function NumberField({
   const value = rawValue == null ? "" : String(rawValue)
   const unit = property.getUnit() ?? ""
   const units = property.getUnits() ?? []
-  const min = property.getMin()
-  const max = property.getMax()
-  const step = property.getStep() || 1
-
-  const commit = (next: string, opts: { partial?: boolean } = {}) => {
-    const trimmed = next.trim()
-    const composed = trimmed && unit ? `${trimmed}${unit}` : trimmed
-    property.upValue(composed, opts)
-  }
-
-  if (slider && Number.isFinite(min) && Number.isFinite(max)) {
-    const numeric = Number(value)
-    const safe = Number.isFinite(numeric) ? numeric : min
-    return (
-      <div className="flex w-full items-center gap-2">
-        <Slider
-          min={min}
-          max={max}
-          step={step}
-          value={[safe]}
-          onValueChange={(v) => {
-            const next = Array.isArray(v) ? v[0] : v
-            commit(String(next), { partial: true })
-          }}
-          onValueCommitted={(v) => {
-            const next = Array.isArray(v) ? v[0] : v
-            commit(String(next))
-          }}
-          className="min-w-0 flex-1"
-        />
-        <Input
-          inputSize="sm"
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => commit(e.target.value)}
-          className="w-14 text-end tabular-nums"
-        />
-      </div>
-    )
-  }
 
   return (
-    <InputGroup className="h-6">
-      <InputGroupInput
-        inputSize="sm"
-        type="number"
-        step={step}
-        value={value}
-        onChange={(e) => commit(e.target.value)}
-        placeholder={property.getDefaultValue() || ""}
-        className="text-xs tabular-nums"
-      />
-      {units.length > 0 ? (
-        <InputGroupAddon align="inline-end" className="py-0 pe-0">
-          <Select
-            value={unit || units[0]}
-            onValueChange={(next) => {
-              if (next != null) property.upUnit(next)
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="h-6 gap-0 rounded-l-none rounded-r-md border-0 bg-transparent px-2 text-xs shadow-none focus-visible:ring-0 [&>svg]:hidden"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="end">
-              {units.map((u) => (
-                <SelectItem key={u} value={u} className="text-xs">
-                  {u}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </InputGroupAddon>
-      ) : null}
-    </InputGroup>
+    <NumberInput
+      value={value}
+      unit={unit}
+      units={units}
+      min={property.getMin()}
+      max={property.getMax()}
+      step={property.getStep() || 1}
+      slider={slider}
+      placeholder={property.getDefaultValue() || ""}
+      onCommit={(next, opts) => {
+        const trimmed = next.trim()
+        const composed = trimmed && unit ? `${trimmed}${unit}` : trimmed
+        property.upValue(composed, opts)
+      }}
+      onUnitChange={(next) => property.upUnit(next)}
+    />
   )
 }

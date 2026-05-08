@@ -8,7 +8,7 @@ export default function BaseField({ property }: { property: Property }) {
   const value = String(property.getValue() ?? "")
   return (
     <Input
-      inputSize="xs"
+      inputSize="sm"
       type="text"
       value={value}
       onChange={(e) => property.upValue(e.target.value)}

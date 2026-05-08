@@ -33,7 +33,7 @@ export default function BlockManager({
             <header className="border-y bg-muted/40 px-3 py-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               {category || "Other"}
             </header>
-            <div className="grid grid-cols-2 gap-2 p-3">
+            <div className="grid grid-cols-2 gap-2 p-2">
               {blocks.map((block) => (
                 <Button
                   key={block.getId()}

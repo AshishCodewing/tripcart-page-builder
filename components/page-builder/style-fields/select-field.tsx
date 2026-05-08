@@ -20,7 +20,7 @@ export default function SelectField({
 
   return (
     <Select
-      value={value || undefined}
+      value={value}
       onValueChange={(next) => {
         if (next != null) property.upValue(next)
       }}
@@ -28,11 +28,11 @@ export default function SelectField({
       <SelectTrigger size="sm" className="w-full text-xs">
         <SelectValue placeholder={property.getDefaultValue() || "—"} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="p-1">
         {options.map((opt) => {
           const id = property.getOptionId(opt)
           return (
-            <SelectItem key={id} value={id}>
+            <SelectItem key={id} value={id} className="text-xs">
               {property.getOptionLabel(opt)}
             </SelectItem>
           )

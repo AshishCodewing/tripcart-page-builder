@@ -14,9 +14,12 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import BaseField from "./base-field"
+import BoxCornersField from "./box-corners-field"
+import BoxSidesField from "./box-sides-field"
 import ColorField from "./color-field"
 import FileField from "./file-field"
 import FlexPresetField from "./flex-preset-field"
+import GapField from "./gap-field"
 import NumberField from "./number-field"
 import RadioField from "./radio-field"
 import SelectField from "./select-field"
@@ -25,7 +28,20 @@ import SelectField from "./select-field"
 // public types, so we derive it from the API surface that does return it.
 type StackLayer = NonNullable<ReturnType<PropertyStack["getLayer"]>>
 
-export default function PropertyField({ property }: { property: Property }) {
+type PropertyFieldProps = {
+  property: Property
+  /**
+   * Override the default inline/block row decision. Set to "block" by sectors
+   * that arrange properties in a grid (see editor-shell.tsx → `layout: 'grid-2'`)
+   * so each cell stacks label above field.
+   */
+  layout?: "inline" | "block"
+}
+
+export default function PropertyField({
+  property,
+  layout: layoutProp,
+}: PropertyFieldProps) {
   if (!property.isVisible()) return null
 
   const type = property.getType()
@@ -101,7 +117,7 @@ function PropertyRow({
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
-            "min-w-0 flex-1 truncate text-xs text-muted-foreground",
+            "min-w-0 flex-1 truncate text-xs text-muted-foreground py-1",
             inherited ? "flex items-center gap-2" : ""
           )}
         >
@@ -133,10 +149,26 @@ function PropertyRow({
 }
 
 function CompositeField({ property }: { property: PropertyComposite }) {
+  const name = property.getName()
+  // `margin` and `padding` get the All / Custom toggle + cross layout — they
+  // don't share the generic "stack of sub-rows" treatment.
+  if (name === "margin" || name === "padding") {
+    return <BoxSidesField property={property} />
+  }
+  // `gap` uses the same All / Custom toggle but with two axes (row + column)
+  // instead of four sides.
+  if (name === "gap") {
+    return <GapField property={property} />
+  }
+  // `border-radius` uses the All / Custom toggle with a 2×2 corner grid.
+  if (name === "border-radius") {
+    return <BoxCornersField property={property} />
+  }
+
   const properties = property.getProperties()
   // The `flex` composite gets a preset picker on top of the sub-property rows,
   // matching the Auto / Fill / Hug radio the Studio SDK ships.
-  const isFlexShorthand = property.getName() === "flex"
+  const isFlexShorthand = name === "flex"
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">

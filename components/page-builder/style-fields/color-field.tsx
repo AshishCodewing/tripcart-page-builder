@@ -37,7 +37,7 @@ export default function ColorField({ property }: { property: Property }) {
         />
       </label>
       <Input
-        inputSize="xs"
+        inputSize="sm"
         type="text"
         value={value}
         onChange={(e) => property.upValue(e.target.value)}

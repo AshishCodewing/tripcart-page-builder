@@ -1,15 +1,17 @@
 "use client"
 
 import * as React from "react"
-import type { Sector } from "grapesjs"
+import type { PropertyNumber, Sector } from "grapesjs"
 import { ChevronDown } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
+import { CrossGrid, type Side } from "./box-sides-field"
 import PropertyField from "./property-field"
 import { useStyleContext } from "./use-style-context"
 import { isPropertyVisible } from "./visibility"
@@ -31,12 +33,14 @@ export default function StyleSector({ sector }: { sector: Sector }) {
   }
 
   return (
+    <>
     <Collapsible open={open} onOpenChange={handleOpenChange}>
       <CollapsibleTrigger
         render={
-          <button
+          <Button
             type="button"
-            className="group/sector flex w-full items-center justify-between rounded-md px-2 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 motion-reduce:transition-none"
+            variant="ghost"
+            className="group/sector flex h-auto w-full items-center border-none justify-between rounded-none px-2 py-2 text-xs font-medium text-foreground hover:bg-muted/50 motion-reduce:transition-none"
           />
         }
       >
@@ -47,12 +51,56 @@ export default function StyleSector({ sector }: { sector: Sector }) {
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="flex flex-col gap-2 px-2 pb-3 pt-1">
-          {properties.map((p) => (
-            <PropertyField key={p.getId()} property={p} />
-          ))}
+        <div className="flex flex-col gap-2 p-2">
+          {sector.getId() === "position" ? (
+            <PositionSectorBody properties={properties} />
+          ) : (
+            properties.map((p) => (
+              <PropertyField key={p.getId()} property={p} />
+            ))
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>
+    <hr />
+    </>
+  )
+}
+
+// Position sector renders the `position` property as a normal row, then puts
+// the four edge offsets (top/right/bottom/left) into the same cross layout
+// used by margin/padding's custom mode. Empty offsets stay hidden, so a
+// component that only sets `position: relative` doesn't show a redundant grid.
+const POSITION_SIDES: Side[] = ["top", "right", "bottom", "left"]
+
+function PositionSectorBody({
+  properties,
+}: {
+  properties: ReturnType<Sector["getProperties"]>
+}) {
+  const sideMap = new Map<Side, PropertyNumber>()
+  for (const p of properties) {
+    const name = p.getName() as Side
+    if (POSITION_SIDES.includes(name)) {
+      sideMap.set(name, p as PropertyNumber)
+    }
+  }
+  const others = properties.filter(
+    (p) => !POSITION_SIDES.includes(p.getName() as Side)
+  )
+  const bySide = (side: Side) => sideMap.get(side)
+  const hasSides = sideMap.size > 0
+
+  return (
+    <>
+      {others.map((p) => (
+        <PropertyField key={p.getId()} property={p} />
+      ))}
+      {hasSides ? (
+        <div className="rounded-md border border-border/60 bg-muted/30 p-2">
+          <CrossGrid bySide={bySide} />
+        </div>
+      ) : null}
+    </>
   )
 }
