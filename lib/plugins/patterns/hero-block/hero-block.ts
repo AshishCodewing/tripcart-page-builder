@@ -28,7 +28,7 @@ const heroCss = `
   padding-block: var(--spacing-section);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
   font-family: var(--font-body, var(--font-sans));
-  background-color: var(--theme-background, var(--gray-0));
+  background-color: var(--theme-background, hsl(var(--gray-0-hsl)));
   color: var(--theme-foreground, var(--text-1));
 }
 
@@ -47,7 +47,7 @@ const heroCss = `
   font-weight: var(--font-weight-7);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--theme-primary, var(--indigo-6));
+  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
 }
 
 .tc-hero .tc-hero__title {
@@ -95,19 +95,19 @@ const heroCss = `
 }
 
 .tc-hero .tc-hero__cta:focus-visible {
-  outline: 2px solid var(--theme-primary, var(--indigo-6));
+  outline: 2px solid var(--theme-primary, hsl(var(--indigo-6-hsl)));
   outline-offset: 3px;
 }
 
 .tc-hero .tc-hero__cta--primary {
-  background: var(--theme-primary, var(--indigo-6));
-  color: var(--theme-primary-foreground, var(--gray-0));
-  border-color: var(--theme-primary, var(--indigo-6));
+  background: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--theme-primary-foreground, hsl(var(--gray-0-hsl)));
+  border-color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
 }
 
 .tc-hero .tc-hero__cta--primary:hover {
-  background: color-mix(in oklch, var(--theme-primary, var(--indigo-6)) 88%, var(--theme-foreground, currentColor));
-  border-color: color-mix(in oklch, var(--theme-primary, var(--indigo-6)) 88%, var(--theme-foreground, currentColor));
+  background: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
+  border-color: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
 }
 
 .tc-hero .tc-hero__cta--secondary {

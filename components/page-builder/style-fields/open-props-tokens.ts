@@ -1,7 +1,7 @@
 import sizeTokens from "open-props/src/sizes"
 import fontTokens from "open-props/src/fonts"
 import borderTokens from "open-props/src/borders"
-import colorTokens from "open-props/src/colors"
+import colorTokens from "open-props/src/props.colors-hsl.js"
 
 export type TokenCategory =
   | "size"

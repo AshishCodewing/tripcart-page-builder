@@ -5,6 +5,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 // `--font-sans`, …) resolve in the outer React UI — preset swatches, panel
 // previews, etc. The canvas iframe loads it separately via canvas.styles.
 import "open-props/open-props.min.css"
+import "open-props/colors-hsl.min.css"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"

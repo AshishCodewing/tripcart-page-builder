@@ -45,28 +45,25 @@ const buildColorPreset = (
   },
 })
 
-// Backgrounds and foregrounds reference Open Props gray steps so they swap
-// coherently with the rest of the palette. `--gray-0` is near-white (#f8f9fa),
-// `--gray-12` is near-black (#030507); contrast on body text exceeds WCAG AAA.
-const LIGHT_BG = "var(--gray-0)"
-const LIGHT_FG = "var(--gray-12)"
-const DARK_BG = "var(--gray-10)"
-const DARK_FG = "var(--gray-0)"
+const LIGHT_BG = "hsl(var(--gray-0-hsl))"
+const LIGHT_FG = "hsl(var(--gray-12-hsl))"
+const DARK_BG = "hsl(var(--gray-10-hsl))"
+const DARK_FG = "hsl(var(--gray-0-hsl))"
 
 export const COLOR_PRESETS: Preset[] = [
   buildColorPreset(
     "blue",
     "Blue",
-    "var(--blue-6)",
-    "var(--gray-0)",
+    "hsl(var(--blue-6-hsl))",
+    "hsl(var(--gray-0-hsl))",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "violet",
     "Violet",
-    "var(--violet-6)",
-    "var(--gray-0)",
+    "hsl(var(--violet-6-hsl))",
+    "hsl(var(--gray-0-hsl))",
     LIGHT_BG,
     LIGHT_FG
   ),
@@ -74,8 +71,8 @@ export const COLOR_PRESETS: Preset[] = [
   buildColorPreset(
     "rose",
     "Rose",
-    "var(--pink-6)",
-    "var(--gray-0)",
+    "hsl(var(--pink-6-hsl))",
+    "hsl(var(--gray-0-hsl))",
     LIGHT_BG,
     LIGHT_FG
   ),
@@ -83,24 +80,24 @@ export const COLOR_PRESETS: Preset[] = [
   buildColorPreset(
     "emerald",
     "Emerald",
-    "var(--teal-6)",
-    "var(--gray-0)",
+    "hsl(var(--teal-6-hsl))",
+    "hsl(var(--gray-0-hsl))",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "orange",
     "Orange",
-    "var(--orange-6)",
-    "var(--gray-0)",
+    "hsl(var(--orange-6-hsl))",
+    "hsl(var(--gray-0-hsl))",
     LIGHT_BG,
     LIGHT_FG
   ),
   buildColorPreset(
     "zinc",
     "Zinc",
-    "var(--gray-0)",
-    "var(--gray-5)",
+    "hsl(var(--gray-0-hsl))",
+    "hsl(var(--gray-5-hsl))",
     DARK_BG,
     DARK_FG
   ),

@@ -23,8 +23,6 @@ import { useThemeSelector } from "@/hooks/use-theme"
 import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
-const HEX_RE = /^#[0-9a-f]{3,8}$/i
-
 type CssVarPickerProps = {
   onSelect: (varExpr: string) => void
   categories?: TokenCategory[]
@@ -34,11 +32,16 @@ type CssVarPickerProps = {
 const themeKeyToCamel = (name: string): string =>
   name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 
-const tokenVarExpr = (token: Token): string =>
-  token.category === "theme-color" ? `var(${token.value})` : `var(${token.name})`
+const tokenVarExpr = (token: Token): string => {
+  if (token.category === "theme-color") return `var(${token.value})`
+  if (token.category === "color") return `hsl(var(${token.name}))`
+  return `var(${token.name})`
+}
 
-const displayNameFor = (token: Token): string =>
-  token.category === "theme-color" ? token.name : token.name.replace(/^--/, "")
+const displayNameFor = (token: Token): string => {
+  if (token.category === "theme-color") return token.name
+  return token.name.replace(/^--/, "").replace(/-hsl$/, "")
+}
 
 export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   const [query, setQuery] = React.useState("")
@@ -78,9 +81,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
           : undefined
       const swatchColor =
         liveValue ??
-        (token.category === "color" && HEX_RE.test(token.value)
-          ? token.value
-          : undefined)
+        (token.category === "color" ? `hsl(${token.value})` : undefined)
 
       return (
         <ComboboxItem key={token.name} value={tokenVarExpr(token)}>

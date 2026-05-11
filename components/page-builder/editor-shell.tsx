@@ -20,18 +20,16 @@ import {
 import RightPanel from "./right-panel/right-panel"
 import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
-// Stylesheets the GrapesJS canvas iframe loads. Two bundles:
-//   - open-props.min.css → low-level design tokens (--gray-*, --size-*, …)
-//   - tailwind.css       → utility classes patterns reference (flex, bg-*, …)
-//
-// Both are produced by scripts/sync-vendor-css.mjs (predev / prebuild /
-// postinstall) so the URLs are framework-agnostic and stable. We don't use
-// `import "...?url"` because Turbopack treats CSS imports as side-effects,
-// not URL imports. Published pages must also serve these files for authored
-// content to render correctly.
+// Stylesheets the GrapesJS canvas iframe loads — produced by
+// scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
+// are framework-agnostic and stable. We don't use `import "...?url"` because
+// Turbopack treats CSS imports as side-effects, not URL imports. Published
+// pages must also serve these files for authored content to render correctly.
 const CANVAS_STYLE_URLS = [
-  "/vendor/open-props.min.css",
-  "/vendor/tailwind.css",
+  "/vendor/open-props-sizes.min.css",
+  "/vendor/open-props-fonts.min.css",
+  "/vendor/open-props-borders.min.css",
+  "/vendor/open-props-colors-hsl.min.css",
 ]
 
 // Per-record local-storage key. Without scoping by id, every page and post
