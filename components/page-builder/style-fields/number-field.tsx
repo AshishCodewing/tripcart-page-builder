@@ -10,11 +10,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { Slider } from "@/components/ui/slider"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 import { CssVarPicker } from "./css-var-picker"
 import type { TokenCategory } from "./open-props-tokens"
@@ -119,10 +114,10 @@ export function NumberInput({
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            ;(e.target as HTMLInputElement).blur()
+            ; (e.target as HTMLInputElement).blur()
           } else if (e.key === "Escape") {
             setDraft(value)
-            ;(e.target as HTMLInputElement).blur()
+              ; (e.target as HTMLInputElement).blur()
           }
         }}
         placeholder={placeholder ?? ""}
@@ -130,20 +125,15 @@ export function NumberInput({
         aria-label={ariaLabel}
       />
       {varCategories && (
-          <Tooltip>
-            <TooltipTrigger render={<span />}>
-              <InputGroupAddon align="inline-end">
-                <CssVarPicker
-                  categories={varCategories}
-                  onSelect={(expr) => {
-                    onCommit(expr)
-                    setDraft(expr)
-                  }}
-                />
-              </InputGroupAddon>
-            </TooltipTrigger>
-            <TooltipContent>Variables</TooltipContent>
-          </Tooltip>
+        <InputGroupAddon align="inline-end" className="me-[-0.3rem]">
+          <CssVarPicker
+            categories={varCategories}
+            onSelect={(expr) => {
+              onCommit(expr)
+              setDraft(expr)
+            }}
+          />
+        </InputGroupAddon>
       )}
     </InputGroup>
   )
@@ -153,9 +143,9 @@ function varCategoriesFor(property: Property): TokenCategory[] | undefined {
   if (property.getType() !== "length") return undefined
   const name = property.getName()
   if (/border.*radius/.test(name)) return ["border-radius"]
-  if (name === "font-size")        return ["font-size"]
-  if (name === "line-height")      return ["font-lineheight"]
-  if (name === "letter-spacing")   return ["font-letterspacing"]
+  if (name === "font-size") return ["font-size"]
+  if (name === "line-height") return ["font-lineheight"]
+  if (name === "letter-spacing") return ["font-letterspacing"]
   return ["size"]
 }
 

@@ -51,7 +51,7 @@ export default function ColorField({ property }: { property: Property }) {
           autoComplete="off"
           className="text-xs"
         />
-        <InputGroupAddon align="inline-end">
+        <InputGroupAddon align="inline-end" className="me-[-0.3rem]">
           <CssVarPicker
             categories={["theme-color", "color"]}
             onSelect={(expr) => property.upValue(expr)}

@@ -6,17 +6,22 @@ import { Braces } from "lucide-react"
 import { InputGroupButton } from "@/components/ui/input-group"
 import {
   Combobox,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
   ComboboxInput,
   ComboboxItem,
+  ComboboxLabel,
   ComboboxList,
-  ComboboxTrigger
+  ComboboxSeparator,
+  ComboboxTrigger,
 } from "@/components/ui/combobox"
 
 import { useThemeSelector } from "@/hooks/use-theme"
 
 import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const HEX_RE = /^#[0-9a-f]{3,8}$/i
 
@@ -55,6 +60,49 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
     return pool.filter((t) => t.name.toLowerCase().includes(q))
   }, [query, pool])
 
+  const themeTokens = React.useMemo(
+    () => filtered.filter((t) => t.category === "theme-color"),
+    [filtered]
+  )
+
+  const otherTokens = React.useMemo(
+    () => filtered.filter((t) => t.category !== "theme-color"),
+    [filtered]
+  )
+
+  const renderToken = React.useCallback(
+    (token: Token) => {
+      const liveValue =
+        token.category === "theme-color"
+          ? themeColors[themeKeyToCamel(token.name)]?.value
+          : undefined
+      const swatchColor =
+        liveValue ??
+        (token.category === "color" && HEX_RE.test(token.value)
+          ? token.value
+          : undefined)
+
+      return (
+        <ComboboxItem key={token.name} value={tokenVarExpr(token)}>
+          {swatchColor && (
+            <span
+              className="size-3 shrink-0 rounded-sm border border-border/50"
+              style={{ backgroundColor: swatchColor }}
+              aria-hidden="true"
+            />
+          )}
+          <span className="min-w-0 flex-1 truncate text-xs">
+            {displayNameFor(token)}
+          </span>
+          <span className="shrink-0 max-w-[40%] truncate text-xs text-muted-foreground">
+            {liveValue ?? token.value}
+          </span>
+        </ComboboxItem>
+      )
+    },
+    [themeColors]
+  )
+
   return (
     <Combobox
       items={filtered}
@@ -65,19 +113,25 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
         }
       }}
     >
-      <ComboboxTrigger
-        className="[&>svg:last-child]:hidden"
-        render={
-          <InputGroupButton
-            size="icon-xs"
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Insert CSS variable"
-          />
-        }
-      >
-        <Braces className="size-3" />
-      </ComboboxTrigger>
+      <Tooltip>
+        <TooltipTrigger render={<span />}>
+          <ComboboxTrigger
+            className="[&>svg:last-child]:hidden"
+            render={
+              <InputGroupButton
+                size="icon-xs"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Insert CSS variable"
+              />
+            }
+          >
+            <Braces className="size-3" />
+          </ComboboxTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Variables</TooltipContent>
+      </Tooltip>
+
 
       {/*
        * Focus issue: CssVarPicker lives inside InputGroupAddon, which has an
@@ -101,38 +155,25 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
           spellCheck={false}
+          className="[&_input]:h-7 [&_input]:text-xs"
         />
         <ComboboxEmpty className="text-xs">No tokens match</ComboboxEmpty>
         <ComboboxList>
-          {(token: Token) => {
-            const liveValue =
-              token.category === "theme-color"
-                ? themeColors[themeKeyToCamel(token.name)]?.value
-                : undefined
-            const swatchColor =
-              liveValue ??
-              (token.category === "color" && HEX_RE.test(token.value)
-                ? token.value
-                : undefined)
-
-            return (
-              <ComboboxItem key={token.name} value={tokenVarExpr(token)}>
-                {swatchColor && (
-                  <span
-                    className="size-3 shrink-0 rounded-sm border border-border/50"
-                    style={{ backgroundColor: swatchColor }}
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  {displayNameFor(token)}
-                </span>
-                <span className="shrink-0 truncate text-xs text-muted-foreground max-w-[40%]">
-                  {liveValue ?? token.value}
-                </span>
-              </ComboboxItem>
-            )
-          }}
+          {themeTokens.length > 0 && (
+            <ComboboxGroup items={themeTokens}>
+              <ComboboxLabel className="px-1.5">Theme Colors</ComboboxLabel>
+              <ComboboxCollection>{renderToken}</ComboboxCollection>
+            </ComboboxGroup>
+          )}
+          {themeTokens.length > 0 && otherTokens.length > 0 && (
+            <ComboboxSeparator />
+          )}
+          {otherTokens.length > 0 && (
+            <ComboboxGroup items={otherTokens}>
+              <ComboboxLabel className="px-1.5">Tokens</ComboboxLabel>
+              <ComboboxCollection>{renderToken}</ComboboxCollection>
+            </ComboboxGroup>
+          )}
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
