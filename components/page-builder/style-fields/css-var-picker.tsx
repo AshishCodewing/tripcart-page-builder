@@ -3,8 +3,8 @@
 import * as React from "react"
 import { Braces } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { InputGroupButton } from "@/components/ui/input-group"
 import {
   Popover,
   PopoverContent,
@@ -13,23 +13,33 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
-import { TOKENS, type Token } from "./open-props-tokens"
+import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
 
 const HEX_RE = /^#[0-9a-f]{3,8}$/i
 
 type CssVarPickerProps = {
   onSelect: (varExpr: string) => void
+  categories?: TokenCategory[]
 }
 
-export function CssVarPicker({ onSelect }: CssVarPickerProps) {
+export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
 
+  const pool = React.useMemo(
+    () =>
+      categories
+        ? TOKENS.filter((t) => categories.includes(t.category))
+        : TOKENS,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [categories?.join(",")]
+  )
+
   const filtered = React.useMemo(() => {
-    if (!query.trim()) return TOKENS
+    if (!query.trim()) return pool
     const q = query.toLowerCase().replace(/^--/, "")
-    return TOKENS.filter((t) => t.name.toLowerCase().includes(q))
-  }, [query])
+    return pool.filter((t) => t.name.toLowerCase().includes(q))
+  }, [query, pool])
 
   const handleSelect = (token: Token) => {
     onSelect(`var(${token.name})`)
@@ -41,18 +51,22 @@ export function CssVarPicker({ onSelect }: CssVarPickerProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button
-            type="button"
+          <InputGroupButton
+            size="icon-xs"
             variant="ghost"
-            size="icon"
-            className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Insert CSS variable"
           />
         }
       >
         <Braces className="size-3" aria-hidden="true" />
       </PopoverTrigger>
-      <PopoverContent side="left" sideOffset={8} className="w-72 p-0 gap-0">
+      <PopoverContent
+        side="left"
+        sideOffset={8}
+        className="w-72 p-0 gap-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="border-b p-2">
           <Input
             inputSize="sm"

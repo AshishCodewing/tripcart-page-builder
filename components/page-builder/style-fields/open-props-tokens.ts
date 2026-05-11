@@ -3,7 +3,15 @@ import fontTokens from "open-props/src/fonts"
 import borderTokens from "open-props/src/borders"
 import colorTokens from "open-props/src/colors"
 
-export type TokenCategory = "size" | "font" | "border" | "color"
+export type TokenCategory =
+  | "size"
+  | "font-size"
+  | "font-weight"
+  | "font-lineheight"
+  | "font-letterspacing"
+  | "border-size"
+  | "border-radius"
+  | "color"
 
 export type Token = {
   name: string
@@ -22,13 +30,18 @@ function fromMap(
 }
 
 const SIZE_KEEP = /^--size-(px-)?\d+$|^--size-fluid-\d+$/
-const FONT_KEEP =
-  /^--font-(size|weight|lineheight|letterspacing)-\d+$|^--font-(size|weight|lineheight|letterspacing)-0{1,2}$/
-const BORDER_KEEP = /^--(border-size|radius)-\d+$/
+const FONT_NUM = /^--font-(size|weight|lineheight|letterspacing)-(\d+|0{1,2})$/
 
 export const TOKENS: Token[] = [
   ...fromMap(sizeTokens, "size", (n) => SIZE_KEEP.test(n)),
-  ...fromMap(fontTokens, "font", (n) => FONT_KEEP.test(n)),
-  ...fromMap(borderTokens, "border", (n) => BORDER_KEEP.test(n)),
+  ...fromMap(fontTokens, "font-size", (n) =>
+    (FONT_NUM.test(n) && n.includes("-size-")) ||
+    /^--font-size-fluid-[0-3]$/.test(n)
+  ),
+  ...fromMap(fontTokens, "font-weight", (n) => FONT_NUM.test(n) && n.includes("-weight-")),
+  ...fromMap(fontTokens, "font-lineheight", (n) => FONT_NUM.test(n) && n.includes("-lineheight-")),
+  ...fromMap(fontTokens, "font-letterspacing", (n) => FONT_NUM.test(n) && n.includes("-letterspacing-")),
+  ...fromMap(borderTokens, "border-size", (n) => /^--border-size-\d+$/.test(n)),
+  ...fromMap(borderTokens, "border-radius", (n) => /^--radius-\d+$/.test(n)),
   ...fromMap(colorTokens, "color", () => true),
 ]

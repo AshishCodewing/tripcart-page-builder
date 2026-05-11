@@ -85,6 +85,7 @@ export default function BoxSidesField({
           value={value}
           placeholder={allSidesMatch ? "0" : "Custom"}
           ariaLabel={`${name} all sides`}
+          varCategories={["size"]}
           onCommit={propagate}
         />
         <AllCustomToggle

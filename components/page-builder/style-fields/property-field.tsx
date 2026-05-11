@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import BaseField from "./base-field"
-import { CssVarPicker } from "./css-var-picker"
 import BoxCornersField from "./box-corners-field"
 import BoxSidesField from "./box-sides-field"
 import ColorField from "./color-field"
@@ -123,12 +122,6 @@ function PropertyRow({
   const inherited = property.hasValueParent()
   const canClear = property.canClear()
   const label = property.getLabel()
-  const type = property.getType()
-  const showVarPicker =
-    type !== "select" &&
-    type !== "radio" &&
-    type !== "file" &&
-    type !== "stack"
 
   return (
     <div
@@ -150,9 +143,6 @@ function PropertyRow({
           {label}
           {inherited && <span className="size-1.5 shrink-0 rounded-full bg-warning"/>}
         </span>
-        {showVarPicker && (
-          <CssVarPicker onSelect={(expr) => property.upValue(expr)} />
-        )}
         {canClear ? (
           <Button
             type="button"

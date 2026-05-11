@@ -1,8 +1,15 @@
 "use client"
 
+import * as React from "react"
 import type { Property } from "grapesjs"
 
-import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+
+import { CssVarPicker } from "./css-var-picker"
 
 const CHECKER_BG: React.CSSProperties = {
   backgroundImage:
@@ -16,9 +23,6 @@ const HEX_ANY_RE = /^#[0-9a-f]{3,8}$/i
 
 export default function ColorField({ property }: { property: Property }) {
   const value = String(property.getValue() ?? "")
-  // Native <input type="color"> only accepts #rrggbb. If the value is a
-  // var(...) / rgba(...) / etc., we still surface it via the text input;
-  // the swatch falls back to a checker pattern.
   const hex = HEX_RE.test(value) ? value : "#000000"
   const showSwatchColor = HEX_ANY_RE.test(value)
 
@@ -36,16 +40,23 @@ export default function ColorField({ property }: { property: Property }) {
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
       </label>
-      <Input
-        inputSize="sm"
-        type="text"
-        value={value}
-        onChange={(e) => property.upValue(e.target.value)}
-        placeholder={property.getDefaultValue() || ""}
-        className="min-w-0 flex-1"
-        spellCheck={false}
-        autoComplete="off"
-      />
+      <InputGroup className="h-8 min-w-0 flex-1">
+        <InputGroupInput
+          inputSize="sm"
+          type="text"
+          value={value}
+          onChange={(e) => property.upValue(e.target.value)}
+          placeholder={property.getDefaultValue() || ""}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        <InputGroupAddon align="inline-end">
+          <CssVarPicker
+            categories={["color"]}
+            onSelect={(expr) => property.upValue(expr)}
+          />
+        </InputGroupAddon>
+      </InputGroup>
     </div>
   )
 }

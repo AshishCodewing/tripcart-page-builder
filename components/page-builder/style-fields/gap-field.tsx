@@ -77,6 +77,7 @@ export default function GapField({
           value={value}
           placeholder={allAxesMatch ? "0" : "Custom"}
           ariaLabel={`${name} both axes`}
+          varCategories={["size"]}
           onCommit={propagate}
         />
         <AllCustomToggle

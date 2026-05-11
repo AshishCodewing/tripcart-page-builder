@@ -91,6 +91,7 @@ export default function BoxCornersField({
           value={value}
           placeholder={allCornersMatch ? "0" : "Custom"}
           ariaLabel={`${name} all corners`}
+          varCategories={["border-radius"]}
           onCommit={propagate}
         />
         <AllCustomToggle

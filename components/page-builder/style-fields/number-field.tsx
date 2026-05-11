@@ -6,9 +6,13 @@ import type { Property } from "grapesjs"
 import { Input } from "@/components/ui/input"
 import {
   InputGroup,
+  InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { Slider } from "@/components/ui/slider"
+
+import { CssVarPicker } from "./css-var-picker"
+import type { TokenCategory } from "./open-props-tokens"
 
 export type NumberInputProps = {
   /** CSS value string — plain number ("10"), length ("16px"), or any CSS expression ("var(--spacing)"). Empty = unset. */
@@ -19,6 +23,8 @@ export type NumberInputProps = {
   slider?: boolean
   placeholder?: string
   ariaLabel?: string
+  /** When set, shows a CssVarPicker addon filtered to these token categories. */
+  varCategories?: TokenCategory[]
   /** Fires with the raw CSS value. Caller passes it straight to `property.upValue`. */
   onCommit: (value: string, opts?: { partial?: boolean }) => void
 }
@@ -35,6 +41,7 @@ export function NumberInput({
   slider,
   placeholder,
   ariaLabel,
+  varCategories,
   onCommit,
 }: NumberInputProps) {
   const showSlider =
@@ -110,8 +117,29 @@ export function NumberInput({
         className="text-xs tabular-nums"
         aria-label={ariaLabel}
       />
+      {varCategories && (
+        <InputGroupAddon align="inline-end">
+          <CssVarPicker
+            categories={varCategories}
+            onSelect={(expr) => {
+              onCommit(expr)
+              setDraft(expr)
+            }}
+          />
+        </InputGroupAddon>
+      )}
     </InputGroup>
   )
+}
+
+function varCategoriesFor(property: Property): TokenCategory[] | undefined {
+  if (property.getType() !== "length") return undefined
+  const name = property.getName()
+  if (/border.*radius/.test(name)) return ["border-radius"]
+  if (name === "font-size")        return ["font-size"]
+  if (name === "line-height")      return ["font-lineheight"]
+  if (name === "letter-spacing")   return ["font-letterspacing"]
+  return ["size"]
 }
 
 export default function NumberField({
@@ -130,6 +158,7 @@ export default function NumberField({
       step={1}
       slider={slider}
       placeholder={property.getDefaultValue() || "auto"}
+      varCategories={varCategoriesFor(property)}
       onCommit={(next, opts) => property.upValue(next, opts)}
     />
   )
