@@ -8,7 +8,7 @@
 //   [ Bot Left ]   [ Bottom Right ]
 
 import * as React from "react"
-import type { PropertyComposite, PropertyNumber } from "grapesjs"
+import type { Property, PropertyComposite } from "grapesjs"
 
 import { AllCustomToggle, type ToggleMode } from "./all-custom-toggle"
 import { SideCell } from "./box-sides-field"
@@ -23,10 +23,9 @@ const CORNERS: Corner[] = [
   "bottom-right",
 ]
 
-const valueKey = (p: PropertyNumber): string =>
-  `${p.getValue() ?? ""}|${p.getUnit() ?? ""}`
+const valueKey = (p: Property): string => p.getValue() ?? ""
 
-function detectMode(subs: PropertyNumber[]): ToggleMode {
+function detectMode(subs: Property[]): ToggleMode {
   if (subs.length === 0) return "all"
   const first = valueKey(subs[0])
   return subs.every((s) => valueKey(s) === first) ? "all" : "custom"
@@ -45,9 +44,9 @@ export default function BoxCornersField({
 }: {
   property: PropertyComposite
 }) {
-  const subs = property.getProperties() as PropertyNumber[]
+  const subs = property.getProperties() as Property[]
   const name = property.getName()
-  const byCorner = (corner: Corner): PropertyNumber | undefined =>
+  const byCorner = (corner: Corner): Property | undefined =>
     subs.find((s) => s.getName() === subName(name, corner))
 
   // Same store-info-from-previous-render pattern as BoxSidesField — only
@@ -61,26 +60,18 @@ export default function BoxCornersField({
   }
 
   const tl = byCorner("top-left")
-  const unit = tl?.getUnit() ?? ""
   const allCornersMatch =
     subs.length > 0 &&
     subs.every((s) => valueKey(s) === valueKey(subs[0]))
   const value =
     allCornersMatch && tl?.getValue() != null ? String(tl.getValue()) : ""
-  const units = tl?.getUnits() ?? []
-  const step = tl?.getStep() || 1
 
   const propagate = (
     raw: string,
     opts: { partial?: boolean } = {}
   ): void => {
     const trimmed = raw.trim()
-    const composed = trimmed && unit ? `${trimmed}${unit}` : trimmed
-    for (const s of subs) s.upValue(composed, opts)
-  }
-
-  const propagateUnit = (next: string): void => {
-    for (const s of subs) s.upUnit(next)
+    for (const s of subs) s.upValue(trimmed, opts)
   }
 
   const handleModeChange = (next: ToggleMode): void => {
@@ -98,13 +89,9 @@ export default function BoxCornersField({
       <div className="flex gap-2 items-center">
         <NumberInput
           value={value}
-          unit={unit}
-          units={units}
-          step={step}
           placeholder={allCornersMatch ? "0" : "Custom"}
           ariaLabel={`${name} all corners`}
           onCommit={propagate}
-          onUnitChange={propagateUnit}
         />
         <AllCustomToggle
           mode={mode}
@@ -122,7 +109,7 @@ export default function BoxCornersField({
 function CornerGrid({
   byCorner,
 }: {
-  byCorner: (corner: Corner) => PropertyNumber | undefined
+  byCorner: (corner: Corner) => Property | undefined
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">

@@ -94,20 +94,8 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             type: "composite",
             default: "0px",
             properties: [
-              {
-                property: "row-gap",
-                type: "number",
-                default: "0",
-                units: ["px", "%", "em", "rem"],
-                min: 0,
-              },
-              {
-                property: "column-gap",
-                type: "number",
-                default: "0",
-                units: ["px", "%", "em", "rem"],
-                min: 0,
-              },
+              { property: "row-gap",    type: "length", default: "0" },
+              { property: "column-gap", type: "length", default: "0" },
             ],
           },
           "flex-wrap",
@@ -140,14 +128,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
                 default: "0",
                 min: 0,
               },
-              {
-                property: "flex-basis",
-                type: "number",
-                default: "auto",
-                units: ["px", "%", "vw", "vh"],
-                fixedValues: ["auto"],
-                min: 0,
-              },
+              { property: "flex-basis", type: "length", default: "auto" },
             ],
           },
         ],
@@ -157,12 +138,12 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         name: "Size",
         open: false,
         properties: [
-          "width",
-          "height",
-          "min-width",
-          "min-height",
-          "max-width",
-          "max-height",
+          { extend: "width", type: "length" },
+          { extend: "height", type: "length" },
+          { extend: "min-width", type: "length" },
+          { extend: "min-height", type: "length" },
+          { extend: "max-width", type: "length" },
+          { extend: "max-height", type: "length" },
         ],
       },
       {
@@ -171,17 +152,38 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           "position",
-          "top",
-          "right",
-          "bottom",
-          "left",
-        ]
+          { extend: "top", type: "length" },
+          { extend: "right", type: "length" },
+          { extend: "bottom", type: "length" },
+          { extend: "left", type: "length" },
+        ],
       },
       {
         id: "spacing",
         name: "Spacing",
         open: false,
-        properties: ["margin", "padding"],
+        properties: [
+          {
+            extend: "margin",
+            type: "composite",
+            properties: [
+              { property: "margin-top",    type: "length", default: "0" },
+              { property: "margin-right",  type: "length", default: "0" },
+              { property: "margin-bottom", type: "length", default: "0" },
+              { property: "margin-left",   type: "length", default: "0" },
+            ],
+          },
+          {
+            extend: "padding",
+            type: "composite",
+            properties: [
+              { property: "padding-top",    type: "length", default: "0" },
+              { property: "padding-right",  type: "length", default: "0" },
+              { property: "padding-bottom", type: "length", default: "0" },
+              { property: "padding-left",   type: "length", default: "0" },
+            ],
+          },
+        ],
       },
       {
         id: "typography",
@@ -189,10 +191,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           "font-family",
-          "font-size",
+          { extend: "font-size", type: "length" },
           "font-weight",
-          "line-height",
-          "letter-spacing",
+          { extend: "line-height", type: "length" },
+          { extend: "letter-spacing", type: "length" },
           "color",
           "text-align",
         ],
@@ -212,7 +214,16 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           "border",
-          "border-radius",
+          {
+            extend: "border-radius",
+            type: "composite",
+            properties: [
+              { property: "border-top-left-radius",     type: "length", default: "0" },
+              { property: "border-top-right-radius",    type: "length", default: "0" },
+              { property: "border-bottom-right-radius", type: "length", default: "0" },
+              { property: "border-bottom-left-radius",  type: "length", default: "0" },
+            ],
+          },
           "box-shadow",
         ],
       }
@@ -227,6 +238,9 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
   // processor, both of which need to be in place before patternsPlugin's
   // `editor.Blocks.add(...)` calls run.
   plugins: [
+    (editor) => {
+      editor.StyleManager.addType("length", {})
+    },
     parserPostCSS,
     designSystemPlugin,
     reactRendererPlugin.init({ components: patternComponents }),

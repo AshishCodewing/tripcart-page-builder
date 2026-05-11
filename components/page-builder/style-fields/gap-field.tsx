@@ -7,7 +7,7 @@
 //   • Custom → two NumberFields side-by-side, each wired to its own axis.
 
 import * as React from "react"
-import type { PropertyComposite, PropertyNumber } from "grapesjs"
+import type { Property, PropertyComposite } from "grapesjs"
 
 import { AllCustomToggle, type ToggleMode } from "./all-custom-toggle"
 import { SideCell } from "./box-sides-field"
@@ -16,10 +16,9 @@ import { NumberInput } from "./number-field"
 const AXES = ["row", "column"] as const
 type Axis = (typeof AXES)[number]
 
-const valueKey = (p: PropertyNumber): string =>
-  `${p.getValue() ?? ""}|${p.getUnit() ?? ""}`
+const valueKey = (p: Property): string => p.getValue() ?? ""
 
-function detectMode(subs: PropertyNumber[]): ToggleMode {
+function detectMode(subs: Property[]): ToggleMode {
   if (subs.length === 0) return "all"
   const first = valueKey(subs[0])
   return subs.every((s) => valueKey(s) === first) ? "all" : "custom"
@@ -30,9 +29,9 @@ export default function GapField({
 }: {
   property: PropertyComposite
 }) {
-  const subs = property.getProperties() as PropertyNumber[]
+  const subs = property.getProperties() as Property[]
   const name = property.getName()
-  const byAxis = (axis: Axis): PropertyNumber | undefined =>
+  const byAxis = (axis: Axis): Property | undefined =>
     subs.find((s) => s.getName() === `${axis}-gap`)
 
   // Same store-info-from-previous-render pattern as BoxSidesField — only
@@ -47,26 +46,18 @@ export default function GapField({
   }
 
   const row = byAxis("row")
-  const unit = row?.getUnit() ?? ""
   const allAxesMatch =
     subs.length > 0 &&
     subs.every((s) => valueKey(s) === valueKey(subs[0]))
   const value =
     allAxesMatch && row?.getValue() != null ? String(row.getValue()) : ""
-  const units = row?.getUnits() ?? []
-  const step = row?.getStep() || 1
 
   const propagate = (
     raw: string,
     opts: { partial?: boolean } = {}
   ): void => {
     const trimmed = raw.trim()
-    const composed = trimmed && unit ? `${trimmed}${unit}` : trimmed
-    for (const s of subs) s.upValue(composed, opts)
-  }
-
-  const propagateUnit = (next: string): void => {
-    for (const s of subs) s.upUnit(next)
+    for (const s of subs) s.upValue(trimmed, opts)
   }
 
   const handleModeChange = (next: ToggleMode): void => {
@@ -84,13 +75,9 @@ export default function GapField({
       <div className="flex gap-2 items-center">
         <NumberInput
           value={value}
-          unit={unit}
-          units={units}
-          step={step}
           placeholder={allAxesMatch ? "0" : "Custom"}
           ariaLabel={`${name} both axes`}
           onCommit={propagate}
-          onUnitChange={propagateUnit}
         />
         <AllCustomToggle
           mode={mode}
@@ -108,7 +95,7 @@ export default function GapField({
 function AxisGrid({
   byAxis,
 }: {
-  byAxis: (axis: Axis) => PropertyNumber | undefined
+  byAxis: (axis: Axis) => Property | undefined
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -126,4 +113,3 @@ function AxisGrid({
     </div>
   )
 }
-

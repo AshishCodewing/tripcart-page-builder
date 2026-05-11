@@ -60,6 +60,7 @@ export default function PropertyField({
   let field: React.ReactNode
 
   switch (type) {
+    case "length":
     case "number":
     case "integer":
     case "slider":

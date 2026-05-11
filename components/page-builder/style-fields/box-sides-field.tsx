@@ -3,18 +3,13 @@
 // Box-shorthand composite editor for `margin` and `padding`. Renders a
 // per-composite All / Custom toggle plus the corresponding body:
 //
-//   • All    → one input that writes the same value (and unit) to all four
+//   • All    → one input that writes the same value to all four
 //              sub-properties (top / right / bottom / left).
 //   • Custom → cross layout (Top centered, Left/Right side-by-side, Bottom
 //              centered) with each side wired to its own sub-property.
-//
-// Future: `border-radius` corners (top-left/-right/bottom-left/-right) share
-// the same toggle pattern but with a different cell positioning. Adding a
-// `corners | sides` layout flag to this component would extend it without
-// duplication.
 
 import * as React from "react"
-import type { PropertyComposite, PropertyNumber } from "grapesjs"
+import type { Property, PropertyComposite } from "grapesjs"
 import { RotateCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,10 +22,9 @@ export type Side = "top" | "right" | "bottom" | "left"
 
 const SIDES: Side[] = ["top", "right", "bottom", "left"]
 
-const valueKey = (p: PropertyNumber): string =>
-  `${p.getValue() ?? ""}|${p.getUnit() ?? ""}`
+const valueKey = (p: Property): string => p.getValue() ?? ""
 
-function detectMode(subs: PropertyNumber[]): ToggleMode {
+function detectMode(subs: Property[]): ToggleMode {
   if (subs.length === 0) return "all"
   const first = valueKey(subs[0])
   return subs.every((s) => valueKey(s) === first) ? "all" : "custom"
@@ -41,9 +35,9 @@ export default function BoxSidesField({
 }: {
   property: PropertyComposite
 }) {
-  const subs = property.getProperties() as PropertyNumber[]
+  const subs = property.getProperties() as Property[]
   const name = property.getName()
-  const bySide = (side: Side): PropertyNumber | undefined =>
+  const bySide = (side: Side): Property | undefined =>
     subs.find((s) => s.getName() === `${name}-${side}`)
 
   // Lazy-init mode from current values; only re-detect when the property
@@ -60,29 +54,18 @@ export default function BoxSidesField({
   }
 
   const top = bySide("top")
-  const unit = top?.getUnit() ?? ""
-  // Top input value mirrors the four sides only when they all agree. When
-  // sides diverge (custom edits), blank the top so it doesn't misrepresent
-  // the cross grid as a single shared value.
   const allSidesMatch =
     subs.length > 0 &&
     subs.every((s) => valueKey(s) === valueKey(subs[0]))
   const value =
     allSidesMatch && top?.getValue() != null ? String(top.getValue()) : ""
-  const units = top?.getUnits() ?? []
-  const step = top?.getStep() || 1
 
   const propagate = (
     raw: string,
     opts: { partial?: boolean } = {}
   ): void => {
     const trimmed = raw.trim()
-    const composed = trimmed && unit ? `${trimmed}${unit}` : trimmed
-    for (const s of subs) s.upValue(composed, opts)
-  }
-
-  const propagateUnit = (next: string): void => {
-    for (const s of subs) s.upUnit(next)
+    for (const s of subs) s.upValue(trimmed, opts)
   }
 
   const handleModeChange = (next: ToggleMode): void => {
@@ -100,13 +83,9 @@ export default function BoxSidesField({
       <div className="flex gap-2 items-center">
         <NumberInput
           value={value}
-          unit={unit}
-          units={units}
-          step={step}
           placeholder={allSidesMatch ? "0" : "Custom"}
           ariaLabel={`${name} all sides`}
           onCommit={propagate}
-          onUnitChange={propagateUnit}
         />
         <AllCustomToggle
           mode={mode}
@@ -116,7 +95,7 @@ export default function BoxSidesField({
           customTooltip="Edit top, right, bottom, and left independently"
         />
       </div>
-      {mode === "custom" &&<CrossGrid bySide={bySide} /> }
+      {mode === "custom" && <CrossGrid bySide={bySide} />}
     </div>
   )
 }
@@ -124,7 +103,7 @@ export default function BoxSidesField({
 export function CrossGrid({
   bySide,
 }: {
-  bySide: (side: Side) => PropertyNumber | undefined
+  bySide: (side: Side) => Property | undefined
 }) {
   return (
     <div className="grid grid-cols-6 grid-rows-3 gap-4">
@@ -156,7 +135,7 @@ export function SideCell({
   label,
   className,
 }: {
-  sub: PropertyNumber
+  sub: Property
   label: string
   className?: string
 }) {
