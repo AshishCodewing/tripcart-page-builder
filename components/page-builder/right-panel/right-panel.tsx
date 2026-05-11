@@ -145,7 +145,7 @@ export default function RightPanel({ content, deleteAction }: Props) {
                   id="slug"
                   name="slug"
                   defaultValue={record.slug}
-                  pattern="[a-z0-9-]+"
+                  pattern="[a-z0-9\-]+"
                   required
                   inputSize="sm"
                   disabled={isPublished}

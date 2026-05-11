@@ -35,7 +35,7 @@ export default async function AdminPagesList() {
           </div>
           <div className="grow space-y-2">
             <Label htmlFor="slug">Slug</Label>
-            <Input id="slug" name="slug" pattern="[a-z0-9-]+" required />
+            <Input id="slug" name="slug" pattern="[a-z0-9\-]+" required />
           </div>
           <Button type="submit">Create</Button>
         </form>
