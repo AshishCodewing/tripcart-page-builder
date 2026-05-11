@@ -24,11 +24,12 @@ type CssVarPickerProps = {
   categories?: TokenCategory[]
 }
 
-// --theme-primary-foreground → primaryForeground
-const themeVarToKey = (name: string): string =>
-  name
-    .replace(/^--theme-/, "")
-    .replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+// "primary-foreground" → "primaryForeground"
+const themeKeyToCamel = (name: string): string =>
+  name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+
+const tokenVarExpr = (token: Token): string =>
+  token.category === "theme-color" ? `var(${token.value})` : `var(${token.name})`
 
 export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   const [open, setOpen] = React.useState(false)
@@ -54,7 +55,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   }, [query, pool])
 
   const handleSelect = (token: Token) => {
-    onSelect(`var(${token.name})`)
+    onSelect(tokenVarExpr(token))
     setOpen(false)
     setQuery("")
   }
@@ -124,10 +125,10 @@ function TokenRow({
 }) {
   const isHexColor = token.category === "color" && HEX_RE.test(token.value)
   const isThemeColor = token.category === "theme-color"
-  const displayName = token.name.replace(/^--/, "")
+  const displayName = isThemeColor ? token.name : token.name.replace(/^--/, "")
 
   const liveValue = isThemeColor
-    ? (themeColors[themeVarToKey(token.name)]?.value ?? "")
+    ? (themeColors[themeKeyToCamel(token.name)]?.value ?? "")
     : undefined
   const swatchColor = liveValue || (isHexColor ? token.value : undefined)
 
