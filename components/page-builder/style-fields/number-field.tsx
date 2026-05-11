@@ -10,6 +10,11 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { Slider } from "@/components/ui/slider"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { CssVarPicker } from "./css-var-picker"
 import type { TokenCategory } from "./open-props-tokens"
@@ -94,6 +99,13 @@ export function NumberInput({
       setDraft("")
       return
     }
+    // Auto-append px when a bare number is entered in a length property.
+    if (varCategories && /^-?\d*\.?\d+$/.test(trimmed)) {
+      const withPx = `${trimmed}px`
+      setDraft(withPx)
+      onCommit(withPx)
+      return
+    }
     onCommit(trimmed)
   }
 
@@ -118,15 +130,20 @@ export function NumberInput({
         aria-label={ariaLabel}
       />
       {varCategories && (
-        <InputGroupAddon align="inline-end">
-          <CssVarPicker
-            categories={varCategories}
-            onSelect={(expr) => {
-              onCommit(expr)
-              setDraft(expr)
-            }}
-          />
-        </InputGroupAddon>
+          <Tooltip>
+            <TooltipTrigger render={<span />}>
+              <InputGroupAddon align="inline-end">
+                <CssVarPicker
+                  categories={varCategories}
+                  onSelect={(expr) => {
+                    onCommit(expr)
+                    setDraft(expr)
+                  }}
+                />
+              </InputGroupAddon>
+            </TooltipTrigger>
+            <TooltipContent>Variables</TooltipContent>
+          </Tooltip>
       )}
     </InputGroup>
   )

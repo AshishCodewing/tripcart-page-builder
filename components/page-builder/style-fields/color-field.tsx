@@ -49,6 +49,7 @@ export default function ColorField({ property }: { property: Property }) {
           placeholder={property.getDefaultValue() || ""}
           spellCheck={false}
           autoComplete="off"
+          className="text-xs"
         />
         <InputGroupAddon align="inline-end">
           <CssVarPicker

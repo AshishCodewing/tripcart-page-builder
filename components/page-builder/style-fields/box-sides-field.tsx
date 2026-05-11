@@ -115,7 +115,7 @@ export function CrossGrid({
           <SideCell
             key={side}
             sub={sub}
-            label={sub.getLabel() || side}
+            label={side.charAt(0).toUpperCase() + side.slice(1)}
             className={POSITION[side]}
           />
         )

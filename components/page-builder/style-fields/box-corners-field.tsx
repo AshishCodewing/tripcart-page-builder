@@ -121,7 +121,7 @@ function CornerGrid({
           <SideCell
             key={corner}
             sub={sub}
-            label={sub.getLabel() || corner.replace("-", " ")}
+            label={corner.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
           />
         )
       })}
