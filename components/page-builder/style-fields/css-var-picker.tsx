@@ -3,15 +3,16 @@
 import * as React from "react"
 import { Braces } from "lucide-react"
 
-import { Input } from "@/components/ui/input"
 import { InputGroupButton } from "@/components/ui/input-group"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { cn } from "@/lib/utils"
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger
+} from "@/components/ui/combobox"
 
 import { useThemeSelector } from "@/hooks/use-theme"
 
@@ -31,12 +32,12 @@ const themeKeyToCamel = (name: string): string =>
 const tokenVarExpr = (token: Token): string =>
   token.category === "theme-color" ? `var(${token.value})` : `var(${token.name})`
 
+const displayNameFor = (token: Token): string =>
+  token.category === "theme-color" ? token.name : token.name.replace(/^--/, "")
+
 export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
-  const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
 
-  // Live color values from the theme store so swatches resolve correctly in
-  // the admin UI (--theme-* vars only exist inside the canvas iframe).
   const themeColors = useThemeSelector((s) => s.theme.colors)
 
   const pool = React.useMemo(
@@ -54,15 +55,18 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
     return pool.filter((t) => t.name.toLowerCase().includes(q))
   }, [query, pool])
 
-  const handleSelect = (token: Token) => {
-    onSelect(tokenVarExpr(token))
-    setOpen(false)
-    setQuery("")
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
+    <Combobox
+      items={filtered}
+      onValueChange={(value) => {
+        if (value) {
+          onSelect(value as string)
+          setQuery("")
+        }
+      }}
+    >
+      <ComboboxTrigger
+        className="[&>svg:last-child]:hidden"
         render={
           <InputGroupButton
             size="icon-xs"
@@ -72,86 +76,65 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
           />
         }
       >
-        <Braces className="size-3" aria-hidden="true" />
-      </PopoverTrigger>
-      <PopoverContent
+        <Braces className="size-3" />
+      </ComboboxTrigger>
+
+      {/*
+       * Focus issue: CssVarPicker lives inside InputGroupAddon, which has an
+       * onClick that calls querySelector("input")?.focus() to refocus the outer
+       * property input. React portals bubble synthetic events through the React
+       * component tree (not the DOM tree), so clicks inside this portaled popup
+       * reach InputGroupAddon and steal focus from the Combobox search input.
+       * Fix: stopPropagation on ComboboxContent blocks the event from reaching
+       * InputGroupAddon.
+       */}
+      <ComboboxContent
         side="left"
         sideOffset={8}
-        className="w-72 p-0 gap-0"
+        className="w-72! p-1"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b p-2">
-          <Input
-            inputSize="sm"
-            placeholder="Search variable…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoFocus
-            spellCheck={false}
-            className="h-7 text-xs"
-          />
-        </div>
-        <ScrollArea className="h-72">
-          <div className="flex flex-col py-1">
-            {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-                No tokens match &ldquo;{query}&rdquo;
-              </p>
-            ) : (
-              filtered.map((token) => (
-                <TokenRow
-                  key={token.name}
-                  token={token}
-                  themeColors={themeColors}
-                  onSelect={handleSelect}
-                />
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-function TokenRow({
-  token,
-  themeColors,
-  onSelect,
-}: {
-  token: Token
-  themeColors: Record<string, { label: string; value: string }>
-  onSelect: (token: Token) => void
-}) {
-  const isHexColor = token.category === "color" && HEX_RE.test(token.value)
-  const isThemeColor = token.category === "theme-color"
-  const displayName = isThemeColor ? token.name : token.name.replace(/^--/, "")
-
-  const liveValue = isThemeColor
-    ? (themeColors[themeKeyToCamel(token.name)]?.value ?? "")
-    : undefined
-  const swatchColor = liveValue || (isHexColor ? token.value : undefined)
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(token)}
-      className={cn(
-        "flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors",
-        "hover:bg-accent hover:text-accent-foreground"
-      )}
-    >
-      {swatchColor && (
-        <span
-          className="size-3 shrink-0 rounded-sm border border-border/50"
-          style={{ backgroundColor: swatchColor }}
-          aria-hidden="true"
+        <ComboboxInput
+          showTrigger={false}
+          placeholder="Search variable…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+          spellCheck={false}
         />
-      )}
-      <span className="min-w-0 flex-1 truncate text-xs">{displayName}</span>
-      <span className="shrink-0 truncate text-xs text-muted-foreground max-w-[40%]">
-        {liveValue ?? token.value}
-      </span>
-    </button>
+        <ComboboxEmpty className="text-xs">No tokens match</ComboboxEmpty>
+        <ComboboxList>
+          {(token: Token) => {
+            const liveValue =
+              token.category === "theme-color"
+                ? themeColors[themeKeyToCamel(token.name)]?.value
+                : undefined
+            const swatchColor =
+              liveValue ??
+              (token.category === "color" && HEX_RE.test(token.value)
+                ? token.value
+                : undefined)
+
+            return (
+              <ComboboxItem key={token.name} value={tokenVarExpr(token)}>
+                {swatchColor && (
+                  <span
+                    className="size-3 shrink-0 rounded-sm border border-border/50"
+                    style={{ backgroundColor: swatchColor }}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-xs">
+                  {displayNameFor(token)}
+                </span>
+                <span className="shrink-0 truncate text-xs text-muted-foreground max-w-[40%]">
+                  {liveValue ?? token.value}
+                </span>
+              </ComboboxItem>
+            )
+          }}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   )
 }
