@@ -7,8 +7,8 @@ const tripsCss = `
 .tc-trips {
   padding-block: clamp(4.5rem, 9vw, 8rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--background, var(--gray-0));
-  color: var(--foreground, var(--gray-12));
+  background-color: var(--theme-background, var(--gray-0));
+  color: var(--theme-foreground, var(--gray-12));
   font-family: var(--font-body, var(--font-sans));
 }
 
@@ -43,7 +43,7 @@ const tripsCss = `
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--primary, var(--indigo-6));
+  color: var(--theme-primary, var(--indigo-6));
   margin: 0;
 }
 
@@ -59,14 +59,14 @@ const tripsCss = `
 
 .tc-trips .tc-trips__title em {
   font-style: italic;
-  color: var(--primary, var(--indigo-6));
+  color: var(--theme-primary, var(--indigo-6));
   font-weight: var(--font-weight-7);
 }
 
 .tc-trips .tc-trips__lede {
   font-size: clamp(0.9375rem, 1.2vw, 1.0625rem);
   line-height: 1.55;
-  color: var(--foreground, var(--gray-7));
+  color: var(--theme-foreground, var(--gray-7));
   margin: 0;
   max-width: 32rem;
   justify-self: end;
@@ -110,7 +110,7 @@ const tripsCss = `
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-3, 1rem);
-  background: color-mix(in oklch, var(--foreground, var(--gray-12)) 4%, transparent);
+  background: color-mix(in oklch, var(--theme-foreground, var(--gray-12)) 4%, transparent);
 }
 
 .tc-trip-card .tc-trip-card__image {
@@ -135,7 +135,7 @@ const tripsCss = `
   font-weight: var(--font-weight-6);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--foreground, var(--gray-7));
+  color: var(--theme-foreground, var(--gray-7));
 }
 
 .tc-trip-card .tc-trip-card__title {
@@ -144,7 +144,7 @@ const tripsCss = `
   line-height: 1.2;
   letter-spacing: -0.01em;
   font-weight: var(--font-weight-7);
-  color: var(--foreground, var(--gray-12));
+  color: var(--theme-foreground, var(--gray-12));
   margin: 0;
   text-wrap: balance;
 }

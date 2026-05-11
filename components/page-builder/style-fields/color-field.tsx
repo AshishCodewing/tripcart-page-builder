@@ -53,7 +53,7 @@ export default function ColorField({ property }: { property: Property }) {
         />
         <InputGroupAddon align="inline-end">
           <CssVarPicker
-            categories={["color"]}
+            categories={["theme-color", "color"]}
             onSelect={(expr) => property.upValue(expr)}
           />
         </InputGroupAddon>

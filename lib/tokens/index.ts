@@ -43,6 +43,11 @@ export const defaultTokens: TokenSchema = {
     mutedForeground: { label: "Muted Foreground", value: "var(--gray-7)" },
     accent: { label: "Accent", value: "var(--gray-2)" },
     accentForeground: { label: "Accent Foreground", value: "var(--gray-12)" },
+    destructive: { label: "Destructive", value: "var(--red-6)" },
+    warning: { label: "Warning", value: "var(--yellow-6)" },
+    warningForeground: { label: "Warning Foreground", value: "var(--gray-0)" },
+    success: { label: "Success", value: "var(--green-6)" },
+    successForeground: { label: "Success Foreground", value: "var(--gray-0)" },
     // Open Props ships solid palette steps; alpha overlays are derived via
     // color-mix so border/input still track the active foreground.
     border: {
@@ -53,6 +58,7 @@ export const defaultTokens: TokenSchema = {
       label: "Input",
       value: "color-mix(in oklch, var(--gray-12) 15%, transparent)",
     },
+    ring: { label: "Ring", value: "var(--blue-6)" },
   },
 
   typography: {
@@ -71,16 +77,15 @@ export const tokenToCssVar = (
   category: keyof TokenSchema,
   key: string
 ): string => {
-  // Colours follow the shadcn convention — no prefix (--background,
-  // --primary, --card-foreground, etc.). Other categories keep their
-  // namespace prefix so they don't collide with Open Props or shadcn.
-  const prefixMap: Record<keyof TokenSchema, string | null> = {
-    colors: null,
+  // Colours use the --theme- prefix so they don't collide with shadcn's
+  // own variable names (--background, --primary, etc.).
+  const prefixMap: Record<keyof TokenSchema, string> = {
+    colors: "theme",
     typography: "font",
   }
   const prefix = prefixMap[category]
   const name = toKebab(key)
-  return prefix ? `--${prefix}-${name}` : `--${name}`
+  return `--${prefix}-${name}`
 }
 
 export const tokensToStyleObject = (

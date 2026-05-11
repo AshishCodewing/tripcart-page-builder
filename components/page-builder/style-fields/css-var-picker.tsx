@@ -13,6 +13,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
+import { useThemeSelector } from "@/hooks/use-theme"
+
 import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
 
 const HEX_RE = /^#[0-9a-f]{3,8}$/i
@@ -22,9 +24,19 @@ type CssVarPickerProps = {
   categories?: TokenCategory[]
 }
 
+// --theme-primary-foreground → primaryForeground
+const themeVarToKey = (name: string): string =>
+  name
+    .replace(/^--theme-/, "")
+    .replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+
 export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
+
+  // Live color values from the theme store so swatches resolve correctly in
+  // the admin UI (--theme-* vars only exist inside the canvas iframe).
+  const themeColors = useThemeSelector((s) => s.theme.colors)
 
   const pool = React.useMemo(
     () =>
@@ -89,6 +101,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
                 <TokenRow
                   key={token.name}
                   token={token}
+                  themeColors={themeColors}
                   onSelect={handleSelect}
                 />
               ))
@@ -102,13 +115,21 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
 
 function TokenRow({
   token,
+  themeColors,
   onSelect,
 }: {
   token: Token
+  themeColors: Record<string, { label: string; value: string }>
   onSelect: (token: Token) => void
 }) {
-  const isColor = token.category === "color" && HEX_RE.test(token.value)
+  const isHexColor = token.category === "color" && HEX_RE.test(token.value)
+  const isThemeColor = token.category === "theme-color"
   const displayName = token.name.replace(/^--/, "")
+
+  const liveValue = isThemeColor
+    ? (themeColors[themeVarToKey(token.name)]?.value ?? "")
+    : undefined
+  const swatchColor = liveValue || (isHexColor ? token.value : undefined)
 
   return (
     <button
@@ -119,16 +140,16 @@ function TokenRow({
         "hover:bg-accent hover:text-accent-foreground"
       )}
     >
-      {isColor && (
+      {swatchColor && (
         <span
           className="size-3 shrink-0 rounded-sm border border-border/50"
-          style={{ backgroundColor: token.value }}
+          style={{ backgroundColor: swatchColor }}
           aria-hidden="true"
         />
       )}
       <span className="min-w-0 flex-1 truncate text-xs">{displayName}</span>
       <span className="shrink-0 truncate text-xs text-muted-foreground max-w-[40%]">
-        {token.value}
+        {liveValue ?? token.value}
       </span>
     </button>
   )

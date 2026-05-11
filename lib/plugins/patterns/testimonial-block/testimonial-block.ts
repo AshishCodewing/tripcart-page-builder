@@ -9,8 +9,8 @@ const testimonialCss = `
   position: relative;
   padding-block: clamp(5rem, 10vw, 9rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background: var(--muted, color-mix(in oklch, var(--foreground, var(--gray-12)) 4%, var(--background, var(--gray-0))));
-  color: var(--foreground, var(--gray-12));
+  background: var(--theme-muted, color-mix(in oklch, var(--theme-foreground, var(--gray-12)) 4%, var(--theme-background, var(--gray-0))));
+  color: var(--theme-foreground, var(--gray-12));
   font-family: var(--font-body, var(--font-sans));
   overflow: hidden;
 }
@@ -32,7 +32,7 @@ const testimonialCss = `
   font-size: clamp(7rem, 14vw, 12rem);
   line-height: 0.7;
   font-weight: var(--font-weight-9);
-  color: var(--primary, var(--indigo-6));
+  color: var(--theme-primary, var(--indigo-6));
   opacity: 0.18;
   user-select: none;
   letter-spacing: -0.05em;
@@ -53,7 +53,7 @@ const testimonialCss = `
 
 .tc-testimonial .tc-testimonial__quote em {
   font-style: italic;
-  color: var(--primary, var(--indigo-6));
+  color: var(--theme-primary, var(--indigo-6));
   font-weight: var(--font-weight-7);
 }
 
@@ -62,7 +62,7 @@ const testimonialCss = `
   align-items: center;
   gap: clamp(0.875rem, 1.6vw, 1.125rem);
   padding-block-start: clamp(0.75rem, 1.5vw, 1rem);
-  border-block-start: 1px solid var(--border, color-mix(in oklch, var(--foreground, var(--gray-12)) 12%, transparent));
+  border-block-start: 1px solid var(--theme-border, color-mix(in oklch, var(--theme-foreground, var(--gray-12)) 12%, transparent));
 }
 
 .tc-testimonial .tc-testimonial__avatar {
@@ -72,7 +72,7 @@ const testimonialCss = `
   object-fit: cover;
   flex-shrink: 0;
   display: block;
-  border: 2px solid var(--background, var(--gray-0));
+  border: 2px solid var(--theme-background, var(--gray-0));
   box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.12);
 }
 
@@ -89,20 +89,20 @@ const testimonialCss = `
   font-size: var(--font-size-2, 1.0625rem);
   font-weight: var(--font-weight-7);
   letter-spacing: -0.005em;
-  color: var(--foreground, var(--gray-12));
+  color: var(--theme-foreground, var(--gray-12));
   line-height: 1.2;
 }
 
 .tc-testimonial .tc-testimonial__author-meta {
   font-size: var(--font-size-0, 0.8125rem);
-  color: var(--foreground, var(--gray-7));
+  color: var(--theme-foreground, var(--gray-7));
   letter-spacing: 0.04em;
 }
 
 .tc-testimonial .tc-testimonial__divider {
   width: 1px;
   height: 1.5rem;
-  background: var(--border, color-mix(in oklch, var(--foreground, var(--gray-12)) 20%, transparent));
+  background: var(--theme-border, color-mix(in oklch, var(--theme-foreground, var(--gray-12)) 20%, transparent));
 }
 `
 

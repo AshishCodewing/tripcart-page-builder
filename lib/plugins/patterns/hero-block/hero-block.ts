@@ -28,8 +28,8 @@ const heroCss = `
   padding-block: var(--spacing-section);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
   font-family: var(--font-body, var(--font-sans));
-  background-color: var(--background, var(--gray-0));
-  color: var(--foreground, var(--text-1));
+  background-color: var(--theme-background, var(--gray-0));
+  color: var(--theme-foreground, var(--text-1));
 }
 
 .tc-hero .tc-hero__inner {
@@ -47,7 +47,7 @@ const heroCss = `
   font-weight: var(--font-weight-7);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--primary, var(--indigo-6));
+  color: var(--theme-primary, var(--indigo-6));
 }
 
 .tc-hero .tc-hero__title {
@@ -58,7 +58,7 @@ const heroCss = `
   font-weight: var(--font-weight-9);
   max-width: 18ch;
   text-wrap: balance;
-  color: var(--foreground, var(--text-1));
+  color: var(--theme-foreground, var(--text-1));
 }
 
 .tc-hero .tc-hero__subtitle {
@@ -66,7 +66,7 @@ const heroCss = `
   line-height: 1.55;
   max-width: 56ch;
   text-wrap: pretty;
-  color: var(--foreground, var(--text-2));
+  color: var(--theme-foreground, var(--text-2));
   margin-block-start: clamp(0.25rem, 0.8vw, 0.75rem);
 }
 
@@ -95,30 +95,30 @@ const heroCss = `
 }
 
 .tc-hero .tc-hero__cta:focus-visible {
-  outline: 2px solid var(--primary, var(--indigo-6));
+  outline: 2px solid var(--theme-primary, var(--indigo-6));
   outline-offset: 3px;
 }
 
 .tc-hero .tc-hero__cta--primary {
-  background: var(--primary, var(--indigo-6));
-  color: var(--primary-foreground, var(--gray-0));
-  border-color: var(--primary, var(--indigo-6));
+  background: var(--theme-primary, var(--indigo-6));
+  color: var(--theme-primary-foreground, var(--gray-0));
+  border-color: var(--theme-primary, var(--indigo-6));
 }
 
 .tc-hero .tc-hero__cta--primary:hover {
-  background: color-mix(in oklch, var(--primary, var(--indigo-6)) 88%, var(--foreground, currentColor));
-  border-color: color-mix(in oklch, var(--primary, var(--indigo-6)) 88%, var(--foreground, currentColor));
+  background: color-mix(in oklch, var(--theme-primary, var(--indigo-6)) 88%, var(--theme-foreground, currentColor));
+  border-color: color-mix(in oklch, var(--theme-primary, var(--indigo-6)) 88%, var(--theme-foreground, currentColor));
 }
 
 .tc-hero .tc-hero__cta--secondary {
   background: transparent;
-  color: var(--foreground, var(--text-1));
-  border-color: color-mix(in oklch, var(--foreground, currentColor) 28%, transparent);
+  color: var(--theme-foreground, var(--text-1));
+  border-color: color-mix(in oklch, var(--theme-foreground, currentColor) 28%, transparent);
 }
 
 .tc-hero .tc-hero__cta--secondary:hover {
-  border-color: var(--foreground, currentColor);
-  background: color-mix(in oklch, var(--foreground, currentColor) 6%, transparent);
+  border-color: var(--theme-foreground, currentColor);
+  background: color-mix(in oklch, var(--theme-foreground, currentColor) 6%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
