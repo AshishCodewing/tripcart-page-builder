@@ -35,6 +35,7 @@ export default function StyleSector({
   if (properties.length === 0) return null
 
   const hasSetValue = properties.some((p) => p.hasValue({ noParent: true }))
+  const inherited = properties.some((p) => p.hasValueParent())
 
   const handleOpenChange = (next: boolean) => {
     onOpenChange(next ? sector.getId() : null)
@@ -53,11 +54,14 @@ export default function StyleSector({
           />
         }
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span>{sector.getName()}</span>
-          {hasSetValue && (
-            <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-          )}
+          <div className="flex items-center gap-1">
+            {hasSetValue && (
+              <span className="size-1.5 block shrink-0 rounded-full bg-primary" />
+            )}
+            {inherited && <span className="size-1.5 block shrink-0 rounded-full bg-warning"/>}
+          </div>
         </div>
         <ChevronDown
           className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-panel-open/sector:rotate-180 motion-reduce:transition-none"
