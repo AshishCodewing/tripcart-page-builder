@@ -11,6 +11,7 @@ import type {
 import { Plus, RotateCcw, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 import BaseField from "./base-field"
@@ -256,13 +257,6 @@ function StackField({ property }: { property: PropertyStack }) {
         <Plus className="size-3" aria-hidden="true" />
         Add layer
       </Button>
-      {selectedLayer ? (
-        <div className="flex flex-col gap-2 rounded-md bg-background/60 p-2">
-          {property.getProperties().map((p) => (
-            <PropertyField key={p.getId()} property={p} />
-          ))}
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -277,30 +271,41 @@ function LayerRow({
   selected: boolean
 }) {
   return (
-    <div
-      data-selected={selected || undefined}
-      className={cn(
-        "flex items-center gap-1.5 rounded-md border bg-background/40 px-2 py-1 transition-colors motion-reduce:transition-none",
-        selected ? "border-primary/50" : "border-transparent hover:border-border"
-      )}
-    >
-      <button
-        type="button"
-        className="min-w-0 flex-1 truncate text-start text-xs"
-        onClick={() => property.selectLayer(layer)}
+    <Popover>
+      <div
+        data-selected={selected || undefined}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md border bg-background/40 px-2 py-1 transition-colors motion-reduce:transition-none",
+          selected ? "border-primary/50" : "border-transparent hover:border-border"
+        )}
       >
-        {property.getLayerLabel(layer)}
-      </button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-5 text-muted-foreground hover:text-destructive"
-        aria-label="Remove layer"
-        onClick={() => property.removeLayer(layer)}
-      >
-        <Trash2 className="size-3" aria-hidden="true" />
-      </Button>
-    </div>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className="min-w-0 flex-1 truncate text-start text-xs"
+              onClick={() => property.selectLayer(layer)}
+            />
+          }
+        >
+          {property.getLayerLabel(layer)}
+        </PopoverTrigger>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-5 text-muted-foreground hover:text-destructive"
+          aria-label="Remove layer"
+          onClick={() => property.removeLayer(layer)}
+        >
+          <Trash2 className="size-3" aria-hidden="true" />
+        </Button>
+      </div>
+      <PopoverContent side="left" sideOffset={8} className="w-64 gap-2.5">
+        {property.getProperties().map((p) => (
+          <PropertyField key={p.getId()} property={p} />
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }
