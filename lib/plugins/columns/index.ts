@@ -90,7 +90,7 @@ export const columnsPlugin = (editor: Editor): void => {
           {
             type: "button",
             name: "add-column",
-            label: "",
+            label: "Add Column",
             text: "+ Add column",
             full: true,
             command: ADD_COLUMN_CMD,
