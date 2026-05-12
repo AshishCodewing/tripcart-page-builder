@@ -106,6 +106,32 @@ const STANDARD_REACT_PROPS = new Set([
   "role",
 ])
 
+// Boolean HTML attributes whose value can legitimately be `false`. Every other
+// attribute receiving `false` from GrapesJS means "not set" and should be
+// omitted so React doesn't warn about passing false to a DOM attribute.
+const BOOLEAN_HTML_ATTRS = new Set([
+  "disabled",
+  "checked",
+  "selected",
+  "multiple",
+  "required",
+  "readonly",
+  "autofocus",
+  "allowfullscreen",
+  "novalidate",
+  "autoplay",
+  "controls",
+  "loop",
+  "muted",
+  "playsinline",
+  "default",
+  "defer",
+  "async",
+  "hidden",
+  "open",
+  "reversed",
+])
+
 // Camel-cased SVG props (after kebab→camel) that, if present, mark this attr
 // bag as SVG-rendered and trigger camelCase conversion across the bag.
 const SVG_PROPS = new Set([
@@ -165,6 +191,11 @@ export const attrsToReactProps = (
     attrs.d !== undefined
 
   for (const [key, value] of Object.entries(attrs)) {
+    // GrapesJS stores `false` for unset non-boolean attributes (e.g. `target`
+    // on a link with no target set). Passing false to a DOM attribute triggers
+    // a React warning, so skip it; only boolean HTML attributes keep false.
+    if (value === false && !BOOLEAN_HTML_ATTRS.has(key)) continue
+
     if (key === "style") {
       out.style = normalizeStyleObject(value)
       continue
