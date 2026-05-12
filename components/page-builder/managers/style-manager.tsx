@@ -22,14 +22,17 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   const [hasTarget, setHasTarget] = React.useState<boolean>(
     () => editor.StyleManager.getSelected() != null
   )
+  const [openId, setOpenId] = React.useState<string | null>(null)
 
   // The provider re-renders on `style:custom`, but that fires only when the
   // styles container itself changes — selecting/deselecting a component is
   // a separate event. Track target presence here so the placeholder vs. the
   // sectors render decision stays in sync with the canvas selection.
   React.useEffect(() => {
-    const refresh = () =>
+    const refresh = () => {
       setHasTarget(editor.StyleManager.getSelected() != null)
+      setOpenId(null)
+    }
     editor.on("style:target", refresh)
     editor.on("component:selected", refresh)
     editor.on("component:deselected", refresh)
@@ -51,7 +54,12 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   return (
     <div className="flex flex-col border-t">
       {sectors.map((sector) => (
-        <StyleSector key={sector.getId()} sector={sector} />
+        <StyleSector
+          key={sector.getId()}
+          sector={sector}
+          openId={openId}
+          onOpenChange={setOpenId}
+        />
       ))}
     </div>
   )

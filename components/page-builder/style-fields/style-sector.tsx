@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import type { PropertyNumber, Sector } from "grapesjs"
 import { ChevronDown } from "lucide-react"
 
@@ -16,8 +15,16 @@ import PropertyField from "./property-field"
 import { useStyleContext } from "./use-style-context"
 import { isPropertyVisible } from "./visibility"
 
-export default function StyleSector({ sector }: { sector: Sector }) {
-  const [open, setOpen] = React.useState<boolean>(() => sector.isOpen())
+export default function StyleSector({
+  sector,
+  openId,
+  onOpenChange,
+}: {
+  sector: Sector
+  openId: string | null
+  onOpenChange: (id: string | null) => void
+}) {
+  const open = openId === sector.getId()
   const ctx = useStyleContext()
   const properties = sector
     .getProperties()
@@ -30,7 +37,7 @@ export default function StyleSector({ sector }: { sector: Sector }) {
   const hasSetValue = properties.some((p) => p.hasValue({ noParent: true }))
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next)
+    onOpenChange(next ? sector.getId() : null)
     sector.setOpen(next)
   }
 
