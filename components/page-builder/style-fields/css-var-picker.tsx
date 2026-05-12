@@ -23,6 +23,8 @@ import { useThemeSelector } from "@/hooks/use-theme"
 import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
+const KEBAB_LETTER_RE = /-([a-z])/g
+
 type CssVarPickerProps = {
   onSelect: (varExpr: string) => void
   categories?: TokenCategory[]
@@ -30,7 +32,7 @@ type CssVarPickerProps = {
 
 // "primary-foreground" → "primaryForeground"
 const themeKeyToCamel = (name: string): string =>
-  name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+  name.replace(KEBAB_LETTER_RE, (_, c: string) => c.toUpperCase())
 
 const tokenVarExpr = (token: Token): string => {
   if (token.category === "theme-color") return `var(${token.value})`

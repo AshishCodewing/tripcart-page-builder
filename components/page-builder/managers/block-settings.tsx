@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { Paintbrush, Settings } from "lucide-react"
 
 import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
@@ -32,6 +31,7 @@ export default function BlockSettings() {
       </SidebarHeader>
       <TabsContent
         value="style"
+        keepMounted
         className="flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
       >
         <SidebarContent>
@@ -45,6 +45,7 @@ export default function BlockSettings() {
       </TabsContent>
       <TabsContent
         value="traits"
+        keepMounted
         className="flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
       >
         <SidebarContent className="p-2">

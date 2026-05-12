@@ -14,6 +14,9 @@ import { Slider } from "@/components/ui/slider"
 import { CssVarPicker } from "./css-var-picker"
 import type { TokenCategory } from "./open-props-tokens"
 
+const BARE_NUMBER_RE = /^-?\d*\.?\d+$/
+const BORDER_RADIUS_RE = /border.*radius/
+
 export type NumberInputProps = {
   /** CSS value string — plain number ("10"), length ("16px"), or any CSS expression ("var(--spacing)"). Empty = unset. */
   value: string
@@ -95,7 +98,7 @@ export function NumberInput({
       return
     }
     // Auto-append px when a bare number is entered in a length property.
-    if (varCategories && /^-?\d*\.?\d+$/.test(trimmed)) {
+    if (varCategories && BARE_NUMBER_RE.test(trimmed)) {
       const withPx = `${trimmed}px`
       setDraft(withPx)
       onCommit(withPx)
@@ -142,7 +145,7 @@ export function NumberInput({
 function varCategoriesFor(property: Property): TokenCategory[] | undefined {
   if (property.getType() !== "length") return undefined
   const name = property.getName()
-  if (/border.*radius/.test(name)) return ["border-radius"]
+  if (BORDER_RADIUS_RE.test(name)) return ["border-radius"]
   if (name === "font-size") return ["font-size"]
   if (name === "line-height") return ["font-lineheight"]
   if (name === "letter-spacing") return ["font-letterspacing"]
