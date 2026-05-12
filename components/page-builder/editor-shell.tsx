@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import GjsEditor, { Canvas } from "@grapesjs/react"
-import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
+import { grapesjs, type Component, type Editor, type EditorConfig } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
@@ -268,6 +268,32 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
 
 const isDev = process.env.NODE_ENV !== "production"
 
+// When a component is deleted, GrapesJS leaves its CSS rules in the
+// CssComposer. Walk the remaining tree and purge any single-class rule
+// whose class is no longer referenced by any component.
+function attachOrphanedCssCleanup(editor: Editor) {
+  editor.on("component:remove", () => {
+    const css = editor.Css
+    const wrapper = editor.getWrapper()
+    if (!wrapper) return
+
+    const usedClasses = new Set<string>()
+    const walk = (comp: Component) => {
+      comp.getClasses().forEach((cls: string) => usedClasses.add(cls))
+      comp.components().forEach(walk)
+    }
+    walk(wrapper)
+
+    const orphaned = css.getRules().filter((rule) => {
+      const selectors = rule.getSelectors()
+      if (selectors.length !== 1) return false
+      const sel = selectors.models[0]
+      return sel.get("type") === 1 && !usedClasses.has(sel.get("name") as string)
+    })
+    orphaned.forEach((rule) => css.remove(rule))
+  })
+}
+
 function attachTracking(editor: Editor) {
   const log = (...args: unknown[]) => {
     if (isDev) console.debug("[gjs]", ...args)
@@ -326,6 +352,7 @@ function EditorShellInner({ content, saveAction, deleteAction }: Props) {
       ;(window as unknown as { editor: Editor }).editor = editor
     }
     attachTracking(editor)
+    attachOrphanedCssCleanup(editor)
   }, [])
 
   // Wrapping client action that copies the live editor state into the
