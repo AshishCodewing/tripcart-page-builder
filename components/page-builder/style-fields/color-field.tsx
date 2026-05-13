@@ -18,12 +18,14 @@ const CHECKER_BG: React.CSSProperties = {
   backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
 }
 
-const HEX_RE = /^#[0-9a-f]{6}$/i
 const HEX_ANY_RE = /^#[0-9a-f]{3,8}$/i
 
 export default function ColorField({ property }: { property: Property }) {
-  const value = String(property.getValue() ?? "")
-  const hex = HEX_RE.test(value) ? value : "#000000"
+  const defValue = property.getDefaultValue();
+  const hasValue = property.hasValue();
+  const value = property.getValue();
+  const valueString = hasValue ? value : '';
+  const valueWithDef = hasValue ? value : defValue;
   const showSwatchColor = HEX_ANY_RE.test(value)
 
   return (
@@ -35,7 +37,7 @@ export default function ColorField({ property }: { property: Property }) {
       >
         <input
           type="color"
-          value={hex}
+          value={valueWithDef}
           onChange={(e) => property.upValue(e.target.value)}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
@@ -44,9 +46,9 @@ export default function ColorField({ property }: { property: Property }) {
         <InputGroupInput
           inputSize="sm"
           type="text"
-          value={value}
+          value={valueString}
           onChange={(e) => property.upValue(e.target.value)}
-          placeholder={property.getDefaultValue() || ""}
+          placeholder={defValue}
           spellCheck={false}
           autoComplete="off"
           className="text-xs"

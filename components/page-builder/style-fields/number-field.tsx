@@ -159,15 +159,17 @@ export default function NumberField({
   property: Property
   slider: boolean
 }) {
-  const rawValue = property.getValue({ noDefault: true })
-  const value = rawValue == null ? "" : String(rawValue)
+  const defValue = property.getDefaultValue();
+  const hasValue = property.hasValue();
+  const value = property.getValue();
+  const valueString = hasValue ? value : '';
 
   return (
     <NumberInput
-      value={value}
+      value={valueString}
       step={1}
       slider={slider}
-      placeholder={property.getDefaultValue() || "auto"}
+      placeholder={defValue}
       varCategories={varCategoriesFor(property)}
       onCommit={(next, opts) => property.upValue(next, opts)}
     />
