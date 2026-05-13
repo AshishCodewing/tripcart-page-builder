@@ -230,7 +230,6 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           { extend: "min-height", type: "length" },
           { extend: "max-width", type: "length" },
           { extend: "max-height", type: "length" },
-          "overflow",
         ],
       },
       {
@@ -324,13 +323,15 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         name: "Effects",
         open:false,
         properties: [
-          { extend: "opacity", type: "slider" },
+          "opacity",
+          "cursor",
           "box-shadow",
           "text-shadow",
           filterStackProperty("filter"),
           filterStackProperty("backdrop-filter"),
           "transition",
           "transform",
+          "overflow",
         ]
       }
     ],
