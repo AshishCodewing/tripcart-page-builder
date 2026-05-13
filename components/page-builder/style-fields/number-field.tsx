@@ -162,7 +162,7 @@ export default function NumberField({
   const defValue = property.getDefaultValue();
   const hasValue = property.hasValue();
   const value = property.getValue();
-  const valueString = hasValue ? value : '';
+  const valueString = hasValue ? String(value) : '';
 
   return (
     <NumberInput

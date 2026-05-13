@@ -14,13 +14,17 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
+import {
+  AllCustomField,
+  AllCustomFieldControl,
+  AllCustomFieldContent,
+  AllCustomFieldItem,
+} from "./all-custom-field"
 import BaseField from "./base-field"
-import BoxCornersField from "./box-corners-field"
-import BoxSidesField from "./box-sides-field"
+import { CrossGrid, type Side } from "./box-sides-field"
 import ColorField from "./color-field"
 import FileField from "./file-field"
 import FlexPresetField, { getFlexPreset } from "./flex-preset-field"
-import GapField from "./gap-field"
 import NumberField from "./number-field"
 import RadioField from "./radio-field"
 import SelectField from "./select-field"
@@ -173,16 +177,80 @@ function CompositeField({ property }: { property: PropertyComposite }) {
   // `margin` and `padding` get the All / Custom toggle + cross layout — they
   // don't share the generic "stack of sub-rows" treatment.
   if (name === "margin" || name === "padding") {
-    return <BoxSidesField property={property} />
+    const subs = property.getProperties() as Property[]
+    const compositeName = property.getName()
+    const bySide = (side: Side): Property | undefined =>
+      subs.find((s) => s.getName() === `${compositeName}-${side}`)
+    return (
+      <AllCustomField property={property}>
+        <AllCustomFieldControl
+          varCategories={["size"]}
+          allTooltip="Apply one value to all four sides"
+          customTooltip="Edit top, right, bottom, and left independently"
+          ariaLabelSuffix="all sides"
+        />
+        <AllCustomFieldContent>
+          <CrossGrid bySide={bySide} />
+        </AllCustomFieldContent>
+      </AllCustomField>
+    )
   }
   // `gap` uses the same All / Custom toggle but with two axes (row + column)
   // instead of four sides.
   if (name === "gap") {
-    return <GapField property={property} />
+    const subs = property.getProperties() as Property[]
+    const byName = (n: string) => subs.find((s) => s.getName() === n)
+    return (
+      <AllCustomField property={property}>
+        <AllCustomFieldControl
+          varCategories={["size"]}
+          allTooltip="Apply one value to row and column"
+          customTooltip="Edit row and column gap independently"
+          ariaLabelSuffix="both axes"
+        />
+        <AllCustomFieldContent>
+          <div className="grid grid-cols-2 gap-2">
+            <AllCustomFieldItem sub={byName("row-gap")!} label="Row" />
+            <AllCustomFieldItem sub={byName("column-gap")!} label="Column" />
+          </div>
+        </AllCustomFieldContent>
+      </AllCustomField>
+    )
   }
   // `border-radius` uses the All / Custom toggle with a 2×2 corner grid.
   if (name === "border-radius") {
-    return <BoxCornersField property={property} />
+    const subs = property.getProperties() as Property[]
+    const byName = (n: string) => subs.find((s) => s.getName() === n)
+    return (
+      <AllCustomField property={property}>
+        <AllCustomFieldControl
+          varCategories={["border-radius"]}
+          allTooltip="Apply one value to all four corners"
+          customTooltip="Edit each corner independently"
+          ariaLabelSuffix="all corners"
+        />
+        <AllCustomFieldContent>
+          <div className="grid grid-cols-2 gap-2">
+            <AllCustomFieldItem
+              sub={byName("border-top-left-radius")!}
+              label="Top Left"
+            />
+            <AllCustomFieldItem
+              sub={byName("border-top-right-radius")!}
+              label="Top Right"
+            />
+            <AllCustomFieldItem
+              sub={byName("border-bottom-left-radius")!}
+              label="Bottom Left"
+            />
+            <AllCustomFieldItem
+              sub={byName("border-bottom-right-radius")!}
+              label="Bottom Right"
+            />
+          </div>
+        </AllCustomFieldContent>
+      </AllCustomField>
+    )
   }
   // `flex` shows the Auto / Fill / Hug preset picker; the raw grow / shrink /
   // basis sub-rows are revealed only when Custom is active.

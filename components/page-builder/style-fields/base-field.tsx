@@ -8,7 +8,7 @@ export default function BaseField({ property }: { property: Property }) {
   const defValue = property.getDefaultValue();
   const hasValue = property.hasValue();
   const value = property.getValue();
-  const valueString = hasValue ? value : '';
+  const valueString = hasValue ? String(value) : '';
   return (
     <Input
       inputSize="sm"

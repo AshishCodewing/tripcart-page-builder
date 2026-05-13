@@ -149,11 +149,12 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         name: "Position",
         open: false,
         properties: [
-          "position",
+          { property: "position", type: "select", default: "static", options: [{ id: "static" }, { id: "relative" }, { id: "absolute" }, { id: "fixed" }, { id: "sticky"}] },
           { extend: "top", type: "length" },
           { extend: "right", type: "length" },
           { extend: "bottom", type: "length" },
           { extend: "left", type: "length" },
+          { extend: "z-index", type: "integer"}
         ],
       },
       {
@@ -200,7 +201,6 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           { property: "text-decoration", type: "radio", options: [{ id: "none" }, { id: "underline" }, { id: "overline" }, { id: "line-through" }] },
           { property: "white-space", type: "select", options: [{ id: "normal" }, { id: "nowrap", label: "No wrap" }, { id: "pre" }, { id: "pre-wrap" }, { id: "pre-line" }] },
           { property: "text-wrap", type: "select", options: [{ id: "wrap" }, { id: "nowrap", label: "No wrap" }, { id: "balance" }, { id: "pretty" }, { id: "stable" }] },
-          "text-shadow",
         ],
       },
       {
@@ -210,6 +210,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "background-color",
           "background-image",
+          "clip"
         ],
       },
       {
@@ -228,8 +229,22 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
               { property: "border-bottom-left-radius",  type: "length", default: "0" },
             ],
           },
-          "box-shadow",
         ],
+      },
+      {
+        id: "effects",
+        name: "Effects",
+        open:false,
+        properties: [
+          "box-shadow",
+          "text-shadow",
+          "filter",
+          "backdrop-filter",
+          "transition",
+          "transform",
+          "transform-origin",
+          "overflow"
+        ]
       }
     ],
   },

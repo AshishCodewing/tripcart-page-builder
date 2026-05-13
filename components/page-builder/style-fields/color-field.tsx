@@ -24,7 +24,7 @@ export default function ColorField({ property }: { property: Property }) {
   const defValue = property.getDefaultValue();
   const hasValue = property.hasValue();
   const value = property.getValue();
-  const valueString = hasValue ? value : '';
+  const valueString = hasValue ? String(value) : '';
   const valueWithDef = hasValue ? value : defValue;
   const showSwatchColor = HEX_ANY_RE.test(value)
 
