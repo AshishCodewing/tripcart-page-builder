@@ -12,6 +12,7 @@ import { Plus, RotateCcw, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 import {
@@ -153,6 +154,23 @@ function PropertyRow({
             <RotateCcw className="size-3" aria-hidden="true" />
           </Button>
         ) : null}
+        {property.getType() === "stack" ? (
+          <Tooltip>
+            <TooltipTrigger render={<span />}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-xs"
+                onClick={() => (property as PropertyStack).addLayer({}, { at: 0 })}
+              >
+                <Plus />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Add {label.toLowerCase()} layer
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
       </div>
       <div
         className={cn(
@@ -291,34 +309,22 @@ function StackField({ property }: { property: PropertyStack }) {
   const selectedLayer = property.getSelectedLayer()
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
-      <div className="flex flex-col gap-1">
-        {layers.length === 0 ? (
-          <p className="px-1 py-1 text-xs text-muted-foreground">
-            No layers — add one to start.
-          </p>
-        ) : (
-          layers.map((layer) => (
-            <LayerRow
-              key={layer.getId()}
-              layer={layer}
-              property={property}
-              selected={selectedLayer?.getId() === layer.getId()}
-            />
-          ))
-        )}
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-7 self-start text-xs"
-        onClick={() => property.addLayer({}, { at: 0 })}
-      >
-        <Plus className="size-3" aria-hidden="true" />
-        Add layer
-      </Button>
-    </div>
+    <>
+      {layers.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
+          <div className="flex flex-col gap-1">
+            {layers.map((layer) => (
+              <LayerRow
+                key={layer.getId()}
+                layer={layer}
+                property={property}
+                selected={selectedLayer?.getId() === layer.getId()}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }
 
