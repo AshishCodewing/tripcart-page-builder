@@ -2,7 +2,15 @@
 
 import * as React from "react"
 import GjsEditor, { Canvas } from "@grapesjs/react"
-import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
+import {
+  grapesjs,
+  type Editor,
+  type EditorConfig,
+  type FromStyleDataStack,
+  type PropertyProps,
+  type PropertySelect,
+  type ToStyleDataStack,
+} from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
@@ -41,6 +49,86 @@ const storageKeyFor = (content: EditorContent): string => {
       return `tripcart:page-builder:page:${content.page.id}`
     case "post":
       return `tripcart:page-builder:post:${content.post.id}`
+  }
+}
+
+function filterStackProperty(propertyName: string) {
+  return {
+    property: propertyName,
+    type: "stack",
+    layerSeparator: " ",
+    fromStyle(
+      style: Record<string, string>,
+      data: FromStyleDataStack
+    ) {
+      const val = style[data.name] || ""
+      if (!val) return []
+      const sep = data.property.getLayerSeparator()
+      return val.split(sep).map((input: string) => {
+        const open = input.indexOf("(")
+        const close = input.lastIndexOf(")")
+        return {
+          "filter-type": input.substring(0, open).trim(),
+          "filter-value": input.substring(open + 1, close).trim(),
+        }
+      })
+    },
+    toStyle(
+      values: Record<string, string>,
+      data: ToStyleDataStack
+    ) {
+      return {
+        [data.name]: `${values["filter-type"]}(${values["filter-value"]})`,
+      }
+    },
+    properties: [
+      {
+        property: "filter-type",
+        name: "Type",
+        type: "select",
+        default: "blur",
+        full: true,
+        options: [
+          { id: "blur", propValue: { units: ["px"], step: 1 } },
+          { id: "brightness", propValue: { units: [""], step: 0.1 } },
+          { id: "contrast", propValue: { units: [""], step: 0.1 } },
+          { id: "grayscale", propValue: { units: [""], step: 0.1 } },
+          { id: "invert", propValue: { units: [""], step: 0.1 } },
+          { id: "saturate", propValue: { units: [""], step: 0.1 } },
+          { id: "sepia", propValue: { units: [""], step: 0.1 } },
+        ],
+        onChange({
+          property,
+          to,
+        }: {
+          property: PropertySelect
+          from: PropertyProps
+          to: PropertyProps
+        }) {
+          if (to?.value) {
+            const opt = property.getOption()
+            const pv = opt.propValue || {}
+            const propToUp = property
+              .getParent()
+              ?.getProperty("filter-value")
+            if (propToUp) {
+              const modelAttrs: Partial<PropertyProps> &
+                Record<string, unknown> = {
+                unit: pv.units?.[0] || "",
+                step: pv.step ?? 1,
+              }
+              propToUp.up(modelAttrs)
+            }
+          }
+        },
+      },
+      {
+        property: "filter-value",
+        type: "number",
+        default: "0",
+        full: true,
+      },
+    ],
   }
 }
 
@@ -210,7 +298,6 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "background-color",
           "background-image",
-          "clip"
         ],
       },
       {
@@ -238,12 +325,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "box-shadow",
           "text-shadow",
-          "filter",
-          "backdrop-filter",
+          filterStackProperty("filter"),
+          filterStackProperty("backdrop-filter"),
           "transition",
           "transform",
-          "transform-origin",
-          "overflow"
         ]
       }
     ],
