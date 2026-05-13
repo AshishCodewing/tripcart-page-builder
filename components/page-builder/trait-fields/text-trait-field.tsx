@@ -11,7 +11,6 @@ import {
 export default function TextTraitField({ trait }: { trait: Trait }) {
   const externalValue = String(trait.getValue() ?? "")
   const [draft, setDraft] = React.useState(externalValue)
-  React.useEffect(() => setDraft(externalValue), [externalValue])
 
   const commit = () => trait.setValue(draft.trim())
 

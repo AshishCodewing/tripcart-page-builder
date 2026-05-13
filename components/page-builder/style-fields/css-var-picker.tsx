@@ -55,8 +55,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
       categories
         ? TOKENS.filter((t) => categories.includes(t.category))
         : TOKENS,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [categories?.join(",")]
+    [categories]
   )
 
   const filtered = React.useMemo(() => {

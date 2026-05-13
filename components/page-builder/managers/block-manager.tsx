@@ -3,7 +3,6 @@
 import * as React from "react"
 import type { BlocksResultProps } from "@grapesjs/react"
 import { Blocks } from "lucide-react"
-import { useEditor } from "@grapesjs/react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -21,7 +20,6 @@ export default function BlockManager({
     () => Array.from(mapCategoryBlocks),
     [mapCategoryBlocks]
   )
-  const editor = useEditor()
 
   if (categories.length === 0) return <BlockManagerEmpty />
 

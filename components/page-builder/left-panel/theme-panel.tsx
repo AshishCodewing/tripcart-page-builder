@@ -11,7 +11,7 @@ import { SidebarContent } from "@/components/ui/sidebar"
 import { useLeftPanel } from "./left-panel-context"
 
 export default function ThemePanel() {
-  const { activeMode, togglePanel } = useLeftPanel()
+  const { togglePanel } = useLeftPanel()
 
   return (
     <SidebarContent>

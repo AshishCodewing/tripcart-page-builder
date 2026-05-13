@@ -51,7 +51,6 @@ export function NumberInput({
     slider && typeof min === "number" && typeof max === "number"
 
   const [draft, setDraft] = React.useState(value)
-  React.useEffect(() => setDraft(value), [value])
 
   if (showSlider) {
     const minN = min as number
@@ -166,6 +165,7 @@ export default function NumberField({
 
   return (
     <NumberInput
+      key={property.getId()}
       value={valueString}
       step={1}
       slider={slider}

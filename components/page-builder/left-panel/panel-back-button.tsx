@@ -4,10 +4,9 @@ import * as React from "react"
 import { ChevronLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 
 import { useLeftPanel, type LeftPanelMode } from "./left-panel-context"
-
+import { cn } from "@/lib/utils"
 export function PanelBackButton({
   to = "theme",
   className,
@@ -24,7 +23,7 @@ export function PanelBackButton({
       data-slot="panel-back-button"
       variant="link"
       size="sm"
-      className="flex w-full items-center justify-start ps-0 pe-2 text-foreground"
+      className={cn("flex w-full items-center justify-start ps-0 pe-2 text-foreground", className)}
       onClick={(event) => {
         onClick?.(event)
         togglePanel(to)

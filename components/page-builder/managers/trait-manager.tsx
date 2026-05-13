@@ -64,7 +64,7 @@ export default function TraitManager() {
           )
         }
         // Keying on the component CID resets openId whenever selection changes.
-        const componentKey = (traits[0] as any).target?.cid ?? "none"
+        const componentKey = (traits[0] as { target?: { cid?: string } }).target?.cid ?? "none"
         return <TraitManagerInner key={componentKey} traits={traits} />
       }}
     </TraitsProvider>

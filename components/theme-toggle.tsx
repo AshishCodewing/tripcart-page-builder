@@ -23,10 +23,9 @@ type Props = Omit<
 export function ThemeToggle({ className, size = "sm", ...props }: Props) {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
+  if (!mounted && typeof window !== "undefined") {
     setMounted(true)
-  }, [])
+  }
 
   // Avoid hydration mismatch — server renders no theme info.
   const isDark = mounted ? resolvedTheme === "dark" : false

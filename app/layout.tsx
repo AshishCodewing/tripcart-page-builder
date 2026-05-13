@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Geist_Mono, Inter } from "next/font/google"
 
 // Open Props is the design system's source of truth. Loading it as a global
 // side-effect import here makes its variables (`--gray-6`, `--blue-6`,

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import GjsEditor, { Canvas } from "@grapesjs/react"
-import { grapesjs, type Component, type Editor, type EditorConfig } from "grapesjs"
+import { grapesjs, type Editor, type EditorConfig } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"

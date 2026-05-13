@@ -19,6 +19,7 @@ type AllCustomContextValue = {
   allMatch: boolean
   value: string
   name: string
+  propertyId: string
 }
 
 const AllCustomCtx = React.createContext<AllCustomContextValue | null>(null)
@@ -89,6 +90,7 @@ export function AllCustomField({
     allMatch,
     value,
     name,
+    propertyId,
   }
 
   return (
@@ -111,11 +113,13 @@ export function AllCustomFieldControl({
   customTooltip?: string
   ariaLabelSuffix?: string
 }) {
-  const { value, allMatch, name, propagate, mode, setMode } = useAllCustom()
+  const { value, allMatch, name, propagate, mode, setMode, propertyId } =
+    useAllCustom()
 
   return (
     <div className="flex gap-2 items-center">
       <NumberInput
+        key={propertyId}
         value={value}
         placeholder={allMatch ? "0" : "Custom"}
         ariaLabel={`${name} ${ariaLabelSuffix}`}

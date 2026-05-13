@@ -46,17 +46,10 @@ const FLEX_AXIS_BLOCK_PROPS = new Set([
 
 type PropertyFieldProps = {
   property: Property
-  /**
-   * Override the default inline/block row decision. Set to "block" by sectors
-   * that arrange properties in a grid (see editor-shell.tsx → `layout: 'grid-2'`)
-   * so each cell stacks label above field.
-   */
-  layout?: "inline" | "block"
 }
 
 export default function PropertyField({
   property,
-  layout: layoutProp,
 }: PropertyFieldProps) {
   if (!property.isVisible()) return null
 

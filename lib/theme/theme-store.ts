@@ -74,8 +74,8 @@ export const themeStore = {
           ) {
             return snapshot.activePresetId
           }
-          const { [category as PresetCategory]: _, ...rest } =
-            snapshot.activePresetId
+          const rest = { ...snapshot.activePresetId }
+          delete rest[category as PresetCategory]
           return rest
         })()
       : snapshot.activePresetId
