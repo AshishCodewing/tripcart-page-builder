@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import type {
   Property,
   PropertyComposite,
@@ -8,15 +7,13 @@ import type {
   PropertySelect,
   PropertyStack,
 } from "grapesjs"
+import * as React from "react"
 
-import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 import BaseField from "./base-field"
 import ColorField from "./color-field"
 import CompositeField from "./composite-field"
 import FileField from "./file-field"
-import FlexPresetField, { getFlexPreset } from "./flex-preset-field"
 import NumberField from "./number-field"
 import { PropertyFieldProvider } from "./property-field-context"
 import PropertyRow from "./property-row"
