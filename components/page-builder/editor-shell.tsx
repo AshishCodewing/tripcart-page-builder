@@ -19,6 +19,7 @@ import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
+import { lengthProp } from "./style-fields/length-props"
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import LeftPanel from "./left-panel/left-panel"
@@ -199,8 +200,8 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             type: "composite",
             default: "0px",
             properties: [
-              { property: "row-gap",    type: "length", default: "0" },
-              { property: "column-gap", type: "length", default: "0" },
+              lengthProp("row-gap",    { default: "0" }),
+              lengthProp("column-gap", { default: "0" }),
             ],
           },
           "flex-wrap",
@@ -233,7 +234,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
                 default: "0",
                 min: 0,
               },
-              { property: "flex-basis", type: "length", default: "auto" },
+              lengthProp("flex-basis", { default: "auto" }),
             ],
           },
         ],
@@ -243,12 +244,12 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         name: "Size",
         open: false,
         properties: [
-          { extend: "width", type: "length" },
-          { extend: "height", type: "length" },
-          { extend: "min-width", type: "length" },
-          { extend: "min-height", type: "length" },
-          { extend: "max-width", type: "length" },
-          { extend: "max-height", type: "length" },
+          lengthProp("width", { extend: "width" }),
+          lengthProp("height", { extend: "height" }),
+          lengthProp("min-width", { extend: "min-width" }),
+          lengthProp("min-height", { extend: "min-height" }),
+          lengthProp("max-width", { extend: "max-width" }),
+          lengthProp("max-height", { extend: "max-height" }),
         ],
       },
       {
@@ -257,10 +258,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           { property: "position", type: "select", default: "static", options: [{ id: "static" }, { id: "relative" }, { id: "absolute" }, { id: "fixed" }, { id: "sticky"}] },
-          { extend: "top", type: "length" },
-          { extend: "right", type: "length" },
-          { extend: "bottom", type: "length" },
-          { extend: "left", type: "length" },
+          lengthProp("top", { extend: "top" }),
+          lengthProp("right", { extend: "right" }),
+          lengthProp("bottom", { extend: "bottom" }),
+          lengthProp("left", { extend: "left" }),
           { extend: "z-index", type: "integer"}
         ],
       },
@@ -273,20 +274,20 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             extend: "margin",
             type: "composite",
             properties: [
-              { property: "margin-top",    type: "length", default: "0" },
-              { property: "margin-right",  type: "length", default: "0" },
-              { property: "margin-bottom", type: "length", default: "0" },
-              { property: "margin-left",   type: "length", default: "0" },
+              lengthProp("margin-top",    { default: "0" }),
+              lengthProp("margin-right",  { default: "0" }),
+              lengthProp("margin-bottom", { default: "0" }),
+              lengthProp("margin-left",   { default: "0" }),
             ],
           },
           {
             extend: "padding",
             type: "composite",
             properties: [
-              { property: "padding-top",    type: "length", default: "0" },
-              { property: "padding-right",  type: "length", default: "0" },
-              { property: "padding-bottom", type: "length", default: "0" },
-              { property: "padding-left",   type: "length", default: "0" },
+              lengthProp("padding-top",    { default: "0" }),
+              lengthProp("padding-right",  { default: "0" }),
+              lengthProp("padding-bottom", { default: "0" }),
+              lengthProp("padding-left",   { default: "0" }),
             ],
           },
         ],
@@ -298,10 +299,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "font-family",
           "color",
-          { extend: "font-size", type: "length" },
+          lengthProp("font-size", { extend: "font-size" }),
           "font-weight",
-          { extend: "line-height", type: "length" },
-          { extend: "letter-spacing", type: "length" },
+          lengthProp("line-height", { extend: "line-height" }),
+          lengthProp("letter-spacing", { extend: "letter-spacing" }),
           { property: "font-style", type: "radio", options: [{ id: "normal" }, { id: "italic" }] },
           "text-align",
           { property: "text-transform", type: "radio", options: [{ id: "none" }, { id: "capitalize" }, { id: "uppercase" }, { id: "lowercase" }] },
@@ -329,10 +330,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             extend: "border-radius",
             type: "composite",
             properties: [
-              { property: "border-top-left-radius",     type: "length", default: "0" },
-              { property: "border-top-right-radius",    type: "length", default: "0" },
-              { property: "border-bottom-right-radius", type: "length", default: "0" },
-              { property: "border-bottom-left-radius",  type: "length", default: "0" },
+              lengthProp("border-top-left-radius",     { default: "0" }),
+              lengthProp("border-top-right-radius",    { default: "0" }),
+              lengthProp("border-bottom-right-radius", { default: "0" }),
+              lengthProp("border-bottom-left-radius",  { default: "0" }),
             ],
           },
         ],
@@ -364,9 +365,6 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
   // processor, both of which need to be in place before patternsPlugin's
   // `editor.Blocks.add(...)` calls run.
   plugins: [
-    (editor) => {
-      editor.StyleManager.addType("length", {})
-    },
     parserPostCSS,
     designSystemPlugin,
     reactRendererPlugin.init({ components: patternComponents }),

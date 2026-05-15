@@ -1,6 +1,6 @@
 "use client"
 
-import type { Property } from "grapesjs"
+import type { PropertyNumber } from "grapesjs"
 
 import { AllCustomFieldItem } from "./all-custom-field"
 
@@ -18,7 +18,7 @@ const POSITION: Record<Side, string> = {
 export function CrossGrid({
   bySide,
 }: {
-  bySide: (side: Side) => Property | undefined
+  bySide: (side: Side) => PropertyNumber | undefined
 }) {
   return (
     <div className="grid grid-cols-6 grid-rows-3 gap-4">

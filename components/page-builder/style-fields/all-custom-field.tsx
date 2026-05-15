@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Property, PropertyComposite } from "grapesjs"
+import type { Property, PropertyComposite, PropertyNumber } from "grapesjs"
 import { RotateCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -152,7 +152,7 @@ export function AllCustomFieldItem({
   label,
   className,
 }: {
-  sub: Property
+  sub: PropertyNumber
   label: string
   className?: string
 }) {

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Property, PropertyComposite } from "grapesjs"
+import type { PropertyComposite, PropertyNumber } from "grapesjs"
 
 import {
   AllCustomField,
@@ -22,9 +22,9 @@ export default function CompositeField({ property }: CompositeFieldProps) {
   const renderProperty = usePropertyRenderer()
 
   if (name === "margin" || name === "padding") {
-    const subs = property.getProperties() as Property[]
+    const subs = property.getProperties() as PropertyNumber[]
     const compositeName = property.getName()
-    const bySide = (side: Side): Property | undefined =>
+    const bySide = (side: Side): PropertyNumber | undefined =>
       subs.find((s) => s.getName() === `${compositeName}-${side}`)
     return (
       <AllCustomField property={property}>
@@ -42,7 +42,7 @@ export default function CompositeField({ property }: CompositeFieldProps) {
   }
 
   if (name === "gap") {
-    const subs = property.getProperties() as Property[]
+    const subs = property.getProperties() as PropertyNumber[]
     const byName = (n: string) => subs.find((s) => s.getName() === n)
     return (
       <AllCustomField property={property}>
@@ -63,7 +63,7 @@ export default function CompositeField({ property }: CompositeFieldProps) {
   }
 
   if (name === "border-radius") {
-    const subs = property.getProperties() as Property[]
+    const subs = property.getProperties() as PropertyNumber[]
     const byName = (n: string) => subs.find((s) => s.getName() === n)
     return (
       <AllCustomField property={property}>
