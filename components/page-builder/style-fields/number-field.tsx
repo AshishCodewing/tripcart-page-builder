@@ -200,7 +200,7 @@ export function NumberInput({
         aria-label={ariaLabel}
       />
       {(showUnitSelect || varCategories) && (
-        <InputGroupAddon align="inline-end" className="gap-1">
+        <InputGroupAddon align="inline-end" className="gap-1 me-[-0.3rem]">
           {showUnitSelect &&
             (unitDisabled ? (
               // Inert chip for fixed-values (var(), auto, …). We avoid a
