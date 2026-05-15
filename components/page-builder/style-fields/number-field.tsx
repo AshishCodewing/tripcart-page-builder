@@ -201,41 +201,51 @@ export function NumberInput({
       />
       {(showUnitSelect || varCategories) && (
         <InputGroupAddon align="inline-end" className="gap-1">
-          {showUnitSelect && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={unitDisabled}
-                render={
-                  <InputGroupButton
-                    size="xs"
-                    variant="ghost"
-                    className="h-6 min-w-0 px-1 text-xs text-muted-foreground tabular-nums hover:text-foreground"
-                    aria-label="Unit"
-                  >
-                    {unitDisabled ? "—" : displayUnit(triggerUnit)}
-                  </InputGroupButton>
-                }
-              />
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup
-                  value={triggerUnit}
-                  onValueChange={(next) => {
-                    if (next != null && onUnitChange) onUnitChange(next)
-                  }}
-                >
-                  {units.map((u) => (
-                    <DropdownMenuRadioItem
-                      key={u || "_unitless"}
-                      value={u}
-                      className="text-xs"
+          {showUnitSelect &&
+            (unitDisabled ? (
+              // Inert chip for fixed-values (var(), auto, …). We avoid a
+              // `disabled` button here because InputGroup's `has-disabled`
+              // selector would dim the whole field (input-group.tsx:15).
+              <span
+                className="flex h-6 select-none items-center px-1 text-xs tabular-nums text-muted-foreground/60"
+                aria-label="Unit (not applicable)"
+              >
+                —
+              </span>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <InputGroupButton
+                      size="xs"
+                      variant="ghost"
+                      className="h-6 min-w-0 px-1 text-xs text-muted-foreground tabular-nums hover:text-foreground"
+                      aria-label="Unit"
                     >
-                      {displayUnit(u)}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                      {displayUnit(triggerUnit)}
+                    </InputGroupButton>
+                  }
+                />
+                <DropdownMenuContent>
+                  <DropdownMenuRadioGroup
+                    value={triggerUnit}
+                    onValueChange={(next) => {
+                      if (next != null && onUnitChange) onUnitChange(next)
+                    }}
+                  >
+                    {units.map((u) => (
+                      <DropdownMenuRadioItem
+                        key={u || "_unitless"}
+                        value={u}
+                        className="text-xs"
+                      >
+                        {displayUnit(u)}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
           {varCategories && (
             <CssVarPicker
               categories={varCategories}
