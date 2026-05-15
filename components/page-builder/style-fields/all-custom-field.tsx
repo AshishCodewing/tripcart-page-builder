@@ -29,8 +29,15 @@ type AllCustomContextValue = {
   mode: ToggleMode
   setMode: (mode: ToggleMode) => void
   propagate: (value: string, opts?: { partial?: boolean }) => void
+  /** Apply a unit to every sub-property at once. No-op for non-PropertyNumber subs. */
+  propagateUnit: (unit: string) => void
   allMatch: boolean
+  /** Composed value (number + unit, or option id) from the first sub when all subs match. */
   value: string
+  /** Units list from the first sub (empty when subs aren't PropertyNumber). */
+  units: string[]
+  /** Active unit on the first sub. */
+  currentUnit: string
   name: string
   propertyId: string
 }
@@ -46,7 +53,9 @@ function useAllCustom(): AllCustomContextValue {
   return ctx
 }
 
-const valueKey = (p: Property): string => p.getValue() ?? ""
+// Use getFullValue so the comparison reflects what actually hits the canvas
+// (e.g. "10px" vs "10em" differ even though their bare values both equal "10").
+const valueKey = (p: Property): string => p.getFullValue?.() ?? p.getValue() ?? ""
 
 function detectMode(subs: Property[]): ToggleMode {
   if (subs.length === 0) return "all"
@@ -73,11 +82,14 @@ export function AllCustomField({
   }
 
   const first = subs[0]
+  const firstNum = first as PropertyNumber | undefined
   const allMatch =
-    subs.length > 0 &&
-    subs.every((s) => valueKey(s) === valueKey(subs[0]))
-  const value =
-    allMatch && first?.getValue() != null ? String(first.getValue()) : ""
+    subs.length > 0 && subs.every((s) => valueKey(s) === valueKey(subs[0]))
+  // Composed (value + unit) so the shorthand input shows e.g. "10px",
+  // matching what the inner per-side fields display.
+  const value = allMatch && first ? valueKey(first) : ""
+  const units = firstNum?.getUnits?.() ?? []
+  const currentUnit = firstNum?.getUnit?.() ?? ""
 
   const propagate = (
     raw: string,
@@ -87,11 +99,17 @@ export function AllCustomField({
     for (const s of subs) s.upValue(trimmed, opts)
   }
 
+  // upUnit only exists on PropertyNumber; calls are guarded so this is a
+  // no-op when subs aren't number-typed (e.g. overflow's selects).
+  const propagateUnit = (unit: string): void => {
+    for (const s of subs) (s as PropertyNumber).upUnit?.(unit)
+  }
+
   const handleSetMode = (next: ToggleMode): void => {
     if (next === mode) return
     if (next === "all" && first) {
-      const current = first.getValue()
-      propagate(current == null ? "" : String(current))
+      const current = valueKey(first)
+      propagate(current)
     }
     setMode(next)
   }
@@ -100,8 +118,11 @@ export function AllCustomField({
     mode,
     setMode: handleSetMode,
     propagate,
+    propagateUnit,
     allMatch,
     value,
+    units,
+    currentUnit,
     name,
     propertyId,
   }
@@ -126,14 +147,27 @@ export function AllCustomFieldControl({
   customTooltip?: string
   ariaLabelSuffix?: string
 }) {
-  const { value, allMatch, name, propagate, mode, setMode, propertyId } =
-    useAllCustom()
+  const {
+    value,
+    units,
+    currentUnit,
+    propagateUnit,
+    allMatch,
+    name,
+    propagate,
+    mode,
+    setMode,
+    propertyId,
+  } = useAllCustom()
 
   return (
     <div className="flex gap-2 items-center">
       <NumberInput
         key={propertyId}
         value={value}
+        units={units}
+        currentUnit={currentUnit}
+        onUnitChange={propagateUnit}
         placeholder={allMatch ? "0" : "Custom"}
         ariaLabel={`${name} ${ariaLabelSuffix}`}
         varCategories={varCategories}
