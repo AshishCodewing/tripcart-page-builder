@@ -158,6 +158,14 @@ function filterStackProperty(propertyName: string) {
 // shadow renders as "0 0 0 0" even though the popover inputs show "0px 0px
 // 0px 0px". `getStyleFromLayer(layer, { number: {} })` opts into unit
 // composition (grapes.mjs:62942-62946) so the row label matches the inputs.
+const OVERFLOW_OPTIONS = [
+  { id: "visible" },
+  { id: "hidden" },
+  { id: "scroll" },
+  { id: "auto" },
+  { id: "clip" },
+]
+
 function composedLayerLabel(
   layer: Parameters<PropertyStack["getStyleFromLayer"]>[0],
   { property }: { property: PropertyStack }
@@ -331,6 +339,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           "background",
+          "background-image",
           "background-color",
         ],
       },
@@ -365,7 +374,25 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           filterStackProperty("backdrop-filter"),
           { extend: "transition",  layerLabel: composedLayerLabel },
           "transform",
-          "overflow",
+          {
+            property: "overflow",
+            type: "composite",
+            default: "visible",
+            properties: [
+              {
+                property: "overflow-x",
+                type: "select",
+                default: "visible",
+                options: OVERFLOW_OPTIONS,
+              },
+              {
+                property: "overflow-y",
+                type: "select",
+                default: "visible",
+                options: OVERFLOW_OPTIONS,
+              },
+            ],
+          },
         ]
       }
     ],

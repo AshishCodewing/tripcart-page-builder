@@ -1,13 +1,19 @@
 "use client"
 
 import * as React from "react"
-import type { PropertyComposite, PropertyNumber } from "grapesjs"
+import type {
+  PropertyComposite,
+  PropertyNumber,
+  PropertySelect,
+} from "grapesjs"
 
 import {
   AllCustomField,
   AllCustomFieldControl,
   AllCustomFieldContent,
   AllCustomFieldItem,
+  AllCustomSelectControl,
+  AllCustomSelectItem,
 } from "./all-custom-field"
 import { CrossGrid, type Side } from "./box-sides-field"
 import FlexPresetField, { getFlexPreset } from "./flex-preset-field"
@@ -91,6 +97,35 @@ export default function CompositeField({ property }: CompositeFieldProps) {
               sub={byName("border-bottom-right-radius")!}
               label="Bottom Right"
             />
+          </div>
+        </AllCustomFieldContent>
+      </AllCustomField>
+    )
+  }
+
+  if (name === "overflow") {
+    const subs = property.getProperties() as PropertySelect[]
+    const byName = (n: string) => subs.find((s) => s.getName() === n)
+    const first = subs[0]
+    const options = first?.getOptions
+      ? first.getOptions().map((o) => ({
+          id: first.getOptionId(o),
+          label: first.getOptionLabel(o),
+        }))
+      : []
+    return (
+      <AllCustomField property={property}>
+        <AllCustomSelectControl
+          options={options}
+          placeholder="Visible"
+          allTooltip="Apply one value to both axes"
+          customTooltip="Edit X and Y axes independently"
+          ariaLabelSuffix="both axes"
+        />
+        <AllCustomFieldContent>
+          <div className="grid grid-cols-2 gap-2">
+            <AllCustomSelectItem sub={byName("overflow-x")} label="X" />
+            <AllCustomSelectItem sub={byName("overflow-y")} label="Y" />
           </div>
         </AllCustomFieldContent>
       </AllCustomField>

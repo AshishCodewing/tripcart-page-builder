@@ -1,15 +1,28 @@
 "use client"
 
 import * as React from "react"
-import type { Property, PropertyComposite, PropertyNumber } from "grapesjs"
+import type {
+  Property,
+  PropertyComposite,
+  PropertyNumber,
+  PropertySelect,
+} from "grapesjs"
 import { RotateCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { cn, humanizeLabel } from "@/lib/utils"
 
 import { AllCustomToggle, type ToggleMode } from "./all-custom-toggle"
 import { NumberInput } from "./number-field"
 import NumberField from "./number-field"
+import SelectField from "./select-field"
 import type { TokenCategory } from "./open-props-tokens"
 
 type AllCustomContextValue = {
@@ -177,6 +190,96 @@ export function AllCustomFieldItem({
         ) : null}
       </div>
       <NumberField property={sub} slider={false} />
+    </div>
+  )
+}
+
+export function AllCustomSelectControl({
+  options,
+  placeholder = "Custom",
+  allTooltip = "Apply one value to all",
+  customTooltip = "Edit each independently",
+  ariaLabelSuffix = "all",
+}: {
+  options: { id: string; label?: string }[]
+  placeholder?: string
+  allTooltip?: string
+  customTooltip?: string
+  ariaLabelSuffix?: string
+}) {
+  const { value, allMatch, name, propagate, mode, setMode } = useAllCustom()
+
+  return (
+    <div className="flex gap-2 items-center">
+      <Select
+        value={allMatch && value ? value : ""}
+        onValueChange={(next) => {
+          if (next != null) propagate(next)
+        }}
+      >
+        <SelectTrigger
+          size="sm"
+          className="w-full text-xs"
+          aria-label={`${name} ${ariaLabelSuffix}`}
+        >
+          <SelectValue placeholder={humanizeLabel(placeholder)}>
+            {(val) => {
+              if (val == null || val === "") return null
+              const opt = options.find((o) => o.id === val)
+              return humanizeLabel(opt?.label ?? String(val))
+            }}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent className="p-1">
+          {options.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id} className="text-xs">
+              {humanizeLabel(opt.label ?? opt.id)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <AllCustomToggle
+        mode={mode}
+        onChange={setMode}
+        ariaLabel={`${name} mode`}
+        allTooltip={allTooltip}
+        customTooltip={customTooltip}
+      />
+    </div>
+  )
+}
+
+export function AllCustomSelectItem({
+  sub,
+  label,
+  className,
+}: {
+  sub: PropertySelect | undefined
+  label: string
+  className?: string
+}) {
+  if (!sub) return null
+  const canClear = sub.canClear()
+  return (
+    <div className={cn("flex flex-col gap-1", className)}>
+      <div className="flex items-center justify-center gap-1 px-0.5">
+        <span className="text-center text-xs text-muted-foreground">
+          {label}
+        </span>
+        {canClear ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-4 shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label={`Clear ${label}`}
+            onClick={() => sub.clear()}
+          >
+            <RotateCcw className="size-3" aria-hidden="true" />
+          </Button>
+        ) : null}
+      </div>
+      <SelectField property={sub} />
     </div>
   )
 }
