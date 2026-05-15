@@ -167,8 +167,9 @@ export default function TopBarLeft({ className }: Props) {
                 aria-label="Toggle outline"
                 pressed={outlineActive}
                 onPressedChange={toggleOutline}
+                className="p-0 size-8"
               >
-                <SquareDashed />
+                <SquareDashed className="size-4"/>
               </Toggle>
             }
           />
