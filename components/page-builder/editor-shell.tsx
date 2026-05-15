@@ -7,6 +7,7 @@ import {
   type Editor,
   type EditorConfig,
   type FromStyleDataStack,
+  type LayerValues,
   type PropertyProps,
   type PropertySelect,
   type ToStyleDataStack,
@@ -56,7 +57,15 @@ function filterStackProperty(propertyName: string) {
   return {
     property: propertyName,
     type: "stack",
-    layerSeparator: " ",
+    // Regex tolerates double-spaces; still token-shatters filters whose value
+    // contains spaces (e.g. drop-shadow) — not in our option list today.
+    layerSeparator: /\s+/,
+    emptyValue: "none",
+    layerLabel: (
+      _layer: unknown,
+      data: { index: number; values: LayerValues }
+    ) =>
+      `${data.values["filter-type"]}(${data.values["filter-value"]})`,
     fromStyle(
       style: Record<string, string>,
       data: FromStyleDataStack
@@ -88,14 +97,18 @@ function filterStackProperty(propertyName: string) {
         type: "select",
         default: "blur",
         full: true,
+        // `propValue` is custom metadata piggy-backed on the option object;
+        // PropertySelect's documented option shape is just `{ id, label }`.
+        // We read it back in `onChange` to push units/step/min/max onto the
+        // sibling number field.
         options: [
-          { id: "blur", propValue: { units: ["px"], step: 1 } },
-          { id: "brightness", propValue: { units: [""], step: 0.1 } },
-          { id: "contrast", propValue: { units: [""], step: 0.1 } },
-          { id: "grayscale", propValue: { units: [""], step: 0.1 } },
-          { id: "invert", propValue: { units: [""], step: 0.1 } },
-          { id: "saturate", propValue: { units: [""], step: 0.1 } },
-          { id: "sepia", propValue: { units: [""], step: 0.1 } },
+          { id: "blur",       propValue: { units: ["px"], step: 1,   min: 0 } },
+          { id: "brightness", propValue: { units: [""],   step: 0.1, min: 0 } },
+          { id: "contrast",   propValue: { units: [""],   step: 0.1, min: 0 } },
+          { id: "grayscale",  propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
+          { id: "invert",     propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
+          { id: "saturate",   propValue: { units: [""],   step: 0.1, min: 0 } },
+          { id: "sepia",      propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
         ],
         onChange({
           property,
@@ -112,10 +125,15 @@ function filterStackProperty(propertyName: string) {
               .getParent()
               ?.getProperty("filter-value")
             if (propToUp) {
+              // `up()` isn't in the documented Property API — it's the
+              // backing Backbone setter. Using it here because units/step/
+              // min/max have no public setters on PropertyNumber.
               const modelAttrs: Partial<PropertyProps> &
                 Record<string, unknown> = {
                 unit: pv.units?.[0] || "",
                 step: pv.step ?? 1,
+                min: pv.min,
+                max: pv.max,
               }
               propToUp.up(modelAttrs)
             }
@@ -124,6 +142,7 @@ function filterStackProperty(propertyName: string) {
       },
       {
         property: "filter-value",
+        name: "Value",
         type: "number",
         default: "0",
         full: true,
