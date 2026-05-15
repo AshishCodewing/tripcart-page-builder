@@ -32,6 +32,10 @@ const FLEX_AXIS_BLOCK_PROPS = new Set([
   "align-content",
 ])
 
+// Properties that always render block-layout regardless of type — typically
+// because their control (slider + number combo, etc.) needs the full width.
+const BLOCK_LAYOUT_PROPS = new Set(["opacity"])
+
 type PropertyFieldProps = {
   property: Property
 }
@@ -81,8 +85,12 @@ export default function PropertyField({ property }: PropertyFieldProps) {
   // buttons get full width instead of being crammed into max-w-[60%].
   const isFlexAxisRadio =
     type === "radio" && FLEX_AXIS_BLOCK_PROPS.has(property.getName())
+  const isBlockByName = BLOCK_LAYOUT_PROPS.has(property.getName())
   const layout =
-    type === "stack" || type === "composite" || isFlexAxisRadio
+    type === "stack" ||
+    type === "composite" ||
+    isFlexAxisRadio ||
+    isBlockByName
       ? "block"
       : "inline"
 

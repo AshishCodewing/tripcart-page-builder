@@ -10,6 +10,7 @@ import {
   type LayerValues,
   type PropertyProps,
   type PropertySelect,
+  type PropertyStack,
   type ToStyleDataStack,
 } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
@@ -150,6 +151,19 @@ function filterStackProperty(propertyName: string) {
       },
     ],
   }
+}
+
+// Default GrapesJS layer labels for built-in stacks (box-shadow, text-shadow,
+// transition) join raw sub-property values without their units — so a fresh
+// shadow renders as "0 0 0 0" even though the popover inputs show "0px 0px
+// 0px 0px". `getStyleFromLayer(layer, { number: {} })` opts into unit
+// composition (grapes.mjs:62942-62946) so the row label matches the inputs.
+function composedLayerLabel(
+  layer: Parameters<PropertyStack["getStyleFromLayer"]>[0],
+  { property }: { property: PropertyStack }
+): string {
+  const style = property.getStyleFromLayer(layer, { number: {} })
+  return String(style[property.getName()] ?? "")
 }
 
 const buildGjsOptions = (storageKey: string): EditorConfig => ({
@@ -345,11 +359,11 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         properties: [
           "opacity",
           "cursor",
-          "box-shadow",
-          "text-shadow",
+          { extend: "box-shadow",  layerLabel: composedLayerLabel },
+          { extend: "text-shadow", layerLabel: composedLayerLabel },
           filterStackProperty("filter"),
           filterStackProperty("backdrop-filter"),
-          "transition",
+          { extend: "transition",  layerLabel: composedLayerLabel },
           "transform",
           "overflow",
         ]

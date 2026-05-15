@@ -119,17 +119,18 @@ export function NumberInput({
             const next = Array.isArray(v) ? v[0] : v
             onCommit(String(next))
           }}
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-1 **:data-[slot=slider-thumb]:size-3.5! **:data-[slot=slider-thumb]:border! **:data-[slot=slider-track]:h-1!"
           aria-label={ariaLabel}
         />
         <Input
           type="number"
+          inputSize="sm"
           min={minN}
           max={maxN}
           step={step}
           value={value}
           onChange={(e) => onCommit(e.target.value)}
-          className="w-14 text-end tabular-nums"
+          className="no-spinner w-14 text-end tabular-nums text-xs"
           aria-label={ariaLabel}
         />
       </div>
