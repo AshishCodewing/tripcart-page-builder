@@ -14,6 +14,7 @@ import BaseField from "./base-field"
 import ColorField from "./color-field"
 import CompositeField from "./composite-field"
 import FileField from "./file-field"
+import GradientField from "./gradient-field"
 import NumberField from "./number-field"
 import { PropertyFieldProvider } from "./property-field-context"
 import PropertyRow from "./property-row"
@@ -34,7 +35,15 @@ const FLEX_AXIS_BLOCK_PROPS = new Set([
 
 // Properties that always render block-layout regardless of type — typically
 // because their control (slider + number combo, etc.) needs the full width.
-const BLOCK_LAYOUT_PROPS = new Set(["opacity"])
+// `__background-type` is the grapesjs-style-bg radio (Image / Color /
+// Gradient); the plugin sets its label to `' '` so the row above is
+// effectively empty and the toggle gets the full popover width.
+const BLOCK_LAYOUT_PROPS = new Set([
+  "opacity",
+  "__background-type",
+  // Grapick gradient picker — needs full width for the color-stop preview.
+  "background-image-gradient",
+])
 
 type PropertyFieldProps = {
   property: Property
@@ -68,6 +77,9 @@ export default function PropertyField({ property }: PropertyFieldProps) {
       break
     case "file":
       field = <FileField property={property} />
+      break
+    case "gradient":
+      field = <GradientField property={property} />
       break
     case "stack":
       field = <StackField property={property as PropertyStack} />

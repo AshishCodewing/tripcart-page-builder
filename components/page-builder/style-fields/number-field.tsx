@@ -3,7 +3,6 @@
 import * as React from "react"
 import type { Property, PropertyNumber } from "grapesjs"
 
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -102,8 +101,14 @@ export function NumberInput({
   if (showSlider) {
     const minN = min as number
     const maxN = max as number
-    const numeric = Number(value)
+    // `value` arrives composed ("279deg", "50%", "0.5"). Strip the unit so
+    // the slider and the type="number" input get a bare numeric.
+    const sliderShape = parseValueShape(value)
+    const numericStr =
+      sliderShape.kind === "numeric" ? sliderShape.number : ""
+    const numeric = Number(numericStr)
     const safe = Number.isFinite(numeric) ? numeric : minN
+    const showUnitSelectSlider = units.length > 1
     return (
       <div className="flex w-full items-center gap-2">
         <Slider
@@ -122,17 +127,55 @@ export function NumberInput({
           className="min-w-0 flex-1 **:data-[slot=slider-thumb]:size-3.5! **:data-[slot=slider-thumb]:border! **:data-[slot=slider-track]:h-1!"
           aria-label={ariaLabel}
         />
-        <Input
-          type="number"
-          inputSize="sm"
-          min={minN}
-          max={maxN}
-          step={step}
-          value={value}
-          onChange={(e) => onCommit(e.target.value)}
-          className="no-spinner w-14 text-end tabular-nums text-xs"
-          aria-label={ariaLabel}
-        />
+        <InputGroup className="h-8 w-20">
+          <InputGroupInput
+            type="number"
+            inputSize="sm"
+            min={minN}
+            max={maxN}
+            step={step}
+            value={numericStr}
+            onChange={(e) => onCommit(e.target.value)}
+            className="no-spinner text-end tabular-nums text-xs"
+            aria-label={ariaLabel}
+          />
+          {showUnitSelectSlider && (
+            <InputGroupAddon align="inline-end" className="gap-1 me-[-0.3rem]">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <InputGroupButton
+                      size="xs"
+                      variant="ghost"
+                      className="h-6 min-w-0 px-1 text-xs text-muted-foreground tabular-nums hover:text-foreground"
+                      aria-label="Unit"
+                    >
+                      {displayUnit(currentUnit)}
+                    </InputGroupButton>
+                  }
+                />
+                <DropdownMenuContent>
+                  <DropdownMenuRadioGroup
+                    value={currentUnit}
+                    onValueChange={(next) => {
+                      if (next != null && onUnitChange) onUnitChange(next)
+                    }}
+                  >
+                    {units.map((u) => (
+                      <DropdownMenuRadioItem
+                        key={u || "_unitless"}
+                        value={u}
+                        className="text-xs"
+                      >
+                        {displayUnit(u)}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
       </div>
     )
   }
@@ -262,7 +305,7 @@ export function NumberInput({
 }
 
 // A property is "length-like" when it advertises a unit list. z-index /
-// flex-grow / filter-value have no units and so don't get the variable picker.
+// flex-grow have no units and so don't get the variable picker.
 function varCategoriesFor(property: Property): TokenCategory[] | undefined {
   const units = (property as PropertyNumber).getUnits?.() ?? []
   if (!units.length) return undefined

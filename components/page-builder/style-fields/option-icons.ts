@@ -20,10 +20,13 @@ import {
   ArrowUp,
   Ban,
   Baseline,
+  Blend,
   CaseLower,
   CaseSensitive,
   CaseUpper,
+  Image as ImageIcon,
   Italic,
+  Palette,
   Strikethrough,
   StretchVertical,
   Underline,
@@ -110,5 +113,14 @@ export const OPTION_ICONS: Record<string, Record<string, LucideIcon>> = {
     "flex-end": AlignVerticalJustifyEnd,
     baseline: Baseline,
     stretch: StretchVertical,
+  },
+  // grapesjs-style-bg type selector. The plugin (and its BackgroundType enum)
+  // names the option ids `image` / `color` / `grad`. Mapping all three here so
+  // RadioField's `allHaveIcons` check passes and the field renders as a
+  // ToggleGroup instead of falling back to the select dropdown.
+  "__background-type": {
+    image: ImageIcon,
+    color: Palette,
+    grad: Blend,
   },
 }

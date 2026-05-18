@@ -6,16 +6,14 @@ import {
   grapesjs,
   type Editor,
   type EditorConfig,
-  type FromStyleDataStack,
-  type LayerValues,
-  type PropertyProps,
-  type PropertySelect,
   type PropertyStack,
-  type ToStyleDataStack,
 } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
+import "grapick/dist/grapick.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
+import styleBgPlugin from "grapesjs-style-bg"
+import styleFilterPlugin from "grapesjs-style-filter"
 import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
@@ -52,104 +50,6 @@ const storageKeyFor = (content: EditorContent): string => {
       return `tripcart:page-builder:page:${content.page.id}`
     case "post":
       return `tripcart:page-builder:post:${content.post.id}`
-  }
-}
-
-function filterStackProperty(propertyName: string) {
-  return {
-    property: propertyName,
-    type: "stack",
-    // Regex tolerates double-spaces; still token-shatters filters whose value
-    // contains spaces (e.g. drop-shadow) — not in our option list today.
-    layerSeparator: /\s+/,
-    emptyValue: "none",
-    layerLabel: (
-      _layer: unknown,
-      data: { index: number; values: LayerValues }
-    ) =>
-      `${data.values["filter-type"]}(${data.values["filter-value"]})`,
-    fromStyle(
-      style: Record<string, string>,
-      data: FromStyleDataStack
-    ) {
-      const val = style[data.name] || ""
-      if (!val) return []
-      const sep = data.property.getLayerSeparator()
-      return val.split(sep).map((input: string) => {
-        const open = input.indexOf("(")
-        const close = input.lastIndexOf(")")
-        return {
-          "filter-type": input.substring(0, open).trim(),
-          "filter-value": input.substring(open + 1, close).trim(),
-        }
-      })
-    },
-    toStyle(
-      values: Record<string, string>,
-      data: ToStyleDataStack
-    ) {
-      return {
-        [data.name]: `${values["filter-type"]}(${values["filter-value"]})`,
-      }
-    },
-    properties: [
-      {
-        property: "filter-type",
-        name: "Type",
-        type: "select",
-        default: "blur",
-        full: true,
-        // `propValue` is custom metadata piggy-backed on the option object;
-        // PropertySelect's documented option shape is just `{ id, label }`.
-        // We read it back in `onChange` to push units/step/min/max onto the
-        // sibling number field.
-        options: [
-          { id: "blur",       propValue: { units: ["px"], step: 1,   min: 0 } },
-          { id: "brightness", propValue: { units: [""],   step: 0.1, min: 0 } },
-          { id: "contrast",   propValue: { units: [""],   step: 0.1, min: 0 } },
-          { id: "grayscale",  propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
-          { id: "invert",     propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
-          { id: "saturate",   propValue: { units: [""],   step: 0.1, min: 0 } },
-          { id: "sepia",      propValue: { units: [""],   step: 0.1, min: 0, max: 1 } },
-        ],
-        onChange({
-          property,
-          to,
-        }: {
-          property: PropertySelect
-          from: PropertyProps
-          to: PropertyProps
-        }) {
-          if (to?.value) {
-            const opt = property.getOption()
-            const pv = opt.propValue || {}
-            const propToUp = property
-              .getParent()
-              ?.getProperty("filter-value")
-            if (propToUp) {
-              // `up()` isn't in the documented Property API — it's the
-              // backing Backbone setter. Using it here because units/step/
-              // min/max have no public setters on PropertyNumber.
-              const modelAttrs: Partial<PropertyProps> &
-                Record<string, unknown> = {
-                unit: pv.units?.[0] || "",
-                step: pv.step ?? 1,
-                min: pv.min,
-                max: pv.max,
-              }
-              propToUp.up(modelAttrs)
-            }
-          }
-        },
-      },
-      {
-        property: "filter-value",
-        name: "Value",
-        type: "number",
-        default: "0",
-        full: true,
-      },
-    ],
   }
 }
 
@@ -339,10 +239,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         open: false,
         properties: [
           "background",
-          "background-image",
           "background-color",
         ],
       },
+      
       {
         id: "border",
         name: "Border",
@@ -370,8 +270,8 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "cursor",
           { extend: "box-shadow",  layerLabel: composedLayerLabel },
           { extend: "text-shadow", layerLabel: composedLayerLabel },
-          filterStackProperty("filter"),
-          filterStackProperty("backdrop-filter"),
+          "filter",
+          { extend: "filter", property: "backdrop-filter" },
           { extend: "transition",  layerLabel: composedLayerLabel },
           "transform",
           {
@@ -421,6 +321,15 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       }),
     columnsPlugin,
     patternsPlugin,
+    styleFilterPlugin,
+    // grapesjs-style-bg defaults the gradient stop picker to GrapesJS's
+    // built-in Spectrum-style color UI. Override with `colorPicker: undefined`
+    // (per grapesjs-style-gradient docs: "leave it empty the native color
+    // picker will be used") so Grapick keeps its <input type="color"> stop.
+    (editor: Editor) =>
+      styleBgPlugin(editor, {
+        styleGradientOpts: { colorPicker: undefined },
+      }),
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
@@ -486,6 +395,22 @@ function EditorShellInner({ content, saveAction, deleteAction }: Props) {
     if (typeof window !== "undefined") {
       ;(window as unknown as { editor: Editor }).editor = editor
     }
+    // Override grapesjs-style-bg sub-property labels — the plugin registers
+    // them as `background-repeat` / `background-position` / etc., which
+    // humanize to "Background Repeat" etc. The i18n route is what the
+    // plugin's own README recommends.
+    editor.I18n.addMessages({
+      en: {
+        styleManager: {
+          properties: {
+            "background-repeat": "Repeat",
+            "background-position": "Position",
+            "background-attachment": "Attachment",
+            "background-size": "Size",
+          },
+        },
+      },
+    })
     attachTracking(editor)
   }, [])
 
