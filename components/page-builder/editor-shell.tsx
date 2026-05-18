@@ -20,6 +20,7 @@ import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
 import { lengthProp } from "./style-fields/length-props"
 
+import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import LeftPanel from "./left-panel/left-panel"
 import {
@@ -380,6 +381,11 @@ export default function EditorShell(props: Props) {
 function EditorShellInner({ content, saveAction, deleteAction }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+
+  // Mirror themeStore tokens onto the document root so `var(--theme-*)` /
+  // `var(--font-*)` resolve in the outer chrome (style-manager swatches,
+  // popovers, etc.), not just inside the canvas iframe.
+  useApplyThemeVars()
 
   // Build options once per record so each page/post has its own local-storage
   // bucket and the autoload doesn't pull a previous record's draft. The
