@@ -16,7 +16,7 @@ export default function BaseField({ property }: { property: Property }) {
       value={valueString}
       onChange={(e) => property.upValue(e.target.value)}
       placeholder={defValue}
-      className="w-full"
+      className="w-full text-xs"
       spellCheck={false}
       autoComplete="off"
     />

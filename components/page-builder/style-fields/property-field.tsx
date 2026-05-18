@@ -43,6 +43,7 @@ const BLOCK_LAYOUT_PROPS = new Set([
   "__background-type",
   // Grapick gradient picker — needs full width for the color-stop preview.
   "background-image-gradient",
+  "background-color"
 ])
 
 type PropertyFieldProps = {

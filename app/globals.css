@@ -297,6 +297,29 @@
         }
     }
 
+    /* react-colorful overrides — scoped to our ColorPickerCanvas so other
+       consumers of react-colorful (if any) aren't affected. The library's own
+       stylesheet uses single-class selectors (specificity 0,1,0); scoping by
+       data-slot bumps us to 0,1,1 and wins deterministically. */
+    .custom-picker-wrapper .react-colorful {
+        width: 100% !important;
+        gap: 0.5rem;
+    }
+    .custom-picker-wrapper .react-colorful__saturation {
+        border-radius: var(--radius);
+    }
+    .custom-picker-wrapper .react-colorful__hue,
+    .custom-picker-wrapper .react-colorful__alpha {
+        height: 0.75rem !important;
+        border-radius: 9999px !important;
+    }
+    .custom-picker-wrapper .react-colorful__last-control {
+        border-radius: 9999px;
+    }
+    .custom-picker-wrapper .react-colorful__pointer {
+        width: 1rem !important;
+        height: 1rem !important;
+    }
 }
 
 @layer base {

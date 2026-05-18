@@ -25,7 +25,7 @@ export default function PropertyRow({
 }: PropertyRowProps) {
   const inherited = property.hasValueParent()
   const canClear = property.canClear()
-  const label = property.getLabel()
+  const label = property.getLabel()?.trim() ?? ""
 
   return (
     <div
@@ -38,15 +38,17 @@ export default function PropertyRow({
       )}
     >
       <div className="flex items-center gap-1.5">
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-xs text-muted-foreground py-1",
-            inherited ? "flex items-center gap-2" : ""
-          )}
-        >
-          {label}
-          {inherited && <span className="size-1.5 shrink-0 rounded-full bg-warning" />}
-        </span>
+        {label ? (
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-xs text-muted-foreground py-1",
+              inherited ? "flex items-center gap-2" : ""
+            )}
+          >
+            {label}
+            {inherited && <span className="size-1.5 shrink-0 rounded-full bg-warning" />}
+          </span>
+        ) : null}
         {canClear ? (
           <Button
             type="button"
