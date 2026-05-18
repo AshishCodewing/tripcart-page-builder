@@ -6,7 +6,6 @@ import {
   colord,
   type Colord,
   type HslaColor,
-  type HsvaColor,
   type RgbaColor,
 } from "colord"
 
@@ -34,7 +33,7 @@ export type TokenSwatch =
   | { kind: "token"; token: string; hex: string; label?: string }
   | { kind: "hex"; hex: string; label?: string }
 
-type ColorMode = "hex" | "rgb" | "hsl" | "hsb"
+type ColorMode = "hex" | "rgb" | "hsl"
 
 type CommitOpts = { partial?: boolean }
 
@@ -100,9 +99,6 @@ const serialize = (c: Colord, mode: ColorMode): string => {
       return c.toRgbString()
     case "hsl":
       return c.toHslString()
-    // CSS has no hsb/hsv literal — fall back to rgb so the value stays valid.
-    case "hsb":
-      return c.toRgbString()
     case "hex":
     default:
       return c.toHex()
@@ -435,9 +431,6 @@ function AlphaChannelInput() {
 
 // ---------- channels block ----------
 
-const TAB_TRIGGER =
-  "h-6 rounded-[5px] px-2 text-[11px] font-medium tracking-wide uppercase"
-
 function ColorPickerChannels({ className }: { className?: string }) {
   const { color, mode, setMode, commitColord } = useColorPicker()
 
@@ -450,18 +443,16 @@ function ColorPickerChannels({ className }: { className?: string }) {
     >
       <TabsList className="w-full justify-between">
         <TabsIndicator />
-        <TabsTrigger value="hex" className={TAB_TRIGGER}>
+        <TabsTrigger value="hex" className="text-xs py-1">
           Hex
         </TabsTrigger>
-        <TabsTrigger value="rgb" className={TAB_TRIGGER}>
+        <TabsTrigger value="rgb" className="text-xs py-1">
           RGB
         </TabsTrigger>
-        <TabsTrigger value="hsl" className={TAB_TRIGGER}>
+        <TabsTrigger value="hsl" className="text-xs py-1">
           HSL
         </TabsTrigger>
-        <TabsTrigger value="hsb" className={TAB_TRIGGER}>
-          HSB
-        </TabsTrigger>
+
       </TabsList>
 
       <TabsContent value="hex">
@@ -491,9 +482,6 @@ function ColorPickerChannels({ className }: { className?: string }) {
         <SpaceChannels space={HSL_SPACE} />
       </TabsContent>
 
-      <TabsContent value="hsb">
-        <SpaceChannels space={HSB_SPACE} />
-      </TabsContent>
     </Tabs>
   )
 }
@@ -517,10 +505,10 @@ function ChannelLabels({
   )
 }
 
-// Config-driven channel block for the RGB / HSL / HSB tabs. The three spaces
-// differ only in which colord object shape they read/write and the per-channel
-// metadata (range, label, normalization), so we encode those as data and share
-// one render path.
+// Config-driven channel block for the RGB / HSL tabs. The spaces differ only
+// in which colord object shape they read/write and the per-channel metadata
+// (range, label, normalization), so we encode those as data and share one
+// render path.
 
 type ChannelSpec = {
   key: string
@@ -559,18 +547,6 @@ const HSL_SPACE: ColorSpace = {
     { key: "h", min: 0, max: 360, ariaLabel: "Hue", label: "H", normalize: wrapHue },
     { key: "s", min: 0, max: 100, ariaLabel: "Saturation", label: "S", normalize: clampTo(0, 100) },
     { key: "l", min: 0, max: 100, ariaLabel: "Lightness", label: "L", normalize: clampTo(0, 100) },
-  ],
-}
-
-// HSB === HSV. colord exposes .toHsv() / accepts {h,s,v}.
-const HSB_SPACE: ColorSpace = {
-  toSpace: (c) => c.toHsv(),
-  apply: (c, key, value) =>
-    colord({ ...c.toHsv(), [key]: value } as HsvaColor),
-  channels: [
-    { key: "h", min: 0, max: 360, ariaLabel: "Hue", label: "H", normalize: wrapHue },
-    { key: "s", min: 0, max: 100, ariaLabel: "Saturation", label: "S", normalize: clampTo(0, 100) },
-    { key: "v", min: 0, max: 100, ariaLabel: "Brightness", label: "B", normalize: clampTo(0, 100) },
   ],
 }
 
