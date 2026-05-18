@@ -19,7 +19,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useThemeSelector } from "@/hooks/use-theme"
+import { Button } from "./button"
 
 // ---------- types ----------
 
@@ -250,40 +257,46 @@ function ColorPickerSwatches({ className }: { className?: string }) {
   const currentHex = color?.toHex().toLowerCase()
 
   return (
-    <div
-      data-slot="color-picker-swatches"
-      className={cn("grid grid-cols-9 gap-1", className)}
-    >
-      {swatches.map((s, i) => {
-        const isToken = s.kind === "token"
-        const isSelected = isToken
-          ? valueRaw === `var(${s.token})`
-          : currentHex === s.hex.toLowerCase()
-        const key = isToken ? s.token : `${s.hex}-${i}`
-        return (
-          <button
-            key={key}
-            type="button"
-            data-slot="color-picker-swatch"
-            aria-label={s.label ?? (isToken ? s.token : s.hex)}
-            title={s.label ?? (isToken ? s.token : s.hex)}
-            onClick={() => {
-              if (isToken) {
-                commitRaw(`var(${s.token})`)
-              } else {
-                commitColord(colord(s.hex))
-              }
-            }}
-            className={cn(
-              "relative aspect-square w-full rounded-md border border-border/60 shadow-xs transition-[transform,box-shadow] hover:scale-105",
-              isSelected &&
-                "ring-2 ring-ring/70 ring-offset-1 ring-offset-popover"
-            )}
-            style={{ backgroundColor: s.hex }}
-          />
-        )
-      })}
-    </div>
+    <TooltipProvider delay={300}>
+      <div
+        data-slot="color-picker-swatches"
+        className={cn("grid grid-cols-8 gap-1", className)}
+      >
+        {swatches.map((s, i) => {
+          const isToken = s.kind === "token"
+          const isSelected = isToken
+            ? valueRaw === `var(${s.token})`
+            : currentHex === s.hex.toLowerCase()
+          const key = isToken ? s.token : `${s.hex}-${i}`
+          return (
+            <Tooltip key={key}>
+              <TooltipTrigger render={<Button
+                size="sm"
+                type="button"
+                data-slot="color-picker-swatch"
+                aria-label={s.label ?? (isToken ? s.token : s.hex)}
+                onClick={() => {
+                  if (isToken) {
+                    commitRaw(`var(${s.token})`)
+                  } else {
+                    commitColord(colord(s.hex))
+                  }
+                }}
+                className={cn(
+                  "relative flex aspect-square h-auto w-full rounded-md border border-border/60 shadow-xs transition-[transform,box-shadow] hover:scale-105",
+                  isSelected &&
+                    "ring-2 ring-ring/70 ring-offset-1 ring-offset-popover"
+                )}
+                style={{ backgroundColor: s.hex }}
+              />}/>
+              <TooltipContent>
+                {s.label ?? (isToken ? s.token : s.hex)}
+              </TooltipContent>
+            </Tooltip>
+          )
+        })}
+      </div>
+    </TooltipProvider>
   )
 }
 
