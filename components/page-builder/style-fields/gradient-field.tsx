@@ -34,6 +34,14 @@ export default function GradientField({ property }: { property: Property }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const ctxRef = React.useRef<Record<string, unknown>>({})
   const createdElRef = React.useRef<HTMLElement | null>(null)
+  // Skip the next "value changed → call update" cycle when the change came
+  // from us. Grapick's `update` impl calls `setValue` → `clear` → `remove`
+  // on every handler, which zeroes out `handler.gp`. Doing that while a
+  // mousedown drag is live causes the document mousemove listener to call
+  // methods on a destroyed handler and throw "Cannot read properties of
+  // undefined (reading 'apply')" inside `Handler.emit` (which compiles to
+  // `(e = this.gp).emit.apply(e, arguments)`).
+  const skipNextUpdateRef = React.useRef(false)
 
   const currentValue = String(property.getValue() ?? "")
 
@@ -47,15 +55,26 @@ export default function GradientField({ property }: { property: Property }) {
 
     const ctx = ctxRef.current
 
+    const onInternalChange = ({
+      value,
+      partial,
+    }: {
+      value: string
+      partial?: boolean
+    }) => {
+      skipNextUpdateRef.current = true
+      property.upValue(value, { partial })
+    }
+
     const makeData = (extra?: Partial<CallbackData>): CallbackData => ({
       el: container,
       createdEl: createdElRef.current,
       property,
       props: (property as unknown as { attributes: Record<string, unknown> })
         .attributes,
-      change: ({ value, partial }) => property.upValue(value, { partial }),
+      change: onInternalChange,
       updateStyle: (value, opts) =>
-        property.upValue(value, { partial: opts?.partial }),
+        onInternalChange({ value, partial: opts?.partial }),
       ...extra,
     })
 
@@ -79,6 +98,10 @@ export default function GradientField({ property }: { property: Property }) {
   }, [editor, property])
 
   React.useEffect(() => {
+    if (skipNextUpdateRef.current) {
+      skipNextUpdateRef.current = false
+      return
+    }
     const container = containerRef.current
     if (!container) return
     const typeDef = editor.Styles.getType("gradient") as

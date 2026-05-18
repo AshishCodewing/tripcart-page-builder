@@ -44,6 +44,21 @@ function getIconRotation(propName: string, direction: string): string {
   return ""
 }
 
+// grapesjs-style-bg's options put the SVG icon HTML in `label` and the
+// human-readable name in `title`. GrapesJS's own properties (text-align,
+// flex-direction, …) use `label` for the friendly text, so we prefer `title`
+// when present, fall back to `getOptionLabel`, then to the option id. The
+// HTML guard catches any other plugin that follows the SVG-in-label pattern.
+function getOptionTooltip(
+  property: PropertySelect,
+  opt: SelectOption
+): string {
+  const id = property.getOptionId(opt)
+  const candidate = opt.title || property.getOptionLabel(opt) || id
+  if (candidate.trim().startsWith("<")) return humanizeLabel(id)
+  return humanizeLabel(candidate)
+}
+
 export default function RadioField({
   property,
 }: {
@@ -87,7 +102,7 @@ export default function RadioField({
       >
         {options.map((opt: SelectOption) => {
           const id = property.getOptionId(opt)
-          const label = humanizeLabel(property.getOptionLabel(opt))
+          const label = getOptionTooltip(property, opt)
           const Icon = propIcons![id]
 
           return (
