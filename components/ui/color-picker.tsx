@@ -2,7 +2,13 @@
 
 import * as React from "react"
 import { HexAlphaColorPicker } from "react-colorful"
-import { colord, type Colord } from "colord"
+import {
+  colord,
+  type Colord,
+  type HslaColor,
+  type HsvaColor,
+  type RgbaColor,
+} from "colord"
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -390,6 +396,10 @@ function HexChannelInput({
   )
 }
 
+// Fallback used when upstream value isn't a parseable color (`var(--x)`, empty).
+// Channels stay enabled, and typing into them commits opaque black + the change.
+const FALLBACK_COLOR = colord("#000000")
+
 // Alpha as 0–100 percentage (UI-friendlier than 0–1).
 function AlphaChannelInput() {
   const { color, commitColord } = useColorPicker()
@@ -397,14 +407,13 @@ function AlphaChannelInput() {
   return (
     <ChannelInput
       value={String(alphaPct)}
-      disabled={!color}
       min={0}
       max={100}
       onCommit={(raw) => {
-        if (!color) return
         const n = numOrEmpty(raw)
         if (n === null) return
-        commitColord(color.alpha(clamp(n, 0, 100) / 100))
+        const base = color ?? FALLBACK_COLOR
+        commitColord(base.alpha(clamp(n, 0, 100) / 100))
       }}
       ariaLabel="Alpha"
     />
@@ -418,7 +427,6 @@ const TAB_TRIGGER =
 
 function ColorPickerChannels({ className }: { className?: string }) {
   const { color, mode, setMode, commitColord } = useColorPicker()
-  const disabled = !color
 
   return (
     <Tabs
@@ -446,7 +454,6 @@ function ColorPickerChannels({ className }: { className?: string }) {
       <TabsContent value="hex">
         <div className="grid grid-cols-[1fr_4rem] gap-1.5">
           <HexChannelInput
-            disabled={disabled}
             value={color ? color.toHex().replace(/^#/, "").slice(0, 6) : ""}
             onCommit={(next) => {
               // next is already serialized hex
@@ -464,18 +471,15 @@ function ColorPickerChannels({ className }: { className?: string }) {
       </TabsContent>
 
       <TabsContent value="rgb">
-        <RgbChannels disabled={disabled} />
-        <ChannelLabels labels={["R", "G", "B", "A"]} cols="repeat(4,1fr)" />
+        <SpaceChannels space={RGB_SPACE} />
       </TabsContent>
 
       <TabsContent value="hsl">
-        <HslChannels disabled={disabled} />
-        <ChannelLabels labels={["H", "S", "L", "A"]} cols="repeat(4,1fr)" />
+        <SpaceChannels space={HSL_SPACE} />
       </TabsContent>
 
       <TabsContent value="hsb">
-        <HsbChannels disabled={disabled} />
-        <ChannelLabels labels={["H", "S", "B", "A"]} cols="repeat(4,1fr)" />
+        <SpaceChannels space={HSB_SPACE} />
       </TabsContent>
     </Tabs>
   )
@@ -500,169 +504,93 @@ function ChannelLabels({
   )
 }
 
-function RgbChannels({ disabled }: { disabled: boolean }) {
-  const { color, commitColord } = useColorPicker()
-  const rgb = color?.toRgb()
-  const update = (next: { r?: number; g?: number; b?: number }) => {
-    if (!color) return
-    const { r, g, b, a } = color.rgba
-    commitColord(
-      colord({
-        r: next.r ?? r,
-        g: next.g ?? g,
-        b: next.b ?? b,
-        a,
-      })
-    )
-  }
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      <ChannelInput
-        value={rgb ? String(rgb.r) : ""}
-        disabled={disabled}
-        min={0}
-        max={255}
-        ariaLabel="Red"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ r: clamp(n, 0, 255) })
-        }}
-      />
-      <ChannelInput
-        value={rgb ? String(rgb.g) : ""}
-        disabled={disabled}
-        min={0}
-        max={255}
-        ariaLabel="Green"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ g: clamp(n, 0, 255) })
-        }}
-      />
-      <ChannelInput
-        value={rgb ? String(rgb.b) : ""}
-        disabled={disabled}
-        min={0}
-        max={255}
-        ariaLabel="Blue"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ b: clamp(n, 0, 255) })
-        }}
-      />
-      <AlphaChannelInput />
-    </div>
-  )
+// Config-driven channel block for the RGB / HSL / HSB tabs. The three spaces
+// differ only in which colord object shape they read/write and the per-channel
+// metadata (range, label, normalization), so we encode those as data and share
+// one render path.
+
+type ChannelSpec = {
+  key: string
+  min: number
+  max: number
+  ariaLabel: string
+  label: string
+  normalize: (n: number) => number
 }
 
-function HslChannels({ disabled }: { disabled: boolean }) {
-  const { color, commitColord } = useColorPicker()
-  const hsl = color?.toHsl()
-  const update = (next: { h?: number; s?: number; l?: number }) => {
-    if (!color) return
-    const { h, s, l, a } = color.toHsl()
-    commitColord(
-      colord({
-        h: next.h ?? h,
-        s: next.s ?? s,
-        l: next.l ?? l,
-        a,
-      })
-    )
-  }
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      <ChannelInput
-        value={hsl ? String(Math.round(hsl.h)) : ""}
-        disabled={disabled}
-        min={0}
-        max={360}
-        ariaLabel="Hue"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ h: ((n % 360) + 360) % 360 })
-        }}
-      />
-      <ChannelInput
-        value={hsl ? String(Math.round(hsl.s)) : ""}
-        disabled={disabled}
-        min={0}
-        max={100}
-        ariaLabel="Saturation"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ s: clamp(n, 0, 100) })
-        }}
-      />
-      <ChannelInput
-        value={hsl ? String(Math.round(hsl.l)) : ""}
-        disabled={disabled}
-        min={0}
-        max={100}
-        ariaLabel="Lightness"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ l: clamp(n, 0, 100) })
-        }}
-      />
-      <AlphaChannelInput />
-    </div>
-  )
+type ColorSpace = {
+  toSpace: (c: Colord) => Record<string, number>
+  apply: (c: Colord, key: string, value: number) => Colord
+  channels: ChannelSpec[]
 }
 
-function HsbChannels({ disabled }: { disabled: boolean }) {
+const clampTo = (min: number, max: number) => (n: number) => clamp(n, min, max)
+const wrapHue = (n: number) => ((n % 360) + 360) % 360
+
+const RGB_SPACE: ColorSpace = {
+  toSpace: (c) => c.toRgb(),
+  apply: (c, key, value) =>
+    colord({ ...c.toRgb(), [key]: value } as RgbaColor),
+  channels: [
+    { key: "r", min: 0, max: 255, ariaLabel: "Red", label: "R", normalize: clampTo(0, 255) },
+    { key: "g", min: 0, max: 255, ariaLabel: "Green", label: "G", normalize: clampTo(0, 255) },
+    { key: "b", min: 0, max: 255, ariaLabel: "Blue", label: "B", normalize: clampTo(0, 255) },
+  ],
+}
+
+const HSL_SPACE: ColorSpace = {
+  toSpace: (c) => c.toHsl(),
+  apply: (c, key, value) =>
+    colord({ ...c.toHsl(), [key]: value } as HslaColor),
+  channels: [
+    { key: "h", min: 0, max: 360, ariaLabel: "Hue", label: "H", normalize: wrapHue },
+    { key: "s", min: 0, max: 100, ariaLabel: "Saturation", label: "S", normalize: clampTo(0, 100) },
+    { key: "l", min: 0, max: 100, ariaLabel: "Lightness", label: "L", normalize: clampTo(0, 100) },
+  ],
+}
+
+// HSB === HSV. colord exposes .toHsv() / accepts {h,s,v}.
+const HSB_SPACE: ColorSpace = {
+  toSpace: (c) => c.toHsv(),
+  apply: (c, key, value) =>
+    colord({ ...c.toHsv(), [key]: value } as HsvaColor),
+  channels: [
+    { key: "h", min: 0, max: 360, ariaLabel: "Hue", label: "H", normalize: wrapHue },
+    { key: "s", min: 0, max: 100, ariaLabel: "Saturation", label: "S", normalize: clampTo(0, 100) },
+    { key: "v", min: 0, max: 100, ariaLabel: "Brightness", label: "B", normalize: clampTo(0, 100) },
+  ],
+}
+
+function SpaceChannels({ space }: { space: ColorSpace }) {
   const { color, commitColord } = useColorPicker()
-  // HSB === HSV. colord exposes .toHsv() / accepts {h,s,v}.
-  const hsv = color?.toHsv()
-  const update = (next: { h?: number; s?: number; v?: number }) => {
-    if (!color) return
-    const { h, s, v, a } = color.toHsv()
-    commitColord(
-      colord({
-        h: next.h ?? h,
-        s: next.s ?? s,
-        v: next.v ?? v,
-        a,
-      })
-    )
-  }
+  const current = color ? space.toSpace(color) : null
+
   return (
-    <div className="grid grid-cols-4 gap-1.5">
-      <ChannelInput
-        value={hsv ? String(Math.round(hsv.h)) : ""}
-        disabled={disabled}
-        min={0}
-        max={360}
-        ariaLabel="Hue"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ h: ((n % 360) + 360) % 360 })
-        }}
+    <>
+      <div className="grid grid-cols-4 gap-1.5">
+        {space.channels.map((ch) => (
+          <ChannelInput
+            key={ch.key}
+            value={current ? String(Math.round(current[ch.key])) : ""}
+            min={ch.min}
+            max={ch.max}
+            ariaLabel={ch.ariaLabel}
+            onCommit={(raw) => {
+              const n = numOrEmpty(raw)
+              if (n === null) return
+              commitColord(
+                space.apply(color ?? FALLBACK_COLOR, ch.key, ch.normalize(n))
+              )
+            }}
+          />
+        ))}
+        <AlphaChannelInput />
+      </div>
+      <ChannelLabels
+        labels={[...space.channels.map((ch) => ch.label), "A"]}
+        cols="repeat(4,1fr)"
       />
-      <ChannelInput
-        value={hsv ? String(Math.round(hsv.s)) : ""}
-        disabled={disabled}
-        min={0}
-        max={100}
-        ariaLabel="Saturation"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ s: clamp(n, 0, 100) })
-        }}
-      />
-      <ChannelInput
-        value={hsv ? String(Math.round(hsv.v)) : ""}
-        disabled={disabled}
-        min={0}
-        max={100}
-        ariaLabel="Brightness"
-        onCommit={(raw) => {
-          const n = numOrEmpty(raw)
-          if (n !== null) update({ v: clamp(n, 0, 100) })
-        }}
-      />
-      <AlphaChannelInput />
-    </div>
+    </>
   )
 }
 
