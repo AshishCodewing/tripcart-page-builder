@@ -4,6 +4,19 @@ import * as React from "react"
 import type { Property } from "grapesjs"
 import { useEditor } from "@grapesjs/react"
 
+import {
+  ColorPicker,
+  ColorPickerCanvas,
+  ColorPickerChannels,
+  ColorPickerSwatches,
+} from "@/components/ui/color-picker"
+import { Popover, PopoverContent } from "@/components/ui/popover"
+import {
+  GRAD_OPEN_STOP_PICKER,
+  type GradOpenStopPickerDetail,
+  type GradientStopHandler,
+} from "../editor-shell"
+
 // The grapesjs-style-bg plugin registers a custom Styles type called
 // "gradient" via `Styles.addType("gradient", { create, update, destroy })`.
 // Those hooks build a Grapick picker into an HTMLElement using `this` as a
@@ -29,6 +42,12 @@ type CallbackData = {
   updateStyle: (value: string, opts?: { partial?: boolean }) => void
 }
 
+type ActiveStop = {
+  handler: GradientStopHandler
+  anchor: HTMLElement
+  color: string
+}
+
 export default function GradientField({ property }: { property: Property }) {
   const editor = useEditor()
   const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -42,6 +61,7 @@ export default function GradientField({ property }: { property: Property }) {
   // undefined (reading 'apply')" inside `Handler.emit` (which compiles to
   // `(e = this.gp).emit.apply(e, arguments)`).
   const skipNextUpdateRef = React.useRef(false)
+  const [activeStop, setActiveStop] = React.useState<ActiveStop | null>(null)
 
   const currentValue = String(property.getValue() ?? "")
 
@@ -121,5 +141,57 @@ export default function GradientField({ property }: { property: Property }) {
     })
   }, [editor, property, currentValue])
 
-  return <div ref={containerRef} className="w-full my-2" />
+  // Listen for "swatch was clicked" events bubbling up from Grapick's stop
+  // handles (dispatched by gradientStopColorPicker in editor-shell.tsx).
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<GradOpenStopPickerDetail>).detail
+      setActiveStop({
+        handler: detail.handler,
+        anchor: detail.anchor,
+        color: detail.color,
+      })
+    }
+    container.addEventListener(GRAD_OPEN_STOP_PICKER, onOpen)
+    return () => container.removeEventListener(GRAD_OPEN_STOP_PICKER, onOpen)
+  }, [])
+
+  return (
+    <>
+      <div ref={containerRef} className="w-full my-2" />
+      <Popover
+        open={!!activeStop}
+        onOpenChange={(open) => {
+          if (!open) setActiveStop(null)
+        }}
+      >
+        <PopoverContent
+          anchor={activeStop?.anchor}
+          align="start"
+          sideOffset={6}
+          className="w-64 gap-3 p-3"
+        >
+          {activeStop ? (
+            <ColorPicker
+              value={activeStop.color}
+              onChange={(next, opts) => {
+                // Grapick's setColor takes (color, complete) where complete=1
+                // commits to history and complete=0 is a drag-in-progress.
+                activeStop.handler.setColor(next, opts?.partial ? 0 : 1)
+                // Grapick only repaints the swatch from its own native-input
+                // handler (which we stripped), so mirror the color manually.
+                activeStop.anchor.style.backgroundColor = next
+                setActiveStop({ ...activeStop, color: next })
+              }}
+            >
+              <ColorPickerCanvas />
+              <ColorPickerChannels />
+            </ColorPicker>
+          ) : null}
+        </PopoverContent>
+      </Popover>
+    </>
+  )
 }
