@@ -10,7 +10,6 @@ import {
 } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
 import "grapesjs/dist/css/grapes.min.css"
-import "grapick/dist/grapick.min.css"
 import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
@@ -73,54 +72,6 @@ function composedLayerLabel(
 ): string {
   const style = property.getStyleFromLayer(layer, { number: {} })
   return String(style[property.getName()] ?? "")
-}
-
-// Minimal subset of Grapick's Handler we read/dispatch. Grapick ships no
-// type declarations, so we type only what we touch here.
-export type GradientStopHandler = {
-  getEl: () => HTMLElement | null
-  getColor: () => string
-  setColor: (color: string, complete?: number) => void
-}
-
-// Custom DOM event the gradient swatch dispatches when the user clicks it.
-// gradient-field.tsx listens on its container (the wrap is a descendant) and
-// opens the Popover-mounted ColorPicker anchored to the swatch.
-export const GRAD_OPEN_STOP_PICKER = "grad:open-stop-picker"
-export type GradOpenStopPickerDetail = {
-  handler: GradientStopHandler
-  anchor: HTMLElement
-  color: string
-}
-
-function gradientStopColorPicker(
-  handler: GradientStopHandler
-): (() => void) | undefined {
-  const el = handler.getEl()
-  const wrap = el?.querySelector<HTMLElement>(
-    '[data-toggle="handler-color-wrap"]'
-  )
-  if (!wrap) return undefined
-
-  // Strip the native <input type="color"> so clicks don't open the OS picker.
-  const nativeInput = wrap.querySelector('input[type="color"]')
-  nativeInput?.parentNode?.removeChild(nativeInput)
-  wrap.style.cursor = "pointer"
-
-  const onClick = (e: Event) => {
-    e.stopPropagation()
-    wrap.dispatchEvent(
-      new CustomEvent<GradOpenStopPickerDetail>(GRAD_OPEN_STOP_PICKER, {
-        bubbles: true,
-        detail: { handler, anchor: wrap, color: handler.getColor() },
-      })
-    )
-  }
-  wrap.addEventListener("click", onClick)
-
-  return () => {
-    wrap.removeEventListener("click", onClick)
-  }
 }
 
 const buildGjsOptions = (storageKey: string): EditorConfig => ({
@@ -371,16 +322,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
     columnsPlugin,
     patternsPlugin,
     styleFilterPlugin,
-    // Replace Grapick's native <input type="color"> on each gradient stop
-    // with our shadcn ColorPicker. The colorPicker callback runs once per
-    // handler (in Handler.render) and gets a cleanup return value that
-    // Grapick calls on handler removal. We strip the native input and make
-    // the swatch dispatch a bubbling custom event; the React Popover lives
-    // in gradient-field.tsx and anchors to the swatch element.
-    (editor: Editor) =>
-      styleBgPlugin(editor, {
-        styleGradientOpts: { colorPicker: gradientStopColorPicker },
-      }),
+    styleBgPlugin,
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,

@@ -46,12 +46,24 @@ const BLOCK_LAYOUT_PROPS = new Set([
   "background-color"
 ])
 
+// Properties whose UI is folded into another field's interactive surface, so
+// they shouldn't render their own row. GradientField wraps the
+// GradientPicker compound, which already exposes Type + Angle/Position
+// alongside the stops — but grapesjs-style-bg still registers separate
+// `-dir` and `-type` selects so its composite fromStyle/toStyle pipeline
+// can read them. We keep them registered and just don't draw them.
+const HIDDEN_PROPERTY_NAMES = new Set([
+  "background-image-gradient-dir",
+  "background-image-gradient-type",
+])
+
 type PropertyFieldProps = {
   property: Property
 }
 
 export default function PropertyField({ property }: PropertyFieldProps) {
   if (!property.isVisible()) return null
+  if (HIDDEN_PROPERTY_NAMES.has(property.getName())) return null
 
   const type = property.getType()
   let field: React.ReactNode
