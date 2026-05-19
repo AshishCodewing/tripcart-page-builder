@@ -74,7 +74,7 @@ export default function GradientField({
   }
 
   return (
-    <div className="flex w-full flex-col gap-2.5">
+    <div className="flex w-full flex-col gap-3">
       <GradientPicker value={value} onChange={onChange}>
         <GradientPickerTrack />
         <GradientPickerFlip />

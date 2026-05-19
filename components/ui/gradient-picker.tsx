@@ -686,7 +686,7 @@ export function GradientPickerStop({ className }: { className?: string }) {
           className="text-xs tabular-nums"
           aria-label="Stop position percentage"
         />
-        <InputGroupAddon align="inline-end">%</InputGroupAddon>
+        <InputGroupAddon align="inline-end" className="text-xs">%</InputGroupAddon>
       </InputGroup>
     </Field>
   )
@@ -824,7 +824,7 @@ function AngleInputField({
           className="text-xs tabular-nums"
           aria-label="Gradient angle in degrees"
         />
-        <InputGroupAddon align="inline-end">deg</InputGroupAddon>
+        <InputGroupAddon align="inline-end" className="text-xs">deg</InputGroupAddon>
       </InputGroup>
     </Field>
   )
