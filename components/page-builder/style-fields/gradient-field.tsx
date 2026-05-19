@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Property } from "grapesjs"
+import type { Property, PropertyComposite } from "grapesjs"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +24,16 @@ const DEFAULT_CSS = toGradient(
   DEFAULT_GRADIENT.stops
 )
 
+// `grapesjs-style-bg` wires `background-image-gradient` into a composite
+// whose `toStyle` re-assembles the final CSS as
+// `toGradient(<-type sibling>, <-dir sibling>, parseGradient(<-gradient>).colors)`
+// — i.e. it pulls type and direction from sibling sub-properties and only
+// reads the colors out of our gradient string. So when the user changes the
+// type or direction in our React picker, we have to update those siblings
+// too or the composite will silently fall back to the old values.
+const TYPE_SUBPROP = "background-image-gradient-type"
+const DIR_SUBPROP = "background-image-gradient-dir"
+
 export default function GradientField({
   property,
 }: {
@@ -36,6 +46,12 @@ export default function GradientField({
 
   const onChange = React.useCallback(
     (next: string, opts?: { partial?: boolean }) => {
+      const parent = property.getParent?.() as PropertyComposite | undefined
+      const parsedNext = parseGradient(next)
+      if (parent && parsedNext) {
+        parent.getProperty(TYPE_SUBPROP)?.upValue(parsedNext.type, opts)
+        parent.getProperty(DIR_SUBPROP)?.upValue(parsedNext.direction, opts)
+      }
       property.upValue(next, opts)
     },
     [property]

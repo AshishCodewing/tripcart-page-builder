@@ -30,7 +30,7 @@ export default function ColorField({ property }: { property: Property }) {
             <button
               type="button"
               aria-label="Pick color"
-              className="relative inline-flex size-6 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-input bg-white shadow-xs"
+              className="relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-input bg-white shadow-xs"
               style={{
                 backgroundImage: `linear-gradient(${valueWithDef}, ${valueWithDef}), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='6' fill-opacity='.25'><path d='M3 0h3v3H3zM0 3h3v3H0z'/></svg>")`,
               }}

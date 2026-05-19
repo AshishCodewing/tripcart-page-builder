@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { ArrowLeftRight, Trash2 } from "lucide-react"
+import { ArrowLeftRight, X } from "lucide-react"
 import { colord } from "colord"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   ColorPicker,
   ColorPickerCanvas,
@@ -15,6 +14,11 @@ import {
 } from "@/components/ui/color-picker"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
@@ -25,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import {
   DEFAULT_GRADIENT,
+  GRADIENT_TYPES,
   RADIAL_POSITIONS,
   coerceDirection,
   degreesToDirection,
@@ -61,13 +66,18 @@ const sortStops = (stops: GradientStop[]): GradientStop[] =>
 const baseTypeOf = (t: GradientType): "linear" | "radial" =>
   t === "linear" || t === "repeating-linear" ? "linear" : "radial"
 
-const isRepeating = (t: GradientType): boolean =>
-  t === "repeating-linear" || t === "repeating-radial"
+const TYPE_LABELS: Record<GradientType, string> = {
+  linear: "Linear",
+  radial: "Radial",
+  "repeating-linear": "Repeating Linear",
+  "repeating-radial": "Repeating Radial",
+}
 
-const composeType = (
-  base: "linear" | "radial",
-  repeating: boolean
-): GradientType => (repeating ? `repeating-${base}` : base)
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase())
+
+const RADIAL_POSITION_LABELS = Object.fromEntries(
+  RADIAL_POSITIONS.map((p) => [p, titleCase(p)])
+) as Record<RadialPosition, string>
 
 // ---------- context ----------
 
@@ -91,8 +101,7 @@ type Ctx = {
   addStop: (pct: number) => void
   removeStop: (idx: number) => void
   flipStops: () => void
-  setBaseType: (next: "linear" | "radial") => void
-  setRepeating: (next: boolean) => void
+  setType: (next: GradientType) => void
   setDirection: (direction: string) => void
 
   draftStops: GradientStop[] | null
@@ -220,21 +229,11 @@ export function GradientPicker({
     commit(parsed.type, parsed.direction, next)
   }, [commit, parsed])
 
-  const setBaseType = React.useCallback(
-    (next: "linear" | "radial") => {
-      const target = composeType(next, isRepeating(parsed.type))
-      if (target === parsed.type) return
-      const dir = coerceDirection(parsed.type, target, parsed.direction)
-      commit(target, dir, parsed.stops)
-    },
-    [commit, parsed]
-  )
-
-  const setRepeating = React.useCallback(
-    (next: boolean) => {
-      const target = composeType(baseTypeOf(parsed.type), next)
-      if (target === parsed.type) return
-      commit(target, parsed.direction, parsed.stops)
+  const setType = React.useCallback(
+    (next: GradientType) => {
+      if (next === parsed.type) return
+      const dir = coerceDirection(parsed.type, next, parsed.direction)
+      commit(next, dir, parsed.stops)
     },
     [commit, parsed]
   )
@@ -256,8 +255,7 @@ export function GradientPicker({
     addStop,
     removeStop,
     flipStops,
-    setBaseType,
-    setRepeating,
+    setType,
     setDirection,
     draftStops,
     setDraftStops,
@@ -295,6 +293,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
     setSelectedIdx,
     setStopPosition,
     addStop,
+    removeStop,
     setDraftStops,
   } = useGradientPicker()
 
@@ -384,6 +383,12 @@ export function GradientPickerTrack({ className }: { className?: string }) {
 
   const onPinKeyDown = React.useCallback(
     (idx: number, e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (parsed.stops.length <= MIN_STOPS) return
+        e.preventDefault()
+        removeStop(idx)
+        return
+      }
       const cur = stopPercent(parsed.stops[idx]?.position ?? "0%")
       const step = e.shiftKey ? 10 : 1
       let next: number | null = null
@@ -407,7 +412,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
       e.preventDefault()
       setStopPosition(idx, next)
     },
-    [parsed.stops, setStopPosition]
+    [parsed.stops, removeStop, setStopPosition]
   )
 
   const stops = effectiveStops
@@ -418,12 +423,12 @@ export function GradientPickerTrack({ className }: { className?: string }) {
   return (
     <div
       data-slot="gradient-picker-track"
-      className={cn("relative pt-6 pb-1", className)}
+      className={cn("relative pt-7", className)}
     >
       <div
         ref={barRef}
         onPointerDown={onBarPointerDown}
-        className="relative h-3 w-full cursor-copy rounded-full border border-input shadow-inner"
+        className="relative h-4 w-full cursor-copy rounded-full border border-input shadow-inner"
         style={{
           backgroundImage: `${gradientCss}, ${CHECKERBOARD}`,
         }}
@@ -431,37 +436,69 @@ export function GradientPickerTrack({ className }: { className?: string }) {
         {stops.map((stop, idx) => {
           const pct = stopPercent(stop.position)
           const selected = idx === selectedIdx
+          const canDelete = parsed.stops.length > MIN_STOPS
           return (
-            <button
+            <div
               key={idx}
-              type="button"
-              data-slot="gradient-pin"
-              data-selected={selected || undefined}
-              aria-label={`Stop ${idx + 1}`}
-              role="slider"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={pct}
-              tabIndex={0}
-              onPointerDown={(e) => onPinPointerDown(idx, e)}
-              onPointerMove={onPinPointerMove}
-              onPointerUp={onPinPointerUp}
-              onPointerCancel={onPinPointerUp}
-              onKeyDown={(e) => onPinKeyDown(idx, e)}
-              className={cn(
-                "absolute top-1/2 -translate-x-1/2 -translate-y-[calc(100%+2px)] cursor-grab outline-none focus-visible:ring-3 focus-visible:ring-ring/30 active:cursor-grabbing"
-              )}
+              className="group/pin absolute top-1/2 -translate-x-1/2 -translate-y-[calc(100%+16px)] size-5"
               style={{ left: `${pct}%` }}
             >
-              <span
-                aria-hidden
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                data-slot="gradient-pin"
+                data-selected={selected || undefined}
+                aria-label={`Stop ${idx + 1}`}
+                role="slider"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={pct}
+                tabIndex={0}
+                onPointerDown={(e) => onPinPointerDown(idx, e)}
+                onPointerMove={onPinPointerMove}
+                onPointerUp={onPinPointerUp}
+                onPointerCancel={onPinPointerUp}
+                onKeyDown={(e) => onPinKeyDown(idx, e)}
                 className={cn(
-                  "block size-4 rounded-t-full rounded-b-[2px] border-2 border-background ring-1 ring-foreground/40 shadow-sm transition-transform",
-                  selected && "scale-110 ring-2 ring-ring"
+                  // Pin-specific overrides on top of the Button primitive:
+                  // shrink to the bubble's size, drop padding, neutralize the
+                  // hover bg and active translate (which would fight drag).
+                  "size-5 cursor-grab rounded-md p-0 hover:bg-transparent active:translate-y-0 active:cursor-grabbing dark:hover:bg-transparent",
+                  // Downward pointer that turns the bubble into a marker
+                  // shape aimed at the track below.
+                  "before:absolute before:top-full before:left-1/2 before:-translate-x-1/2",
+                  "before:size-0 before:border-x-4 before:border-x-transparent before:border-t-8 before:border-t-foreground/40 before:content-['']"
                 )}
-                style={{ backgroundColor: stop.color }}
-              />
-            </button>
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "relative block size-4 rounded-md border-2 border-background ring-1 ring-foreground/40 shadow-sm transition-transform",
+                    selected && "scale-110 ring-2 ring-ring"
+                  )}
+                  style={{ backgroundColor: stop.color }}
+                />
+              </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon-xs"
+                  aria-label={`Remove stop ${idx + 1}`}
+                  // Stop the pointerdown from reaching the pin button below
+                  // (which would otherwise start a drag).
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeStop(idx)
+                  }}
+                  className="absolute -top-2 -right-2 z-10 size-3.5 rounded-full p-0 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-within/pin:opacity-100"
+                >
+                  <X className="size-2.5" aria-hidden />
+                </Button>
+              )}
+            </div>
           )
         })}
       </div>
@@ -513,10 +550,9 @@ export function GradientPickerFields({
 // ---------- color field ----------
 
 export function GradientPickerColor({ className }: { className?: string }) {
-  const { parsed, selectedIdx, setStopColor, removeStop } = useGradientPicker()
+  const { parsed, selectedIdx, setStopColor } = useGradientPicker()
   const stop = parsed.stops[selectedIdx]
   const color = stop?.color ?? "#000000"
-  const canDelete = parsed.stops.length > MIN_STOPS
 
   const [draft, setDraft] = React.useState(color)
   const [lastSeen, setLastSeen] = React.useState(color)
@@ -549,7 +585,7 @@ export function GradientPickerColor({ className }: { className?: string }) {
               <button
                 type="button"
                 aria-label="Edit color"
-                className="size-8 shrink-0 rounded-md border border-input shadow-xs"
+                className="relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-input bg-white shadow-xs"
                 style={{
                   backgroundColor: color,
                   backgroundImage: CHECKERBOARD,
@@ -575,7 +611,9 @@ export function GradientPickerColor({ className }: { className?: string }) {
         </Popover>
         <Input
           inputSize="sm"
+          type="text"
           value={draft}
+          placeholder={color}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {
@@ -585,21 +623,11 @@ export function GradientPickerColor({ className }: { className?: string }) {
               ;(e.target as HTMLInputElement).blur()
             }
           }}
-          className="flex-1 text-xs"
+          className="flex-1 text-xs bg-transparent"
+          spellCheck={false}
+          autoComplete="off"
           aria-label="Color value"
         />
-        {canDelete && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Delete stop"
-            onClick={() => removeStop(selectedIdx)}
-            className="text-muted-foreground"
-          >
-            <Trash2 className="size-3.5" aria-hidden />
-          </Button>
-        )}
       </div>
     </Field>
   )
@@ -640,10 +668,9 @@ export function GradientPickerStop({ className }: { className?: string }) {
       className={className}
     >
       <FieldLabel className="text-xs text-muted-foreground">Stop</FieldLabel>
-      <div className="flex items-center gap-1.5">
-        <Input
+      <InputGroup className="h-8">
+        <InputGroupInput
           type="number"
-          inputSize="sm"
           min={0}
           max={100}
           value={draft}
@@ -656,11 +683,11 @@ export function GradientPickerStop({ className }: { className?: string }) {
               ;(e.target as HTMLInputElement).blur()
             }
           }}
-          className="flex-1 text-xs tabular-nums"
+          className="text-xs tabular-nums"
           aria-label="Stop position percentage"
         />
-        <span className="text-xs text-muted-foreground">%</span>
-      </div>
+        <InputGroupAddon align="inline-end">%</InputGroupAddon>
+      </InputGroup>
     </Field>
   )
 }
@@ -668,9 +695,7 @@ export function GradientPickerStop({ className }: { className?: string }) {
 // ---------- type field ----------
 
 export function GradientPickerType({ className }: { className?: string }) {
-  const { parsed, setBaseType, setRepeating } = useGradientPicker()
-  const base = baseTypeOf(parsed.type)
-  const repeating = isRepeating(parsed.type)
+  const { parsed, setType } = useGradientPicker()
 
   return (
     <Field
@@ -679,32 +704,24 @@ export function GradientPickerType({ className }: { className?: string }) {
       className={className}
     >
       <FieldLabel className="text-xs text-muted-foreground">Type</FieldLabel>
-      <div className="flex items-center gap-1.5">
-        <Select
-          value={base}
-          onValueChange={(v) => setBaseType(v as "linear" | "radial")}
-        >
-          <SelectTrigger size="sm" className="flex-1 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="linear">Linear</SelectItem>
-            <SelectItem value="radial">Radial</SelectItem>
-          </SelectContent>
-        </Select>
-        <label
-          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground select-none"
-          title="Repeating gradient"
-        >
-          <Checkbox
-            size="sm"
-            checked={repeating}
-            onCheckedChange={(v) => setRepeating(v === true)}
-            aria-label="Repeating"
-          />
-          <span>Repeat</span>
-        </label>
-      </div>
+      <Select
+        items={TYPE_LABELS}
+        value={parsed.type}
+        onValueChange={(v) => {
+          if (v) setType(v as GradientType)
+        }}
+      >
+        <SelectTrigger size="sm" className="w-full text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="p-1">
+          {GRADIENT_TYPES.map((t) => (
+            <SelectItem key={t} value={t}>
+              {TYPE_LABELS[t]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </Field>
   )
 }
@@ -726,8 +743,6 @@ export function GradientPickerAngle({ className }: { className?: string }) {
   }
 
   const current = radialPositionFromDirection(parsed.direction)
-  const labelFor = (p: RadialPosition) =>
-    p.replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
     <Field
@@ -737,18 +752,19 @@ export function GradientPickerAngle({ className }: { className?: string }) {
     >
       <FieldLabel className="text-xs text-muted-foreground">Position</FieldLabel>
       <Select
+        items={RADIAL_POSITION_LABELS}
         value={current}
-        onValueChange={(v) =>
-          setDirection(radialPositionToDirection(v as RadialPosition))
-        }
+        onValueChange={(v) => {
+          if (v) setDirection(radialPositionToDirection(v as RadialPosition))
+        }}
       >
         <SelectTrigger size="sm" className="w-full text-xs">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="p-1">
           {RADIAL_POSITIONS.map((p) => (
             <SelectItem key={p} value={p}>
-              {labelFor(p)}
+              {RADIAL_POSITION_LABELS[p]}
             </SelectItem>
           ))}
         </SelectContent>
@@ -792,10 +808,9 @@ function AngleInputField({
       className={className}
     >
       <FieldLabel className="text-xs text-muted-foreground">Angle</FieldLabel>
-      <div className="flex items-center gap-1.5">
-        <Input
+      <InputGroup className="h-8">
+        <InputGroupInput
           type="number"
-          inputSize="sm"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
@@ -806,11 +821,11 @@ function AngleInputField({
               ;(e.target as HTMLInputElement).blur()
             }
           }}
-          className="flex-1 text-xs tabular-nums"
+          className="text-xs tabular-nums"
           aria-label="Gradient angle in degrees"
         />
-        <span className="text-xs text-muted-foreground">deg</span>
-      </div>
+        <InputGroupAddon align="inline-end">deg</InputGroupAddon>
+      </InputGroup>
     </Field>
   )
 }
