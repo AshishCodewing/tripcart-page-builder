@@ -428,7 +428,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
       <div
         ref={barRef}
         onPointerDown={onBarPointerDown}
-        className="relative h-4 w-full cursor-copy rounded-full border border-input shadow-inner"
+        className="relative h-4 w-full cursor-copy rounded-full shadow-inner"
         style={{
           backgroundImage: `${gradientCss}, ${CHECKERBOARD}`,
         }}
