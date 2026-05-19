@@ -28,6 +28,7 @@ import {
   Italic,
   Palette,
   Strikethrough,
+  StretchHorizontal,
   StretchVertical,
   Underline,
   type LucideIcon,
@@ -113,6 +114,22 @@ export const OPTION_ICONS: Record<string, Record<string, LucideIcon>> = {
     "flex-end": AlignVerticalJustifyEnd,
     baseline: Baseline,
     stretch: StretchVertical,
+  },
+  // Grid container — default inline-axis alignment of items within their
+  // cells. Grid uses the keywords `start` / `end` (not `flex-start`), so the
+  // icon map keys differ from justify-content above.
+  "justify-items": {
+    start: AlignHorizontalJustifyStart,
+    center: AlignHorizontalJustifyCenter,
+    end: AlignHorizontalJustifyEnd,
+    stretch: StretchHorizontal,
+  },
+  // Per-child override of justify-items on grid items.
+  "justify-self": {
+    start: AlignHorizontalJustifyStart,
+    center: AlignHorizontalJustifyCenter,
+    end: AlignHorizontalJustifyEnd,
+    stretch: StretchHorizontal,
   },
   // grapesjs-style-bg type selector. The plugin (and its BackgroundType enum)
   // names the option ids `image` / `color` / `grad`. Mapping all three here so

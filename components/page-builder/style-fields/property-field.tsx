@@ -31,6 +31,8 @@ const FLEX_AXIS_BLOCK_PROPS = new Set([
   "align-items",
   "align-self",
   "align-content",
+  "justify-items",
+  "justify-self",
 ])
 
 // Properties that always render block-layout regardless of type — typically

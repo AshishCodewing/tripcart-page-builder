@@ -9,6 +9,8 @@ import { useEditor } from "@grapesjs/react"
 export type StyleContext = {
   isFlex: boolean
   parentIsFlex: boolean
+  isGrid: boolean
+  parentIsGrid: boolean
   flexDirection: string
   // Parent's computed flex-direction. Used by flex-child fields (align-self)
   // to rotate their axis-icons in the same way the container's own
@@ -21,6 +23,8 @@ export type StyleContext = {
 const DEFAULT_CONTEXT: StyleContext = {
   isFlex: false,
   parentIsFlex: false,
+  isGrid: false,
+  parentIsGrid: false,
   flexDirection: "row",
   parentFlexDirection: "row",
   flexWrap: "nowrap",
@@ -65,6 +69,8 @@ export function StyleContextProvider({
         setCtx({
           isFlex: display.includes("flex"),
           parentIsFlex: parentDisplay.includes("flex"),
+          isGrid: display.includes("grid"),
+          parentIsGrid: parentDisplay.includes("grid"),
           flexDirection: cs.flexDirection || "row",
           parentFlexDirection: ps?.flexDirection || "row",
           flexWrap: cs.flexWrap || "nowrap",

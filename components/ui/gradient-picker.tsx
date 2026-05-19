@@ -493,7 +493,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
                     e.stopPropagation()
                     removeStop(idx)
                   }}
-                  className="absolute -top-2 -right-2 z-10 size-3.5 rounded-full p-0 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-within/pin:opacity-100"
+                  className="absolute -top-2 -right-2 z-10 size-5 rounded-full p-0 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-within/pin:opacity-100"
                 >
                   <X className="size-2.5" aria-hidden />
                 </Button>

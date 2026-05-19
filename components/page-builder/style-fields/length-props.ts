@@ -27,6 +27,11 @@ const FONT_SIZE_UNITS = ["px", "rem", "em", "%"]
 // `1.5` — GrapesJS treats `unit === ""` as "no suffix in the composed value".
 const LINE_HEIGHT_UNITS = ["", "px", "em", "%"]
 const LETTER_SPACING_UNITS = ["px", "em", "rem"]
+// Grid track sizing: `min` is the floor inside minmax() — usually 0px or a
+// percentage. `max` is the ceiling — `fr` (fractional flex) is the typical
+// pick, with px/% available for fixed-cap tracks.
+const GRID_TRACK_MIN_UNITS = ["px", "%"]
+const GRID_TRACK_MAX_UNITS = ["fr", "px", "%"]
 
 export const LENGTH_UNITS_BY_PROPERTY: Record<string, string[]> = {
   width: SIZE_UNITS,
@@ -57,6 +62,10 @@ export const LENGTH_UNITS_BY_PROPERTY: Record<string, string[]> = {
   "font-size": FONT_SIZE_UNITS,
   "line-height": LINE_HEIGHT_UNITS,
   "letter-spacing": LETTER_SPACING_UNITS,
+  "grid-template-columns-min": GRID_TRACK_MIN_UNITS,
+  "grid-template-columns-max": GRID_TRACK_MAX_UNITS,
+  "grid-template-rows-min": GRID_TRACK_MIN_UNITS,
+  "grid-template-rows-max": GRID_TRACK_MAX_UNITS,
 }
 
 type LengthPropExtra = Omit<

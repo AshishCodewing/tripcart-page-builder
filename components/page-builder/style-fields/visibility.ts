@@ -10,22 +10,36 @@ import type { StyleContext } from "./use-style-context"
 const VISIBILITY: Record<string, (ctx: StyleContext) => boolean> = {
   // Flex container — visible when this element computes display: flex.
   "flex-direction": (ctx) => ctx.isFlex,
-  "justify-content": (ctx) => ctx.isFlex,
-  "align-items": (ctx) => ctx.isFlex,
-  gap: (ctx) => ctx.isFlex,
-  "row-gap": (ctx) => ctx.isFlex,
-  "column-gap": (ctx) => ctx.isFlex,
+  // Alignment + gap apply to both flex and grid containers.
+  "justify-content": (ctx) => ctx.isFlex || ctx.isGrid,
+  "align-items": (ctx) => ctx.isFlex || ctx.isGrid,
+  gap: (ctx) => ctx.isFlex || ctx.isGrid,
+  "row-gap": (ctx) => ctx.isFlex || ctx.isGrid,
+  "column-gap": (ctx) => ctx.isFlex || ctx.isGrid,
   "flex-wrap": (ctx) => ctx.isFlex,
-  // Only meaningful on multi-line flex containers.
-  "align-content": (ctx) => ctx.isFlex && ctx.flexWrap !== "nowrap",
+  // Multi-line flex containers (needs wrap) — or any grid container, where
+  // align-content always applies (it distributes tracks along the block axis
+  // whenever the grid is smaller than the container).
+  "align-content": (ctx) =>
+    (ctx.isFlex && ctx.flexWrap !== "nowrap") || ctx.isGrid,
+
+  // Grid container — visible when this element computes display: grid.
+  "grid-template-columns": (ctx) => ctx.isGrid,
+  "grid-template-rows": (ctx) => ctx.isGrid,
+  "justify-items": (ctx) => ctx.isGrid,
 
   // Flex child — visible when the parent is a flex container.
-  "align-self": (ctx) => ctx.parentIsFlex,
+  // `align-self` also applies to grid items, so it shows for either parent.
+  "align-self": (ctx) => ctx.parentIsFlex || ctx.parentIsGrid,
   order: (ctx) => ctx.parentIsFlex,
   flex: (ctx) => ctx.parentIsFlex,
   "flex-grow": (ctx) => ctx.parentIsFlex,
   "flex-shrink": (ctx) => ctx.parentIsFlex,
   "flex-basis": (ctx) => ctx.parentIsFlex,
+
+  // Grid child — visible when the parent is a grid container.
+  "grid-area": (ctx) => ctx.parentIsGrid,
+  "justify-self": (ctx) => ctx.parentIsGrid,
 
   // Position offsets are only meaningful when position is non-static.
   top: (ctx) => ctx.position !== "static",

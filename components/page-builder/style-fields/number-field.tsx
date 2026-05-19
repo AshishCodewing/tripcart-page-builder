@@ -88,14 +88,28 @@ export function NumberInput({
   const showSlider =
     slider && typeof min === "number" && typeof max === "number"
 
+  // When the unit chip is visible (multi-unit field), strip the unit from
+  // the displayed value — the chip already shows "px" / "%" / … so showing
+  // it in the input too reads as duplication ("200px  px {}"). Fixed-values
+  // ("auto", "var(--x)") pass through unchanged.
+  const formatDraft = React.useCallback(
+    (raw: string) => {
+      if (units.length <= 1) return raw
+      const s = parseValueShape(raw)
+      if (s.kind === "numeric" && s.unit) return s.number
+      return raw
+    },
+    [units.length]
+  )
+
   // Adjusting state during render (React's documented pattern for resetting
   // local state when a prop changes) so the dropdown's unit swap and the
   // variable-picker insertion both reach the input without a blur dance.
-  const [draft, setDraft] = React.useState(value)
+  const [draft, setDraft] = React.useState(() => formatDraft(value))
   const [lastValue, setLastValue] = React.useState(value)
   if (value !== lastValue) {
     setLastValue(value)
-    setDraft(value)
+    setDraft(formatDraft(value))
   }
 
   if (showSlider) {
@@ -200,7 +214,9 @@ export function NumberInput({
     // configured `units` list, PropertyNumber will drop it; we still let it
     // through so authors aren't blocked by a stale unit list.
     if (next.unit) {
-      onCommit(`${next.number}${next.unit}`)
+      const composed = `${next.number}${next.unit}`
+      setDraft(formatDraft(composed))
+      onCommit(composed)
       return
     }
     // numeric, no unit — compose with current/default. For line-height the
@@ -208,7 +224,7 @@ export function NumberInput({
     if (units.length) {
       const useUnit = currentUnit || units[0] || ""
       const composed = useUnit ? `${next.number}${useUnit}` : next.number
-      setDraft(composed)
+      setDraft(formatDraft(composed))
       onCommit(composed)
       return
     }
