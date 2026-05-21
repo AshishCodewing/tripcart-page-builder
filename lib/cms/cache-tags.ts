@@ -3,4 +3,5 @@ export const cacheTags = {
   post: (slug: string) => `post:${slug}`,
   postIndex: "post-index",
   nav: "nav",
+  tenants: "tenants",
 } as const

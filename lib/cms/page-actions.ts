@@ -17,6 +17,7 @@ export async function createPage(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
   const parentId = (form.get("parentId") as string) || null
+  const tenantId = (form.get("tenantId") as string) || null
 
   if (!title) throw new Error("Title is required.")
   validateSlug(slug)
@@ -25,7 +26,7 @@ export async function createPage(form: FormData): Promise<void> {
   const path = await buildPath(slug, parentId)
 
   const page = await prisma.page.create({
-    data: { slug, path, parentId, title },
+    data: { slug, path, parentId, title, tenantId },
   })
 
   updateTag(cacheTags.nav)
@@ -105,6 +106,7 @@ export async function deletePage(id: string): Promise<void> {
     select: {
       path: true,
       status: true,
+      tenantId: true,
       _count: { select: { children: true } },
     },
   })
@@ -117,5 +119,5 @@ export async function deletePage(id: string): Promise<void> {
   await prisma.page.delete({ where: { id } })
   updateTag(cacheTags.page(page.path))
   if (page.status === "PUBLISHED") updateTag(cacheTags.nav)
-  redirect("/admin/pages")
+  redirect(page.tenantId ? `/admin/tenants/${page.tenantId}` : "/admin/tenants")
 }

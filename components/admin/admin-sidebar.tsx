@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FileTextIcon, NewspaperIcon } from "lucide-react"
+import { BuildingIcon } from "lucide-react"
 
 import {
   Sidebar,
@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 
 const navItems = [
-  { href: "/admin/pages", label: "Pages", icon: FileTextIcon },
-  { href: "/admin/posts", label: "Posts", icon: NewspaperIcon },
+  { href: "/admin/tenants", label: "Tenants", icon: BuildingIcon },
 ]
 
 export function AdminSidebar() {

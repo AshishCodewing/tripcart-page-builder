@@ -11,11 +11,12 @@ import { validateSlug } from "./path"
 export async function createPost(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
+  const tenantId = (form.get("tenantId") as string) || null
 
   if (!title) throw new Error("Title is required.")
   validateSlug(slug)
 
-  const post = await prisma.post.create({ data: { slug, title } })
+  const post = await prisma.post.create({ data: { slug, title, tenantId } })
   redirect(`/admin/posts/${post.id}/edit`)
 }
 
@@ -76,11 +77,11 @@ export async function savePost(id: string, form: FormData): Promise<void> {
 export async function deletePost(id: string): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id },
-    select: { slug: true, status: true },
+    select: { slug: true, status: true, tenantId: true },
   })
   if (!post) return
   await prisma.post.delete({ where: { id } })
   updateTag(cacheTags.post(post.slug))
   if (post.status === "PUBLISHED") updateTag(cacheTags.postIndex)
-  redirect("/admin/posts")
+  redirect(post.tenantId ? `/admin/tenants/${post.tenantId}` : "/admin/tenants")
 }

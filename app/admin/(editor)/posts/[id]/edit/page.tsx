@@ -25,6 +25,7 @@ export default async function EditPostPage({
           title: post.title,
           slug: post.slug,
           excerpt: post.excerpt,
+          tenantId: post.tenantId,
           status: post.status,
           updatedAt: post.updatedAt,
         },

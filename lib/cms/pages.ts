@@ -4,8 +4,9 @@ export async function getPageById(id: string) {
   return prisma.page.findUnique({ where: { id } })
 }
 
-export async function listPages() {
+export async function listPages(tenantId?: string) {
   return prisma.page.findMany({
+    where: tenantId ? { tenantId } : undefined,
     orderBy: [{ path: "asc" }],
     select: {
       id: true,
@@ -14,6 +15,7 @@ export async function listPages() {
       status: true,
       updatedAt: true,
       parentId: true,
+      tenant: { select: { id: true, name: true, slug: true } },
     },
   })
 }

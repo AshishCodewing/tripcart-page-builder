@@ -8,6 +8,7 @@ export type PageRecord = {
   slug: string
   parentId: string | null
   path: string
+  tenantId: string | null
   status: "DRAFT" | "PUBLISHED"
   updatedAt: Date
 }
@@ -17,6 +18,7 @@ export type PostRecord = {
   title: string
   slug: string
   excerpt: string | null
+  tenantId: string | null
   status: "DRAFT" | "PUBLISHED"
   updatedAt: Date
 }
@@ -60,8 +62,14 @@ export const contentKindLabel = (content: EditorContent): string =>
   content.kind === "page" ? "Page" : "Post"
 
 // Where the "back" link in the top-bar dropdown should go.
-export const contentIndexHref = (content: EditorContent): string =>
-  content.kind === "page" ? "/admin/pages" : "/admin/posts"
+export const contentIndexHref = (content: EditorContent): string => {
+  const tenantId =
+    content.kind === "page" ? content.page.tenantId : content.post.tenantId
+  return tenantId ? `/admin/tenants/${tenantId}` : "/admin/tenants"
+}
 
-export const contentIndexLabel = (content: EditorContent): string =>
-  content.kind === "page" ? "Back to pages" : "Back to posts"
+export const contentIndexLabel = (content: EditorContent): string => {
+  const tenantId =
+    content.kind === "page" ? content.page.tenantId : content.post.tenantId
+  return tenantId ? "Back to tenant" : "Back to tenants"
+}
