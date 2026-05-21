@@ -15,10 +15,50 @@ import type { Component, Editor } from "grapesjs"
 // Custom traits exposed on the hero component model. They're stored as plain
 // model props (changeProp: true), so we read them through `get` and bypass
 // `ComponentProperties`'s strict key set with a narrow cast.
-type HeroProp = "heroHeight" | "heroAlign" | "heroBg"
+type HeroProp = "heroHeight" | "heroAlign" | "heroBg" | "heroVariant"
+type HeroVariant = "default" | "minimal" | "announce"
 type HeroComponent = Component & { syncStyles: () => void }
 const getHeroProp = (cmp: Component, key: HeroProp): string =>
   (cmp.get as (k: string) => unknown)(key) as string
+
+// Pure builder: produces the initial child markup from current model props.
+// Called by the function-form `components` at init and again on variant change.
+const buildHeroChildren = (model: Component): string => {
+  const variant = (getHeroProp(model, "heroVariant") ||
+    "default") as HeroVariant
+  const align = getHeroProp(model, "heroAlign") || "left"
+  const isCenter = align === "center"
+  const innerStyle = `text-align:${align};align-items:${
+    isCenter ? "center" : "flex-start"
+  }`
+  const actionsStyle = `justify-content:${isCenter ? "center" : "flex-start"}`
+
+  const eyebrow = `<span class="tc-hero__eyebrow">Tripcart</span>`
+  const title = `<h1 class="tc-hero__title">Build pages worth shipping.</h1>`
+  const subtitle = `
+    <p class="tc-hero__subtitle">
+      Drag, drop, customize. Your brand, your blocks, your pages.
+    </p>`
+  const primaryCta = `
+    <a href="#" class="tc-hero__cta tc-hero__cta--primary">Get started</a>`
+  const secondaryCta = `
+    <a href="#" class="tc-hero__cta tc-hero__cta--secondary">Learn more</a>`
+
+  const body =
+    variant === "minimal"
+      ? `${title}${subtitle}`
+      : variant === "announce"
+        ? `${eyebrow}${title}
+           <div class="tc-hero__actions" style="${actionsStyle}">
+             ${primaryCta}
+           </div>`
+        : `${eyebrow}${title}${subtitle}
+           <div class="tc-hero__actions" style="${actionsStyle}">
+             ${primaryCta}${secondaryCta}
+           </div>`
+
+  return `<div class="tc-hero__inner" style="${innerStyle}">${body}</div>`
+}
 
 const heroCss = `
 .tc-hero {
@@ -135,7 +175,7 @@ export const registerHeroBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "Hero Section",
-        attributes: { class: "tc-hero" },
+        classes: ["tc-hero"],
 
         droppable: false,
         draggable: true,
@@ -145,26 +185,30 @@ export const registerHeroBlock = (editor: Editor): void => {
         styles: heroCss,
 
         // ── Component children ─────────────────────────────────────────
-        components: `
-          <div class="tc-hero__inner">
-            <span class="tc-hero__eyebrow">Tripcart</span>
-            <h1 class="tc-hero__title">Build pages worth shipping.</h1>
-            <p class="tc-hero__subtitle">
-              Drag, drop, customize. Your brand, your blocks, your pages.
-            </p>
-            <div class="tc-hero__actions">
-              <a href="#" class="tc-hero__cta tc-hero__cta--primary">
-                Get started
-              </a>
-              <a href="#" class="tc-hero__cta tc-hero__cta--secondary">
-                Learn more
-              </a>
-            </div>
-          </div>
-        `,
+        // Function form: GrapesJS calls this once at instantiation. The
+        // builder picks a child tree based on `heroVariant` and seeds inline
+        // styles from `heroAlign`. On import of existing HTML, the parsed
+        // children take precedence and this function isn't used.
+        //
+        // Cast: GrapesJS docs document `components` as accepting a function,
+        // but its `ComponentDefinition` type only lists string/object/array.
+        components: ((model: Component) =>
+          buildHeroChildren(model)) as unknown as string,
 
         // ── Traits ─────────────────────────────────────────────────────
         traits: [
+          {
+            type: "select",
+            label: "Variant",
+            name: "heroVariant",
+            changeProp: true,
+            options: [
+              { id: "default", label: "Eyebrow + CTAs" },
+              { id: "minimal", label: "Title only" },
+              { id: "announce", label: "Announcement" },
+            ],
+            default: "default",
+          },
           {
             type: "select",
             label: "Min Height",
@@ -197,6 +241,7 @@ export const registerHeroBlock = (editor: Editor): void => {
           },
         ],
 
+        heroVariant: "default",
         heroHeight: "100svh",
         heroAlign: "left",
         heroBg: "",
@@ -206,6 +251,12 @@ export const registerHeroBlock = (editor: Editor): void => {
         this.on("change:heroHeight", this.syncStyles)
         this.on("change:heroAlign", this.syncStyles)
         this.on("change:heroBg", this.syncStyles)
+        // Variant flip rebuilds the subtree, then re-applies trait-driven
+        // styles since `components()` replacement wipes prior inline styles.
+        this.on("change:heroVariant", () => {
+          this.components(buildHeroChildren(this))
+          this.syncStyles()
+        })
       },
 
       syncStyles(this: HeroComponent) {
@@ -237,26 +288,70 @@ export const registerHeroBlock = (editor: Editor): void => {
   })
 
   // ── Block registration ──────────────────────────────────────────────────
+  // Three blocks share one component type. Each pre-seeds `heroVariant`, so
+  // the function-form `components` builder produces a different child tree
+  // depending on which block the user drops onto the canvas.
 
-  editor.Blocks.add("tc-hero", {
-    label: "Hero",
-    category: "Sections",
-    // Marks this block as a pattern so the React block-inserter routes it
-    // into the "Patterns" tab. Read via `block.get('attributes')`.
-    attributes: { "data-pattern": "true" },
-    activate: true,
-    resetId: true,
-    content: { type: "hero-section" },
-    media: `
-      <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1"  y="1"  width="58" height="42" rx="3" fill="#1e1e2e"/>
-        <rect x="6"  y="9"  width="20" height="3"  rx="1"   fill="#6366f1" opacity=".5"/>
-        <rect x="6"  y="15" width="40" height="7"  rx="1.5" fill="#e2e8f0"/>
-        <rect x="6"  y="25" width="32" height="3"  rx="1"   fill="#9ca3af"/>
-        <rect x="6"  y="33" width="13" height="6"  rx="1.5" fill="#6366f1"/>
-        <rect x="21" y="33" width="13" height="6"  rx="1.5" fill="none"
-              stroke="#9ca3af" stroke-width="1"/>
-      </svg>
-    `,
+  const heroBlocks: Array<{
+    id: string
+    label: string
+    variant: HeroVariant
+    media: string
+  }> = [
+    {
+      id: "tc-hero",
+      label: "Hero",
+      variant: "default",
+      media: `
+        <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1"  y="1"  width="58" height="42" rx="3" fill="#1e1e2e"/>
+          <rect x="6"  y="9"  width="20" height="3"  rx="1"   fill="#6366f1" opacity=".5"/>
+          <rect x="6"  y="15" width="40" height="7"  rx="1.5" fill="#e2e8f0"/>
+          <rect x="6"  y="25" width="32" height="3"  rx="1"   fill="#9ca3af"/>
+          <rect x="6"  y="33" width="13" height="6"  rx="1.5" fill="#6366f1"/>
+          <rect x="21" y="33" width="13" height="6"  rx="1.5" fill="none"
+                stroke="#9ca3af" stroke-width="1"/>
+        </svg>
+      `,
+    },
+    {
+      id: "tc-hero-minimal",
+      label: "Hero · Minimal",
+      variant: "minimal",
+      media: `
+        <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1"  y="1"  width="58" height="42" rx="3" fill="#1e1e2e"/>
+          <rect x="6"  y="15" width="44" height="7"  rx="1.5" fill="#e2e8f0"/>
+          <rect x="6"  y="26" width="36" height="3"  rx="1"   fill="#9ca3af"/>
+        </svg>
+      `,
+    },
+    {
+      id: "tc-hero-announce",
+      label: "Hero · Announce",
+      variant: "announce",
+      media: `
+        <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1"  y="1"  width="58" height="42" rx="3" fill="#1e1e2e"/>
+          <rect x="6"  y="9"  width="20" height="3"  rx="1"   fill="#6366f1" opacity=".5"/>
+          <rect x="6"  y="15" width="44" height="7"  rx="1.5" fill="#e2e8f0"/>
+          <rect x="6"  y="30" width="13" height="6"  rx="1.5" fill="#6366f1"/>
+        </svg>
+      `,
+    },
+  ]
+
+  heroBlocks.forEach(({ id, label, variant, media }) => {
+    editor.Blocks.add(id, {
+      label,
+      category: "Sections",
+      // Marks this block as a pattern so the React block-inserter routes it
+      // into the "Patterns" tab. Read via `block.get('attributes')`.
+      attributes: { "data-pattern": "true" },
+      activate: true,
+      resetId: true,
+      content: { type: "hero-section", heroVariant: variant },
+      media,
+    })
   })
 }

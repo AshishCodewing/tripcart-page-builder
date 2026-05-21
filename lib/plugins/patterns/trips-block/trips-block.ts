@@ -166,7 +166,8 @@ export const registerTripsBlock = (editor: Editor): void => {
       defaults: {
         tagName: "a",
         name: "Trip Card",
-        attributes: { class: "tc-trip-card", href: "#" },
+        classes: ["tc-trip-card"],
+        attributes: { href: "#" },
 
         draggable: ".tc-trips__grid",
         droppable: false,
@@ -197,7 +198,7 @@ export const registerTripsBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "Trip Cards",
-        attributes: { class: "tc-trips" },
+        classes: ["tc-trips"],
 
         droppable: false,
         draggable: true,
@@ -209,11 +210,11 @@ export const registerTripsBlock = (editor: Editor): void => {
         components: [
           {
             tagName: "div",
-            attributes: { class: "tc-trips__inner" },
+            classes: ["tc-trips__inner"],
             components: [
               {
                 tagName: "div",
-                attributes: { class: "tc-trips__header" },
+                classes: ["tc-trips__header"],
                 components: `
                   <div class="tc-trips__heading">
                     <span class="tc-trips__eyebrow">Hand-picked</span>
@@ -230,7 +231,7 @@ export const registerTripsBlock = (editor: Editor): void => {
               },
               {
                 tagName: "div",
-                attributes: { class: "tc-trips__grid" },
+                classes: ["tc-trips__grid"],
                 droppable: '[data-gjs-type="trip-card"]',
                 components: [
                   { type: "trip-card" },

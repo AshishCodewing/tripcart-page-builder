@@ -114,7 +114,7 @@ export const registerTestimonialBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "Testimonial",
-        attributes: { class: "tc-testimonial" },
+        classes: ["tc-testimonial"],
 
         droppable: false,
         draggable: true,

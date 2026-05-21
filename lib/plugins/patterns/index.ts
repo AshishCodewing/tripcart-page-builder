@@ -20,11 +20,17 @@ import {
   ctaSectionType,
   registerCtaBlock,
 } from "./cta-block/cta-block"
+import { registerCardBlocks } from "./cards/cards"
+import { registerTestimonialBlock } from "./testimonial-block/testimonial-block"
+import { registerTripsBlock } from "./trips-block/trips-block"
 
 export const patternsPlugin = (editor: Editor): void => {
   registerHeroBlock(editor)
   registerAboutBlock(editor)
   registerCtaBlock(editor)
+  registerCardBlocks(editor)
+  registerTestimonialBlock(editor)
+  registerTripsBlock(editor)
 }
 
 export const patternComponents: Record<string, ComponentConfig> = {

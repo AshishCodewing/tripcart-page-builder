@@ -167,7 +167,7 @@ export const registerAboutBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "About",
-        attributes: { class: "tc-about" },
+        classes: ["tc-about"],
 
         droppable: false,
         draggable: true,
