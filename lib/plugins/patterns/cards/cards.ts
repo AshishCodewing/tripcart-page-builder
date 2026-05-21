@@ -1,10 +1,12 @@
 // Card pattern family — demonstration set for GrapesJS' component-type
-// extension mechanics. Three variants share a single base type, then a
-// late-stage patch adds a theme trait that propagates to all of them.
+// extension mechanics. Three variants share a single base type.
 //
 //   • `tc-card-base`            — shared behavior carrier (no Block). Owns
-//                                 the analytics trait and the BEM-rooted
-//                                 wrapper element. Variants inherit from it.
+//                                 the analytics + theme traits, BEM-rooted
+//                                 wrapper, and shared listeners. Everything
+//                                 that should be inherited lives here, in
+//                                 the *initial* defaults — see the comment
+//                                 above its declaration for why.
 //   • `tc-card-feature`         — uses `extend: 'tc-card-base'`. Icon + title
 //                                 + body. Adds its own `view` with a click
 //                                 handler on the icon.
@@ -14,12 +16,12 @@
 //                                 model AND `extendView: 'tc-card-feature'`
 //                                 to mix in feature's view behavior on a
 //                                 different model.
-//   • Patch on `tc-card-base`   — re-calls `addType('tc-card-base', …)` to
-//                                 inject a `cardTheme` trait + listener.
-//                                 Because the variants extend the base, all
-//                                 three inherit the new trait without edits.
-//   • Patch on built-in `image` — adds `loading="lazy"` + `decoding="async"`
-//                                 globally. Shows cross-cutting augmentation.
+//   • Patch on built-in `image` — re-calls `addType('image', …)` to add
+//                                 `loading="lazy"` + `decoding="async"`
+//                                 globally. The only "update component
+//                                 type" demo in this file — patching a
+//                                 type nothing else `extend`s from is the
+//                                 safe shape for this mechanic.
 //
 // Tokens: Open Props (`--size-*`, `--font-*`, `--radius-*`, `--gray-*-hsl`,
 // `--indigo-*-hsl`, `--shadow-*`) and the design-system theme vars
@@ -80,7 +82,11 @@ const cardsCss = `
 }
 
 /* ── Feature variant ──────────────────────────────────────────────────── */
-.tc-card--feature .tc-card__icon {
+/* Child class names are variant-unique (only feature cards mount
+   .tc-card__icon, only stat cards mount .tc-card__stat-*, etc.), so the
+   ancestor selector adds nothing functional and was blocking the Style
+   Manager parent-target cascade for those children. */
+.tc-card__icon {
   inline-size: var(--size-7);
   block-size: var(--size-7);
   display: grid;
@@ -93,7 +99,7 @@ const cardsCss = `
   cursor: pointer;
 }
 
-.tc-card--feature .tc-card__title {
+.tc-card__title {
   font-family: var(--font-heading, var(--font-sans));
   font-size: var(--font-size-4);
   font-weight: var(--font-weight-8);
@@ -102,7 +108,7 @@ const cardsCss = `
   margin: 0;
 }
 
-.tc-card--feature .tc-card__body {
+.tc-card__body {
   font-size: var(--font-size-2);
   line-height: 1.55;
   color: var(--tc-card-muted);
@@ -116,7 +122,7 @@ const cardsCss = `
   gap: var(--size-2);
 }
 
-.tc-card--stat .tc-card__stat-value {
+.tc-card__stat-value {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(2.5rem, 5vw, 3.5rem);
   font-weight: var(--font-weight-9);
@@ -125,7 +131,7 @@ const cardsCss = `
   color: var(--tc-card-accent);
 }
 
-.tc-card--stat .tc-card__stat-label {
+.tc-card__stat-label {
   font-size: var(--font-size-1);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.12em;
@@ -133,7 +139,7 @@ const cardsCss = `
   color: var(--tc-card-fg);
 }
 
-.tc-card--stat .tc-card__stat-caption {
+.tc-card__stat-caption {
   font-size: var(--font-size-1);
   line-height: 1.55;
   color: var(--tc-card-muted);
@@ -159,7 +165,7 @@ const cardsCss = `
   pointer-events: none;
 }
 
-.tc-card--quote .tc-card__quote {
+.tc-card__quote {
   font-family: var(--font-heading, var(--font-sans));
   font-size: var(--font-size-4);
   font-weight: var(--font-weight-6);
@@ -169,18 +175,18 @@ const cardsCss = `
   text-wrap: balance;
 }
 
-.tc-card--quote .tc-card__attribution {
+.tc-card__attribution {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
-.tc-card--quote .tc-card__author {
+.tc-card__author {
   font-size: var(--font-size-2);
   font-weight: var(--font-weight-7);
 }
 
-.tc-card--quote .tc-card__role {
+.tc-card__role {
   font-size: var(--font-size-1);
   color: var(--tc-card-muted);
 }
@@ -200,8 +206,15 @@ const cardThemeOptions = [
 export const registerCardBlocks = (editor: Editor): void => {
   // ── 1. Base type ──────────────────────────────────────────────────────
   // Pure behavior carrier. No Block is registered for it — the user can't
-  // drop a "base card" onto the canvas. Its job is to centralize the
-  // analytics trait + listener so every variant inherits both for free.
+  // drop a "base card" onto the canvas. Its job is to centralize traits +
+  // listeners every variant should inherit.
+  //
+  // IMPORTANT: every inheritable trait/init must live HERE, in the initial
+  // declaration. Variants register with `extend: 'tc-card-base'`, which
+  // captures the parent's defaults at extension time. A later
+  // `addType('tc-card-base', …)` patch does NOT retroactively propagate
+  // its added traits/init to types that have already been extended from
+  // this one. So if you want every card to get a new trait, add it here.
   editor.DomComponents.addType("tc-card-base", {
     isComponent: (el: HTMLElement) => el.classList?.contains("tc-card"),
 
@@ -225,8 +238,17 @@ export const registerCardBlocks = (editor: Editor): void => {
             placeholder: "e.g. home-feature-1",
             changeProp: true,
           },
+          {
+            type: "select",
+            name: "cardTheme",
+            label: "Theme",
+            options: cardThemeOptions,
+            default: "light",
+            changeProp: true,
+          },
         ],
         cardTrack: "",
+        cardTheme: "light",
       },
 
       init(this: CardComponent) {
@@ -236,6 +258,19 @@ export const registerCardBlocks = (editor: Editor): void => {
           const id = getCardProp(this, "cardTrack")
           this.addAttributes({ "data-track": id || null })
         })
+        this.on("change:cardTheme", this.applyCardTheme)
+      },
+
+      applyCardTheme(this: CardComponent) {
+        const theme = getCardProp(this, "cardTheme") || "light"
+        const classes = this.getClasses() as string[]
+        // Strip any prior theme modifier, then add the new one. `light` is
+        // the implicit default so it gets no class.
+        const cleaned = classes.filter(
+          (c: string) => !c.startsWith("tc-card--theme-")
+        )
+        this.setClass(cleaned)
+        if (theme !== "light") this.addClass(`tc-card--theme-${theme}`)
       },
     },
   })
@@ -330,62 +365,7 @@ export const registerCardBlocks = (editor: Editor): void => {
     },
   })
 
-  // ── 5. Update component type — patch `tc-card-base` ───────────────────
-  // Re-calling addType on an existing id merges into the type in place.
-  // `defaults` shallow-merges, so the existing traits array is overwritten
-  // (not concatenated). To preserve the analytics trait we re-list it
-  // alongside the new one. `init` is fully replaced, so we re-attach the
-  // analytics listener AND wire up the new theme one.
-  //
-  // The variants registered above (feature/stat/quote) all `extend` this
-  // base, so they inherit these additions automatically — no per-variant
-  // edits needed. That's the point of the patch.
-  editor.DomComponents.addType("tc-card-base", {
-    model: {
-      defaults: {
-        traits: [
-          {
-            type: "text",
-            name: "cardTrack",
-            label: "Analytics ID",
-            placeholder: "e.g. home-feature-1",
-            changeProp: true,
-          },
-          {
-            type: "select",
-            name: "cardTheme",
-            label: "Theme",
-            options: cardThemeOptions,
-            default: "light",
-            changeProp: true,
-          },
-        ],
-        cardTheme: "light",
-      },
-
-      init(this: CardComponent) {
-        this.on("change:cardTrack", () => {
-          const id = getCardProp(this, "cardTrack")
-          this.addAttributes({ "data-track": id || null })
-        })
-        this.on("change:cardTheme", this.applyCardTheme)
-      },
-
-      applyCardTheme(this: CardComponent) {
-        const theme = getCardProp(this, "cardTheme") || "light"
-        const classes = this.getClasses() as string[]
-        // Strip any prior theme modifier, then add the new one. `light` is
-        // the implicit default so it gets no class.
-        const cleaned = classes.filter(
-          (c: string) => !c.startsWith("tc-card--theme-")
-        )
-        this.setClass(cleaned)
-        if (theme !== "light") this.addClass(`tc-card--theme-${theme}`)
-      },
-    },
-  })
-
-  // ── 6. Update component type — patch built-in `image` ─────────────────
+  // ── 5. Update component type — patch built-in `image` ─────────────────
   // Cross-cutting augmentation: every image in the editor now defaults to
   // lazy loading and async decoding. The original image model/view are
   // untouched otherwise. Demonstrates patching a type you don't own.

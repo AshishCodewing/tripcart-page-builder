@@ -15,7 +15,7 @@ const testimonialCss = `
   overflow: hidden;
 }
 
-.tc-testimonial .tc-testimonial__inner {
+.tc-testimonial__inner {
   position: relative;
   max-width: 64rem;
   margin-inline: auto;
@@ -27,7 +27,7 @@ const testimonialCss = `
 }
 
 /* Oversized opening quote — purely decorative. */
-.tc-testimonial .tc-testimonial__mark {
+.tc-testimonial__mark {
   font-family: var(--font-heading, var(--font-serif, serif));
   font-size: clamp(7rem, 14vw, 12rem);
   line-height: 0.7;
@@ -40,7 +40,7 @@ const testimonialCss = `
   align-self: center;
 }
 
-.tc-testimonial .tc-testimonial__quote {
+.tc-testimonial__quote {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(1.625rem, 3.4vw, 2.5rem);
   line-height: 1.22;
@@ -51,13 +51,13 @@ const testimonialCss = `
   max-width: 48rem;
 }
 
-.tc-testimonial .tc-testimonial__quote em {
+.tc-testimonial__quote em {
   font-style: italic;
   color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
-.tc-testimonial .tc-testimonial__attribution {
+.tc-testimonial__attribution {
   display: flex;
   align-items: center;
   gap: clamp(0.875rem, 1.6vw, 1.125rem);
@@ -65,7 +65,7 @@ const testimonialCss = `
   border-block-start: 1px solid var(--theme-border, color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 12%, transparent));
 }
 
-.tc-testimonial .tc-testimonial__avatar {
+.tc-testimonial__avatar {
   width: clamp(2.75rem, 4vw, 3.25rem);
   height: clamp(2.75rem, 4vw, 3.25rem);
   border-radius: 999px;
@@ -76,7 +76,7 @@ const testimonialCss = `
   box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.12);
 }
 
-.tc-testimonial .tc-testimonial__author {
+.tc-testimonial__author {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -84,7 +84,7 @@ const testimonialCss = `
   text-align: start;
 }
 
-.tc-testimonial .tc-testimonial__author-name {
+.tc-testimonial__author-name {
   font-family: var(--font-heading, var(--font-sans));
   font-size: var(--font-size-2, 1.0625rem);
   font-weight: var(--font-weight-7);
@@ -93,13 +93,13 @@ const testimonialCss = `
   line-height: 1.2;
 }
 
-.tc-testimonial .tc-testimonial__author-meta {
+.tc-testimonial__author-meta {
   font-size: var(--font-size-0, 0.8125rem);
   color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
   letter-spacing: 0.04em;
 }
 
-.tc-testimonial .tc-testimonial__divider {
+.tc-testimonial__divider {
   width: 1px;
   height: 1.5rem;
   background: var(--theme-border, color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 20%, transparent));

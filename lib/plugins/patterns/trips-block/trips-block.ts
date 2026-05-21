@@ -12,12 +12,12 @@ const tripsCss = `
   font-family: var(--font-body, var(--font-sans));
 }
 
-.tc-trips .tc-trips__inner {
+.tc-trips__inner {
   max-width: 78rem;
   margin-inline: auto;
 }
 
-.tc-trips .tc-trips__header {
+.tc-trips__header {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   align-items: end;
@@ -26,19 +26,19 @@ const tripsCss = `
 }
 
 @media (max-width: 720px) {
-  .tc-trips .tc-trips__header {
+  .tc-trips__header {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
 }
 
-.tc-trips .tc-trips__heading {
+.tc-trips__heading {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
 }
 
-.tc-trips .tc-trips__eyebrow {
+.tc-trips__eyebrow {
   font-size: var(--font-size-0);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
@@ -47,7 +47,7 @@ const tripsCss = `
   margin: 0;
 }
 
-.tc-trips .tc-trips__title {
+.tc-trips__title {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(1.875rem, 4vw, 3.25rem);
   line-height: 1.05;
@@ -57,13 +57,13 @@ const tripsCss = `
   text-wrap: balance;
 }
 
-.tc-trips .tc-trips__title em {
+.tc-trips__title em {
   font-style: italic;
   color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
-.tc-trips .tc-trips__lede {
+.tc-trips__lede {
   font-size: clamp(0.9375rem, 1.2vw, 1.0625rem);
   line-height: 1.55;
   color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
@@ -74,26 +74,32 @@ const tripsCss = `
 }
 
 @media (max-width: 720px) {
-  .tc-trips .tc-trips__lede { justify-self: start; text-align: start; }
+  .tc-trips__lede { justify-self: start; text-align: start; }
 }
 
-.tc-trips .tc-trips__grid {
+.tc-trips__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(1rem, 2.4vw, 1.75rem);
 }
 
 @media (max-width: 880px) {
-  .tc-trips .tc-trips__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tc-trips__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
-  .tc-trips .tc-trips__grid { grid-template-columns: 1fr; }
+  .tc-trips__grid { grid-template-columns: 1fr; }
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
 
 .tc-trip-card {
+  /* CSS-var bridge: a flat .tc-trip-card:hover rule drives the child
+     image's scale via a custom property the .tc-trip-card__image rule
+     reads. Required because GrapesJS parses descendant selectors into a
+     flat list and won't match descendant rules against single-class child
+     components. */
+  --trip-card-image-scale: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(0.875rem, 1.4vw, 1.125rem);
@@ -103,9 +109,12 @@ const tripsCss = `
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-trip-card:hover { transform: translateY(-3px); }
+.tc-trip-card:hover {
+  transform: translateY(-3px);
+  --trip-card-image-scale: 1.04;
+}
 
-.tc-trip-card .tc-trip-card__media {
+.tc-trip-card__media {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
@@ -113,24 +122,23 @@ const tripsCss = `
   background: color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
-.tc-trip-card .tc-trip-card__image {
+.tc-trip-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transform: scale(var(--trip-card-image-scale, 1));
   transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-trip-card:hover .tc-trip-card__image { transform: scale(1.04); }
-
-.tc-trip-card .tc-trip-card__body {
+.tc-trip-card__body {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
   padding-inline: 0.125rem;
 }
 
-.tc-trip-card .tc-trip-card__eyebrow {
+.tc-trip-card__eyebrow {
   font-size: var(--font-size-0, 0.8125rem);
   font-weight: var(--font-weight-6);
   letter-spacing: 0.14em;
@@ -138,7 +146,7 @@ const tripsCss = `
   color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
 }
 
-.tc-trip-card .tc-trip-card__title {
+.tc-trip-card__title {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(1.125rem, 1.7vw, 1.375rem);
   line-height: 1.2;
@@ -151,7 +159,7 @@ const tripsCss = `
 
 @media (prefers-reduced-motion: reduce) {
   .tc-trip-card,
-  .tc-trip-card .tc-trip-card__image { transition: none; }
+  .tc-trip-card__image { transition: none; }
 }
 `
 

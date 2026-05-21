@@ -72,7 +72,7 @@ const heroCss = `
   color: var(--theme-foreground, var(--text-1));
 }
 
-.tc-hero .tc-hero__inner {
+.tc-hero__inner {
   width: 100%;
   max-width: var(--size-content-3);
   display: flex;
@@ -82,7 +82,7 @@ const heroCss = `
   gap: clamp(0.5rem, 1.2vw, 1rem);
 }
 
-.tc-hero .tc-hero__eyebrow {
+.tc-hero__eyebrow {
   font-size: var(--font-size-1);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.16em;
@@ -90,7 +90,7 @@ const heroCss = `
   color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
 }
 
-.tc-hero .tc-hero__title {
+.tc-hero__title {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(2.25rem, 6.5vw, 5.25rem);
   line-height: 1.02;
@@ -101,7 +101,7 @@ const heroCss = `
   color: var(--theme-foreground, var(--text-1));
 }
 
-.tc-hero .tc-hero__subtitle {
+.tc-hero__subtitle {
   font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
   line-height: 1.55;
   max-width: 56ch;
@@ -110,7 +110,7 @@ const heroCss = `
   margin-block-start: clamp(0.25rem, 0.8vw, 0.75rem);
 }
 
-.tc-hero .tc-hero__actions {
+.tc-hero__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--size-3);
@@ -118,7 +118,7 @@ const heroCss = `
   margin-block-start: clamp(0.75rem, 1.6vw, 1.5rem);
 }
 
-.tc-hero .tc-hero__cta {
+.tc-hero__cta {
   display: inline-flex;
   align-items: center;
   gap: var(--size-2);
@@ -134,35 +134,35 @@ const heroCss = `
     border-color     220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-hero .tc-hero__cta:focus-visible {
+.tc-hero__cta:focus-visible {
   outline: 2px solid var(--theme-primary, hsl(var(--indigo-6-hsl)));
   outline-offset: 3px;
 }
 
-.tc-hero .tc-hero__cta--primary {
+.tc-hero__cta--primary {
   background: var(--theme-primary, hsl(var(--indigo-6-hsl)));
   color: var(--theme-primary-foreground, hsl(var(--gray-0-hsl)));
   border-color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
 }
 
-.tc-hero .tc-hero__cta--primary:hover {
+.tc-hero__cta--primary:hover {
   background: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
   border-color: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
 }
 
-.tc-hero .tc-hero__cta--secondary {
+.tc-hero__cta--secondary {
   background: transparent;
   color: var(--theme-foreground, var(--text-1));
   border-color: color-mix(in oklch, var(--theme-foreground, currentColor) 28%, transparent);
 }
 
-.tc-hero .tc-hero__cta--secondary:hover {
+.tc-hero__cta--secondary:hover {
   border-color: var(--theme-foreground, currentColor);
   background: color-mix(in oklch, var(--theme-foreground, currentColor) 6%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tc-hero .tc-hero__cta { transition: none; }
+  .tc-hero__cta { transition: none; }
 }
 `
 export const registerHeroBlock = (editor: Editor): void => {

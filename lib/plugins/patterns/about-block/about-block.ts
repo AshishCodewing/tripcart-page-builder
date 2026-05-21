@@ -13,7 +13,19 @@ const aboutCss = `
   font-family: var(--font-body, var(--font-sans));
 }
 
-.tc-about .tc-about__inner {
+.tc-about {
+  /* CSS-var bridge: a flat .tc-about:hover rule drives the image scale via
+     a custom property the .tc-about__image rule reads. Required because
+     GrapesJS parses descendant selectors into a flat selector list and
+     won't match descendant rules against single-class child components. */
+  --about-image-scale: 1;
+}
+
+.tc-about:hover {
+  --about-image-scale: 1.025;
+}
+
+.tc-about__inner {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: clamp(2rem, 5vw, 5rem);
@@ -23,20 +35,20 @@ const aboutCss = `
 }
 
 @media (max-width: 880px) {
-  .tc-about .tc-about__inner {
+  .tc-about__inner {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
 }
 
-.tc-about .tc-about__copy {
+.tc-about__copy {
   display: flex;
   flex-direction: column;
   gap: clamp(0.75rem, 1.5vw, 1.25rem);
   max-width: 36rem;
 }
 
-.tc-about .tc-about__eyebrow {
+.tc-about__eyebrow {
   font-family: var(--font-body, var(--font-sans));
   font-size: var(--font-size-0);
   font-weight: var(--font-weight-7);
@@ -46,7 +58,7 @@ const aboutCss = `
   margin: 0;
 }
 
-.tc-about .tc-about__title {
+.tc-about__title {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(2rem, 4.4vw, 3.75rem);
   line-height: 1.04;
@@ -56,13 +68,13 @@ const aboutCss = `
   text-wrap: balance;
 }
 
-.tc-about .tc-about__title em {
+.tc-about__title em {
   font-style: italic;
   color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
-.tc-about .tc-about__lede {
+.tc-about__lede {
   font-size: clamp(1.0625rem, 1.3vw, 1.1875rem);
   line-height: 1.6;
   color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
@@ -70,7 +82,7 @@ const aboutCss = `
   margin: 0;
 }
 
-.tc-about .tc-about__meta {
+.tc-about__meta {
   display: flex;
   flex-wrap: wrap;
   gap: clamp(1.25rem, 3vw, 2rem);
@@ -79,13 +91,13 @@ const aboutCss = `
   border-block-start: 1px solid var(--theme-border, color-mix(in oklch, hsl(var(--gray-12-hsl)) 12%, transparent));
 }
 
-.tc-about .tc-about__meta-item {
+.tc-about__meta-item {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
-.tc-about .tc-about__meta-value {
+.tc-about__meta-value {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(1.5rem, 2.4vw, 1.875rem);
   font-weight: var(--font-weight-8);
@@ -94,14 +106,14 @@ const aboutCss = `
   color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
 }
 
-.tc-about .tc-about__meta-label {
+.tc-about__meta-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
 }
 
-.tc-about .tc-about__media {
+.tc-about__media {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
@@ -109,19 +121,16 @@ const aboutCss = `
   background: color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
-.tc-about .tc-about__image {
+.tc-about__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transform: scale(var(--about-image-scale, 1));
   transition: transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-about:hover .tc-about__image {
-  transform: scale(1.025);
-}
-
-.tc-about .tc-about__badge {
+.tc-about__badge {
   position: absolute;
   inset-inline-start: clamp(0.875rem, 2vw, 1.5rem);
   inset-block-end: clamp(0.875rem, 2vw, 1.5rem);
@@ -138,7 +147,7 @@ const aboutCss = `
   max-width: calc(100% - 2rem);
 }
 
-.tc-about .tc-about__badge-value {
+.tc-about__badge-value {
   font-family: var(--font-heading, var(--font-sans));
   font-size: clamp(1.375rem, 2.2vw, 1.75rem);
   font-weight: var(--font-weight-9);
@@ -147,7 +156,7 @@ const aboutCss = `
   color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
 }
 
-.tc-about .tc-about__badge-label {
+.tc-about__badge-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -155,7 +164,7 @@ const aboutCss = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tc-about .tc-about__image { transition: none; }
+  .tc-about__image { transition: none; }
 }
 `
 
