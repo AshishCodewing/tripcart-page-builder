@@ -26,7 +26,7 @@ import {
   presetVarName,
   type PresetCategory,
 } from "@/lib/theme/compile"
-import type { Theme, Token } from "@/lib/theme/schema"
+import type { FontSizeToken, Theme, Token } from "@/lib/theme/schema"
 
 export type ActivePresetId = Partial<Record<PresetCategory, string>>
 
@@ -100,6 +100,81 @@ const fontFamilies: Token[] = [
   { slug: "heading", name: "Heading Font", value: "var(--font-sans)" },
 ]
 
+// Font-size scale follows WP's small/medium/large/x-large/xx-large
+// labels mapped onto Open Props' modular scale. `medium` is the body
+// baseline (1rem); the steps roughly double-and-a-half.
+const fontSizes: FontSizeToken[] = [
+  { slug: "small", name: "Small", value: "var(--font-size-0)" },
+  { slug: "medium", name: "Medium", value: "var(--font-size-1)" },
+  { slug: "large", name: "Large", value: "var(--font-size-3)" },
+  { slug: "x-large", name: "Extra Large", value: "var(--font-size-5)" },
+  { slug: "xx-large", name: "2X Large", value: "var(--font-size-7)" },
+]
+
+const fontWeights: Token[] = [
+  { slug: "light", name: "Light", value: "var(--font-weight-3)" },
+  { slug: "regular", name: "Regular", value: "var(--font-weight-4)" },
+  { slug: "medium", name: "Medium", value: "var(--font-weight-5)" },
+  { slug: "semibold", name: "Semibold", value: "var(--font-weight-6)" },
+  { slug: "bold", name: "Bold", value: "var(--font-weight-7)" },
+]
+
+const lineHeights: Token[] = [
+  { slug: "tight", name: "Tight", value: "var(--font-lineheight-0)" },
+  { slug: "snug", name: "Snug", value: "var(--font-lineheight-1)" },
+  { slug: "normal", name: "Normal", value: "var(--font-lineheight-3)" },
+  { slug: "relaxed", name: "Relaxed", value: "var(--font-lineheight-4)" },
+]
+
+const letterSpacings: Token[] = [
+  { slug: "tight", name: "Tight", value: "var(--font-letterspacing--1)" },
+  { slug: "normal", name: "Normal", value: "var(--font-letterspacing-0)" },
+  { slug: "wide", name: "Wide", value: "var(--font-letterspacing-2)" },
+]
+
+// Spacing scale follows Tailwind-conventional names mapped onto Open
+// Props sizes. `md` is roughly 1rem so it lines up with the body
+// font-size baseline. The step ratios are uneven on purpose — picked
+// for usable rhythm rather than mechanical doubling.
+const spacingSizes: Token[] = [
+  { slug: "xs", name: "Extra Small", value: "var(--size-1)" },
+  { slug: "sm", name: "Small", value: "var(--size-2)" },
+  { slug: "md", name: "Medium", value: "var(--size-4)" },
+  { slug: "lg", name: "Large", value: "var(--size-6)" },
+  { slug: "xl", name: "Extra Large", value: "var(--size-8)" },
+  { slug: "xxl", name: "2X Large", value: "var(--size-10)" },
+]
+
+const borderRadii: Token[] = [
+  { slug: "sm", name: "Small", value: "var(--radius-1)" },
+  { slug: "md", name: "Medium", value: "var(--radius-2)" },
+  { slug: "lg", name: "Large", value: "var(--radius-3)" },
+  { slug: "xl", name: "Extra Large", value: "var(--radius-4)" },
+  { slug: "full", name: "Full", value: "var(--radius-round)" },
+]
+
+const borderWidths: Token[] = [
+  { slug: "thin", name: "Thin", value: "var(--border-size-1)" },
+  { slug: "medium", name: "Medium", value: "var(--border-size-2)" },
+  { slug: "thick", name: "Thick", value: "var(--border-size-3)" },
+]
+
+// border.styles are CSS keywords, not Open Props vars — Open Props
+// doesn't model these.
+const borderStyles: Token[] = [
+  { slug: "solid", name: "Solid", value: "solid" },
+  { slug: "dashed", name: "Dashed", value: "dashed" },
+  { slug: "dotted", name: "Dotted", value: "dotted" },
+]
+
+const shadowPresets: Token[] = [
+  { slug: "sm", name: "Small", value: "var(--shadow-1)" },
+  { slug: "md", name: "Medium", value: "var(--shadow-2)" },
+  { slug: "lg", name: "Large", value: "var(--shadow-3)" },
+  { slug: "xl", name: "Extra Large", value: "var(--shadow-4)" },
+  { slug: "xxl", name: "2X Large", value: "var(--shadow-5)" },
+]
+
 // Default theme = "blue + system-sans". Matches COLOR_PRESETS[blue] and
 // TYPOGRAPHY_PRESETS[system-sans] exactly, so on first run the preset
 // cards reflect the active state.
@@ -107,7 +182,20 @@ export const defaultTheme: Theme = {
   version: 1,
   settings: {
     color: { palette: colorPalette },
-    typography: { fontFamilies },
+    typography: {
+      fontFamilies,
+      fontSizes,
+      fontWeights,
+      lineHeights,
+      letterSpacings,
+    },
+    spacing: { sizes: spacingSizes },
+    border: {
+      radii: borderRadii,
+      widths: borderWidths,
+      styles: borderStyles,
+    },
+    shadow: { presets: shadowPresets },
   },
 }
 
@@ -128,6 +216,13 @@ const HYDRATABLE: ReadonlyArray<{
 }> = [
   { category: "color", pick: (t) => t.settings.color?.palette },
   { category: "font-family", pick: (t) => t.settings.typography?.fontFamilies },
+  {
+    // FontSizeToken extends Token; the hydration loop only mutates
+    // `value`, so the cast is safe. Stored clamp() expressions land in
+    // `value` and pass through `fontSizeCss` unchanged on next compile.
+    category: "font-size",
+    pick: (t) => t.settings.typography?.fontSizes as Token[] | undefined,
+  },
   { category: "font-weight", pick: (t) => t.settings.typography?.fontWeights },
   { category: "line-height", pick: (t) => t.settings.typography?.lineHeights },
   {
