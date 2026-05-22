@@ -4,6 +4,8 @@ import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { prisma } from "@/lib/prisma"
+import { themeSchema } from "@/lib/theme/schema.zod"
+import type { Theme } from "@/lib/theme/schema"
 
 import { cacheTags } from "./cache-tags"
 import { validateSlug } from "./path"
@@ -70,4 +72,38 @@ export async function deleteTenant(id: string): Promise<void> {
   await prisma.tenant.delete({ where: { id } })
   updateTag(cacheTags.tenants)
   redirect("/admin/tenants")
+}
+
+/**
+ * Persist a full `Theme` document onto a tenant.
+ *
+ * The payload is parsed through `themeSchema` first — malformed input
+ * throws rather than silently corrupting the DB row. Callers should
+ * surface the error to the user. Cache invalidation bumps the
+ * tenant-scoped theme tag (consumed by any cached fetch path that
+ * loads the tenant theme) and the broad `nav` tag (since published
+ * pages' rendered HTML embeds theme variables).
+ */
+export async function updateTenantTheme(
+  tenantId: string,
+  theme: Theme
+): Promise<void> {
+  const parsed = themeSchema.safeParse(theme)
+  if (!parsed.success) {
+    throw new Error(`Invalid theme payload: ${parsed.error.message}`)
+  }
+
+  const existing = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true },
+  })
+  if (!existing) throw new Error(`Tenant ${tenantId} not found.`)
+
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { theme: parsed.data },
+  })
+
+  updateTag(cacheTags.tenantTheme(tenantId))
+  updateTag(cacheTags.nav)
 }

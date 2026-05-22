@@ -4,4 +4,5 @@ export const cacheTags = {
   postIndex: "post-index",
   nav: "nav",
   tenants: "tenants",
+  tenantTheme: (tenantId: string) => `tenant-theme:${tenantId}`,
 } as const

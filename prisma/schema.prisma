@@ -24,6 +24,9 @@ model Tenant {
   name      String
   slug      String   @unique
   domain    String?  @unique
+  // Tenant-wide brand theme — full Theme document as defined in
+  // lib/theme/schema.ts. Empty `{}` means "use the bundled defaultTheme."
+  theme     Json     @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   pages     Page[]
@@ -39,8 +42,8 @@ model Page {
   parentId    String?
   parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
   children    Page[]        @relation("PageTree")
-  tenantId    String?
-  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   data        Json          @default("{}")
   status      ContentStatus @default(DRAFT)
@@ -57,8 +60,8 @@ model Page {
 model Post {
   id          String        @id @default(cuid())
   slug        String        @unique
-  tenantId    String?
-  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   excerpt     String?
   data        Json          @default("{}")

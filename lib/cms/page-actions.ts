@@ -17,9 +17,10 @@ export async function createPage(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
   const parentId = (form.get("parentId") as string) || null
-  const tenantId = (form.get("tenantId") as string) || null
+  const tenantId = String(form.get("tenantId") ?? "").trim()
 
   if (!title) throw new Error("Title is required.")
+  if (!tenantId) throw new Error("Tenant is required.")
   validateSlug(slug)
   if (parentId === null) validateTopLevelSlug(slug)
 
@@ -33,6 +34,9 @@ export async function createPage(form: FormData): Promise<void> {
   redirect(`/admin/pages/${page.id}/edit`)
 }
 
+// NB: `tenantId` is intentionally NOT read or written here. Page tenancy
+// is immutable post-creation — a page belongs to the tenant it was
+// created under, and reassigning it would orphan its theme references.
 export async function savePage(id: string, form: FormData): Promise<void> {
   const existing = await prisma.page.findUnique({ where: { id } })
   if (!existing) throw new Error("Page not found.")
@@ -119,5 +123,5 @@ export async function deletePage(id: string): Promise<void> {
   await prisma.page.delete({ where: { id } })
   updateTag(cacheTags.page(page.path))
   if (page.status === "PUBLISHED") updateTag(cacheTags.nav)
-  redirect(page.tenantId ? `/admin/tenants/${page.tenantId}` : "/admin/tenants")
+  redirect(`/admin/tenants/${page.tenantId}`)
 }
