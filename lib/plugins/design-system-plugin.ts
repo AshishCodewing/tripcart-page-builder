@@ -17,10 +17,16 @@
  *
  * `compileTheme.rules` adds element- and component-level defaults
  * (`body`, `button`, `a`, `h1`-`h6`, `[data-gjs-type="…"]`, …) on top
- * of the `:root` variables. These are NOT marked protected — users can
- * still inspect and override them via the Style Manager — but each
- * theme re-compile rewrites the managed selectors, so a preset change
- * always wins over a stale manual edit.
+ * of the `:root` variables. Like `:root`, these are marked `protected`
+ * — the `tc-local` storage adapter keys off that flag to keep
+ * tenant-wide theme rules from being duplicated into every per-page
+ * project blob.
+ *
+ * The Style Manager's componentFirst mode (configured in editor-shell)
+ * means user edits to a specific component create new ID/class-scoped
+ * rules; they don't mutate these tag-level theme defaults. Selecting
+ * a protected rule directly is still possible but discouraged — any
+ * edit gets overwritten on the next theme recompile.
  *
  * A closure-scoped `managedSelectors` Set tracks every selector we've
  * ever written, so removing a style block from the theme on a
@@ -50,10 +56,13 @@ export const designSystemPlugin = (editor: Editor): void => {
     const rootRule = editor.CssComposer.getRule(":root")
     if (rootRule) rootRule.set("protected", true)
 
-    // Element / component style rules.
+    // Element / component style rules. Marked protected so the
+    // tc-local storage adapter filters them out of per-page blobs.
     const incoming = new Set<string>()
     for (const rule of rules) {
       editor.CssComposer.setRule(rule.selector, rule.style)
+      const ref = editor.CssComposer.getRule(rule.selector)
+      if (ref) ref.set("protected", true)
       incoming.add(rule.selector)
     }
 
