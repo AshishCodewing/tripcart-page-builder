@@ -44,43 +44,45 @@ export default function StyleSector({
 
   return (
     <>
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
-      <CollapsibleTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            className="group/sector flex h-auto w-full items-center border-none justify-between rounded-none px-2 py-2 text-xs font-medium text-foreground hover:bg-muted/50 motion-reduce:transition-none"
-          />
-        }
-      >
-        <div className="flex items-center gap-3">
-          <span>{sector.getName()}</span>
-          <div className="flex items-center gap-1">
-            {hasSetValue && (
-              <span className="size-1.5 block shrink-0 rounded-full bg-primary" />
-            )}
-            {inherited && <span className="size-1.5 block shrink-0 rounded-full bg-warning"/>}
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
+        <CollapsibleTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              className="group/sector flex h-auto w-full items-center justify-between rounded-none border-none px-2 py-2 text-xs font-medium text-foreground hover:bg-muted/50 motion-reduce:transition-none"
+            />
+          }
+        >
+          <div className="flex items-center gap-3">
+            <span>{sector.getName()}</span>
+            <div className="flex items-center gap-1">
+              {hasSetValue && (
+                <span className="block size-1.5 shrink-0 rounded-full bg-primary" />
+              )}
+              {inherited && (
+                <span className="block size-1.5 shrink-0 rounded-full bg-warning" />
+              )}
+            </div>
           </div>
-        </div>
-        <ChevronDown
-          className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-panel-open/sector:rotate-180 motion-reduce:transition-none"
-          aria-hidden="true"
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="flex flex-col gap-2 p-2">
-          {sector.getId() === "position" ? (
-            <PositionSectorBody properties={properties} />
-          ) : (
-            properties.map((p) => (
-              <PropertyField key={p.getId()} property={p} />
-            ))
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-    <hr />
+          <ChevronDown
+            className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-panel-open/sector:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="flex flex-col gap-2 p-2">
+            {sector.getId() === "position" ? (
+              <PositionSectorBody properties={properties} />
+            ) : (
+              properties.map((p) => (
+                <PropertyField key={p.getId()} property={p} />
+              ))
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+      <hr />
     </>
   )
 }

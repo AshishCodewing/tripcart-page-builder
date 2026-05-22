@@ -1,64 +1,21 @@
-// src/plugins/blocks/hero-block.ts
+// Hero section block. Authored in JSX — `processReactElements` from our
+// react-renderer converts JSX to a GrapesJS component definition object, so
+// we skip GrapesJS' HTML parse + isComponent recognition (faster + easier to
+// read than HTML strings).
 //
-// Hero section block. CSS is authored in hero-block.css and imported
-// as a string via Vite's ?raw query, then handed to GrapesJS unchanged
-// so parser-postcss parses it and the CssComposer stores it. Flat
-// selectors only (no native nesting, no @layer) so getCss() round-trips.
-//
-// Tokens: --size-*, --gray-*, --font-*, --radius-* come from Open Props
-// packs loaded via canvas.styles; --background, --primary, --foreground,
-// --muted-foreground, --spacing-* come from designSystemPlugin's :root
-// injection.
+// Tokens: --size-*, --gray-*, --font-*, --radius-* come from Open Props packs
+// loaded via canvas.styles; --background, --primary, --foreground,
+// --muted-foreground, --spacing-* come from designSystemPlugin's :root.
 
+import type { CSSProperties } from "react"
 import type { Component, Editor } from "grapesjs"
+import { processReactElements } from "@/lib/plugins/react-renderer"
 
-// Custom traits exposed on the hero component model. They're stored as plain
-// model props (changeProp: true), so we read them through `get` and bypass
-// `ComponentProperties`'s strict key set with a narrow cast.
 type HeroProp = "heroHeight" | "heroAlign" | "heroBg" | "heroVariant"
 type HeroVariant = "default" | "minimal" | "announce"
 type HeroComponent = Component & { syncStyles: () => void }
 const getHeroProp = (cmp: Component, key: HeroProp): string =>
   (cmp.get as (k: string) => unknown)(key) as string
-
-// Pure builder: produces the initial child markup from current model props.
-// Called by the function-form `components` at init and again on variant change.
-const buildHeroChildren = (model: Component): string => {
-  const variant = (getHeroProp(model, "heroVariant") ||
-    "default") as HeroVariant
-  const align = getHeroProp(model, "heroAlign") || "left"
-  const isCenter = align === "center"
-  const innerStyle = `text-align:${align};align-items:${
-    isCenter ? "center" : "flex-start"
-  }`
-  const actionsStyle = `justify-content:${isCenter ? "center" : "flex-start"}`
-
-  const eyebrow = `<span class="tc-hero__eyebrow">Tripcart</span>`
-  const title = `<h1 class="tc-hero__title">Build pages worth shipping.</h1>`
-  const subtitle = `
-    <p class="tc-hero__subtitle">
-      Drag, drop, customize. Your brand, your blocks, your pages.
-    </p>`
-  const primaryCta = `
-    <a href="#" class="tc-hero__cta tc-hero__cta--primary">Get started</a>`
-  const secondaryCta = `
-    <a href="#" class="tc-hero__cta tc-hero__cta--secondary">Learn more</a>`
-
-  const body =
-    variant === "minimal"
-      ? `${title}${subtitle}`
-      : variant === "announce"
-        ? `${eyebrow}${title}
-           <div class="tc-hero__actions" style="${actionsStyle}">
-             ${primaryCta}
-           </div>`
-        : `${eyebrow}${title}${subtitle}
-           <div class="tc-hero__actions" style="${actionsStyle}">
-             ${primaryCta}${secondaryCta}
-           </div>`
-
-  return `<div class="tc-hero__inner" style="${innerStyle}">${body}</div>`
-}
 
 const heroCss = `
 .tc-hero {
@@ -165,9 +122,84 @@ const heroCss = `
   .tc-hero__cta { transition: none; }
 }
 `
-export const registerHeroBlock = (editor: Editor): void => {
-  // ── Component type ──────────────────────────────────────────────────────
 
+export const registerHeroBlock = (editor: Editor): void => {
+  // Empty config — processReactElements needs it only to resolve function
+  // components against the registry. We use intrinsic HTML tags here, so the
+  // lookup never fires.
+  const reactConfig = { components: {} }
+
+  // JSX builder: picks a child tree from the current `heroVariant` and seeds
+  // align-driven inline styles. Returns a GrapesJS component definition by
+  // funneling JSX through the react-renderer's processor.
+  const buildHeroChildren = (model: Component): Record<string, unknown> => {
+    const variant = (getHeroProp(model, "heroVariant") ||
+      "default") as HeroVariant
+    const align = getHeroProp(model, "heroAlign") || "left"
+    const isCenter = align === "center"
+
+    const innerStyle: CSSProperties = {
+      textAlign: align as CSSProperties["textAlign"],
+      alignItems: isCenter ? "center" : "flex-start",
+    }
+    const actionsStyle: CSSProperties = {
+      justifyContent: isCenter ? "center" : "flex-start",
+    }
+
+    const eyebrow = <span className="tc-hero__eyebrow">Tripcart</span>
+    const title = (
+      <h1 className="tc-hero__title">Build pages worth shipping.</h1>
+    )
+    const subtitle = (
+      <p className="tc-hero__subtitle">
+        Drag, drop, customize. Your brand, your blocks, your pages.
+      </p>
+    )
+    const primaryCta = (
+      <a href="#" className="tc-hero__cta tc-hero__cta--primary">
+        Get started
+      </a>
+    )
+    const secondaryCta = (
+      <a href="#" className="tc-hero__cta tc-hero__cta--secondary">
+        Learn more
+      </a>
+    )
+
+    const inner =
+      variant === "minimal" ? (
+        <div className="tc-hero__inner" style={innerStyle}>
+          {title}
+          {subtitle}
+        </div>
+      ) : variant === "announce" ? (
+        <div className="tc-hero__inner" style={innerStyle}>
+          {eyebrow}
+          {title}
+          <div className="tc-hero__actions" style={actionsStyle}>
+            {primaryCta}
+          </div>
+        </div>
+      ) : (
+        <div className="tc-hero__inner" style={innerStyle}>
+          {eyebrow}
+          {title}
+          {subtitle}
+          <div className="tc-hero__actions" style={actionsStyle}>
+            {primaryCta}
+            {secondaryCta}
+          </div>
+        </div>
+      )
+
+    return processReactElements({
+      editor,
+      config: reactConfig,
+      model: inner,
+    }) as Record<string, unknown>
+  }
+
+  // ── Component type ────────────────────────────────────────────────────────
   editor.DomComponents.addType("hero-section", {
     isComponent: (el: HTMLElement) => el.classList?.contains("tc-hero"),
 
@@ -184,18 +216,13 @@ export const registerHeroBlock = (editor: Editor): void => {
 
         styles: heroCss,
 
-        // ── Component children ─────────────────────────────────────────
-        // Function form: GrapesJS calls this once at instantiation. The
-        // builder picks a child tree based on `heroVariant` and seeds inline
-        // styles from `heroAlign`. On import of existing HTML, the parsed
-        // children take precedence and this function isn't used.
-        //
-        // Cast: GrapesJS docs document `components` as accepting a function,
-        // but its `ComponentDefinition` type only lists string/object/array.
+        // Function form: GrapesJS calls this once per instantiation. Returns
+        // a definition object (cast because GrapesJS' types say string/array
+        // only, but the runtime accepts a definition too). On HTML import,
+        // parsed children take precedence and this function isn't used.
         components: ((model: Component) =>
           buildHeroChildren(model)) as unknown as string,
 
-        // ── Traits ─────────────────────────────────────────────────────
         traits: [
           {
             type: "select",
@@ -254,7 +281,11 @@ export const registerHeroBlock = (editor: Editor): void => {
         // Variant flip rebuilds the subtree, then re-applies trait-driven
         // styles since `components()` replacement wipes prior inline styles.
         this.on("change:heroVariant", () => {
-          this.components(buildHeroChildren(this))
+          this.components(
+            buildHeroChildren(this) as unknown as Parameters<
+              typeof this.components
+            >[0]
+          )
           this.syncStyles()
         })
       },
@@ -287,10 +318,9 @@ export const registerHeroBlock = (editor: Editor): void => {
     },
   })
 
-  // ── Block registration ──────────────────────────────────────────────────
+  // ── Block registration ────────────────────────────────────────────────────
   // Three blocks share one component type. Each pre-seeds `heroVariant`, so
-  // the function-form `components` builder produces a different child tree
-  // depending on which block the user drops onto the canvas.
+  // the JSX builder produces a different child tree per block.
 
   const heroBlocks: Array<{
     id: string
@@ -345,8 +375,6 @@ export const registerHeroBlock = (editor: Editor): void => {
     editor.Blocks.add(id, {
       label,
       category: "Sections",
-      // Marks this block as a pattern so the React block-inserter routes it
-      // into the "Patterns" tab. Read via `block.get('attributes')`.
       attributes: { "data-pattern": "true" },
       activate: true,
       resetId: true,

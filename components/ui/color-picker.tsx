@@ -2,12 +2,7 @@
 
 import * as React from "react"
 import { HexAlphaColorPicker } from "react-colorful"
-import {
-  colord,
-  type Colord,
-  type HslaColor,
-  type RgbaColor,
-} from "colord"
+import { colord, type Colord, type HslaColor, type RgbaColor } from "colord"
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -61,7 +56,9 @@ const ColorPickerContext = React.createContext<ColorPickerContextValue | null>(
 const useColorPicker = () => {
   const ctx = React.useContext(ColorPickerContext)
   if (!ctx) {
-    throw new Error("ColorPicker subcomponents must be used inside <ColorPicker>")
+    throw new Error(
+      "ColorPicker subcomponents must be used inside <ColorPicker>"
+    )
   }
   return ctx
 }
@@ -178,7 +175,10 @@ function ColorPicker({
     <ColorPickerContext.Provider value={ctx}>
       <div
         data-slot="color-picker"
-        className={cn("flex w-full flex-col gap-3 custom-picker-wrapper", className)}
+        className={cn(
+          "custom-picker-wrapper flex w-full flex-col gap-3",
+          className
+        )}
       >
         {children}
       </div>
@@ -246,7 +246,8 @@ function ColorPickerCanvas({ className }: { className?: string }) {
 // ---------- swatches ----------
 
 function ColorPickerSwatches({ className }: { className?: string }) {
-  const { swatches, valueRaw, color, commitColord, commitRaw } = useColorPicker()
+  const { swatches, valueRaw, color, commitColord, commitRaw } =
+    useColorPicker()
 
   if (!swatches.length) return null
 
@@ -266,25 +267,29 @@ function ColorPickerSwatches({ className }: { className?: string }) {
           const key = isToken ? s.token : `${s.hex}-${i}`
           return (
             <Tooltip key={key}>
-              <TooltipTrigger render={<Button
-                size="sm"
-                type="button"
-                data-slot="color-picker-swatch"
-                aria-label={s.label ?? (isToken ? s.token : s.hex)}
-                onClick={() => {
-                  if (isToken) {
-                    commitRaw(`var(${s.token})`)
-                  } else {
-                    commitColord(colord(s.hex))
-                  }
-                }}
-                className={cn(
-                  "relative flex aspect-square h-auto w-full rounded-md border border-border/60 shadow-xs transition-[transform,box-shadow] hover:scale-105",
-                  isSelected &&
-                    "ring-2 ring-ring/70 ring-offset-1 ring-offset-popover"
-                )}
-                style={{ backgroundColor: s.hex }}
-              />}/>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="sm"
+                    type="button"
+                    data-slot="color-picker-swatch"
+                    aria-label={s.label ?? (isToken ? s.token : s.hex)}
+                    onClick={() => {
+                      if (isToken) {
+                        commitRaw(`var(${s.token})`)
+                      } else {
+                        commitColord(colord(s.hex))
+                      }
+                    }}
+                    className={cn(
+                      "relative flex aspect-square h-auto w-full rounded-md border border-border/60 shadow-xs transition-[transform,box-shadow] hover:scale-105",
+                      isSelected &&
+                        "ring-2 ring-ring/70 ring-offset-1 ring-offset-popover"
+                    )}
+                    style={{ backgroundColor: s.hex }}
+                  />
+                }
+              />
               <TooltipContent>
                 {s.label ?? (isToken ? s.token : s.hex)}
               </TooltipContent>
@@ -400,7 +405,7 @@ function HexChannelInput({
       spellCheck={false}
       autoComplete="off"
       aria-label="Hex color"
-      className="no-spinner h-7 px-2 text-xs tabular-nums uppercase"
+      className="no-spinner h-7 px-2 text-xs uppercase tabular-nums"
     />
   )
 }
@@ -443,16 +448,15 @@ function ColorPickerChannels({ className }: { className?: string }) {
     >
       <TabsList className="w-full justify-between">
         <TabsIndicator />
-        <TabsTrigger value="hex" className="text-xs py-1">
+        <TabsTrigger value="hex" className="py-1 text-xs">
           Hex
         </TabsTrigger>
-        <TabsTrigger value="rgb" className="text-xs py-1">
+        <TabsTrigger value="rgb" className="py-1 text-xs">
           RGB
         </TabsTrigger>
-        <TabsTrigger value="hsl" className="text-xs py-1">
+        <TabsTrigger value="hsl" className="py-1 text-xs">
           HSL
         </TabsTrigger>
-
       </TabsList>
 
       <TabsContent value="hex">
@@ -481,18 +485,11 @@ function ColorPickerChannels({ className }: { className?: string }) {
       <TabsContent value="hsl">
         <SpaceChannels space={HSL_SPACE} />
       </TabsContent>
-
     </Tabs>
   )
 }
 
-function ChannelLabels({
-  labels,
-  cols,
-}: {
-  labels: string[]
-  cols: string
-}) {
+function ChannelLabels({ labels, cols }: { labels: string[]; cols: string }) {
   return (
     <div
       className="mt-1 grid gap-1.5 text-center text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
@@ -530,23 +527,63 @@ const wrapHue = (n: number) => ((n % 360) + 360) % 360
 
 const RGB_SPACE: ColorSpace = {
   toSpace: (c) => c.toRgb(),
-  apply: (c, key, value) =>
-    colord({ ...c.toRgb(), [key]: value } as RgbaColor),
+  apply: (c, key, value) => colord({ ...c.toRgb(), [key]: value } as RgbaColor),
   channels: [
-    { key: "r", min: 0, max: 255, ariaLabel: "Red", label: "R", normalize: clampTo(0, 255) },
-    { key: "g", min: 0, max: 255, ariaLabel: "Green", label: "G", normalize: clampTo(0, 255) },
-    { key: "b", min: 0, max: 255, ariaLabel: "Blue", label: "B", normalize: clampTo(0, 255) },
+    {
+      key: "r",
+      min: 0,
+      max: 255,
+      ariaLabel: "Red",
+      label: "R",
+      normalize: clampTo(0, 255),
+    },
+    {
+      key: "g",
+      min: 0,
+      max: 255,
+      ariaLabel: "Green",
+      label: "G",
+      normalize: clampTo(0, 255),
+    },
+    {
+      key: "b",
+      min: 0,
+      max: 255,
+      ariaLabel: "Blue",
+      label: "B",
+      normalize: clampTo(0, 255),
+    },
   ],
 }
 
 const HSL_SPACE: ColorSpace = {
   toSpace: (c) => c.toHsl(),
-  apply: (c, key, value) =>
-    colord({ ...c.toHsl(), [key]: value } as HslaColor),
+  apply: (c, key, value) => colord({ ...c.toHsl(), [key]: value } as HslaColor),
   channels: [
-    { key: "h", min: 0, max: 360, ariaLabel: "Hue", label: "H", normalize: wrapHue },
-    { key: "s", min: 0, max: 100, ariaLabel: "Saturation", label: "S", normalize: clampTo(0, 100) },
-    { key: "l", min: 0, max: 100, ariaLabel: "Lightness", label: "L", normalize: clampTo(0, 100) },
+    {
+      key: "h",
+      min: 0,
+      max: 360,
+      ariaLabel: "Hue",
+      label: "H",
+      normalize: wrapHue,
+    },
+    {
+      key: "s",
+      min: 0,
+      max: 100,
+      ariaLabel: "Saturation",
+      label: "S",
+      normalize: clampTo(0, 100),
+    },
+    {
+      key: "l",
+      min: 0,
+      max: 100,
+      ariaLabel: "Lightness",
+      label: "L",
+      normalize: clampTo(0, 100),
+    },
   ],
 }
 

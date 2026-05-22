@@ -49,21 +49,14 @@ function getIconRotation(propName: string, direction: string): string {
 // flex-direction, …) use `label` for the friendly text, so we prefer `title`
 // when present, fall back to `getOptionLabel`, then to the option id. The
 // HTML guard catches any other plugin that follows the SVG-in-label pattern.
-function getOptionTooltip(
-  property: PropertySelect,
-  opt: SelectOption
-): string {
+function getOptionTooltip(property: PropertySelect, opt: SelectOption): string {
   const id = property.getOptionId(opt)
   const candidate = opt.title || property.getOptionLabel(opt) || id
   if (candidate.trim().startsWith("<")) return humanizeLabel(id)
   return humanizeLabel(candidate)
 }
 
-export default function RadioField({
-  property,
-}: {
-  property: PropertySelect
-}) {
+export default function RadioField({ property }: { property: PropertySelect }) {
   const ctx = useStyleContext()
   const value = String(property.getValue() ?? "")
   const options = property.getOptions() ?? []

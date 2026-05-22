@@ -34,39 +34,90 @@ const SIZE_KEEP = /^--size-(px-)?\d+$|^--size-fluid-\d+$/
 const FONT_NUM = /^--font-(size|weight|lineheight|letterspacing)-(\d+|0{1,2})$/
 
 const THEME_COLOR_TOKENS: Token[] = [
-  { name: "background",           value: "--theme-background",           category: "theme-color" },
-  { name: "foreground",           value: "--theme-foreground",           category: "theme-color" },
-  { name: "card",                 value: "--theme-card",                 category: "theme-color" },
-  { name: "card-foreground",      value: "--theme-card-foreground",      category: "theme-color" },
-  { name: "popover",              value: "--theme-popover",              category: "theme-color" },
-  { name: "popover-foreground",   value: "--theme-popover-foreground",   category: "theme-color" },
-  { name: "primary",              value: "--theme-primary",              category: "theme-color" },
-  { name: "primary-foreground",   value: "--theme-primary-foreground",   category: "theme-color" },
-  { name: "secondary",            value: "--theme-secondary",            category: "theme-color" },
-  { name: "secondary-foreground", value: "--theme-secondary-foreground", category: "theme-color" },
-  { name: "muted",                value: "--theme-muted",                category: "theme-color" },
-  { name: "muted-foreground",     value: "--theme-muted-foreground",     category: "theme-color" },
-  { name: "accent",               value: "--theme-accent",               category: "theme-color" },
-  { name: "accent-foreground",    value: "--theme-accent-foreground",    category: "theme-color" },
-  { name: "destructive",          value: "--theme-destructive",          category: "theme-color" },
-  { name: "warning",              value: "--theme-warning",              category: "theme-color" },
-  { name: "warning-foreground",   value: "--theme-warning-foreground",   category: "theme-color" },
-  { name: "success",              value: "--theme-success",              category: "theme-color" },
-  { name: "success-foreground",   value: "--theme-success-foreground",   category: "theme-color" },
-  { name: "border",               value: "--theme-border",               category: "theme-color" },
-  { name: "input",                value: "--theme-input",                category: "theme-color" },
-  { name: "ring",                 value: "--theme-ring",                 category: "theme-color" },
+  { name: "background", value: "--theme-background", category: "theme-color" },
+  { name: "foreground", value: "--theme-foreground", category: "theme-color" },
+  { name: "card", value: "--theme-card", category: "theme-color" },
+  {
+    name: "card-foreground",
+    value: "--theme-card-foreground",
+    category: "theme-color",
+  },
+  { name: "popover", value: "--theme-popover", category: "theme-color" },
+  {
+    name: "popover-foreground",
+    value: "--theme-popover-foreground",
+    category: "theme-color",
+  },
+  { name: "primary", value: "--theme-primary", category: "theme-color" },
+  {
+    name: "primary-foreground",
+    value: "--theme-primary-foreground",
+    category: "theme-color",
+  },
+  { name: "secondary", value: "--theme-secondary", category: "theme-color" },
+  {
+    name: "secondary-foreground",
+    value: "--theme-secondary-foreground",
+    category: "theme-color",
+  },
+  { name: "muted", value: "--theme-muted", category: "theme-color" },
+  {
+    name: "muted-foreground",
+    value: "--theme-muted-foreground",
+    category: "theme-color",
+  },
+  { name: "accent", value: "--theme-accent", category: "theme-color" },
+  {
+    name: "accent-foreground",
+    value: "--theme-accent-foreground",
+    category: "theme-color",
+  },
+  {
+    name: "destructive",
+    value: "--theme-destructive",
+    category: "theme-color",
+  },
+  { name: "warning", value: "--theme-warning", category: "theme-color" },
+  {
+    name: "warning-foreground",
+    value: "--theme-warning-foreground",
+    category: "theme-color",
+  },
+  { name: "success", value: "--theme-success", category: "theme-color" },
+  {
+    name: "success-foreground",
+    value: "--theme-success-foreground",
+    category: "theme-color",
+  },
+  { name: "border", value: "--theme-border", category: "theme-color" },
+  { name: "input", value: "--theme-input", category: "theme-color" },
+  { name: "ring", value: "--theme-ring", category: "theme-color" },
 ]
 
 export const TOKENS: Token[] = [
   ...fromMap(sizeTokens, "size", (n) => SIZE_KEEP.test(n)),
-  ...fromMap(fontTokens, "font-size", (n) =>
-    (FONT_NUM.test(n) && n.includes("-size-")) ||
-    /^--font-size-fluid-[0-3]$/.test(n)
+  ...fromMap(
+    fontTokens,
+    "font-size",
+    (n) =>
+      (FONT_NUM.test(n) && n.includes("-size-")) ||
+      /^--font-size-fluid-[0-3]$/.test(n)
   ),
-  ...fromMap(fontTokens, "font-weight", (n) => FONT_NUM.test(n) && n.includes("-weight-")),
-  ...fromMap(fontTokens, "font-lineheight", (n) => FONT_NUM.test(n) && n.includes("-lineheight-")),
-  ...fromMap(fontTokens, "font-letterspacing", (n) => FONT_NUM.test(n) && n.includes("-letterspacing-")),
+  ...fromMap(
+    fontTokens,
+    "font-weight",
+    (n) => FONT_NUM.test(n) && n.includes("-weight-")
+  ),
+  ...fromMap(
+    fontTokens,
+    "font-lineheight",
+    (n) => FONT_NUM.test(n) && n.includes("-lineheight-")
+  ),
+  ...fromMap(
+    fontTokens,
+    "font-letterspacing",
+    (n) => FONT_NUM.test(n) && n.includes("-letterspacing-")
+  ),
   ...fromMap(borderTokens, "border-size", (n) => /^--border-size-\d+$/.test(n)),
   ...fromMap(borderTokens, "border-radius", (n) => /^--radius-\d+$/.test(n)),
   ...THEME_COLOR_TOKENS,

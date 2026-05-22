@@ -19,7 +19,11 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -168,9 +172,7 @@ export function GradientPicker({
 
   const setStopColor = React.useCallback(
     (idx: number, color: string, opts?: GradientPickerCommitOpts) => {
-      const next = parsed.stops.map((s, i) =>
-        i === idx ? { ...s, color } : s
-      )
+      const next = parsed.stops.map((s, i) => (i === idx ? { ...s, color } : s))
       commit(parsed.type, parsed.direction, next, opts)
     },
     [commit, parsed]
@@ -440,7 +442,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
           return (
             <div
               key={idx}
-              className="group/pin absolute top-1/2 -translate-x-1/2 -translate-y-[calc(100%+16px)] size-5"
+              className="group/pin absolute top-1/2 size-5 -translate-x-1/2 -translate-y-[calc(100%+16px)]"
               style={{ left: `${pct}%` }}
             >
               <Button
@@ -468,13 +470,13 @@ export function GradientPickerTrack({ className }: { className?: string }) {
                   // Downward pointer that turns the bubble into a marker
                   // shape aimed at the track below.
                   "before:absolute before:top-full before:left-1/2 before:-translate-x-1/2",
-                  "before:size-0 before:border-x-4 before:border-x-transparent before:border-t-8 before:border-t-foreground/40 before:content-['']"
+                  "before:size-0 before:border-x-4 before:border-t-8 before:border-x-transparent before:border-t-foreground/40 before:content-['']"
                 )}
               >
                 <span
                   aria-hidden
                   className={cn(
-                    "relative block size-4 rounded-md border-2 border-background ring-1 ring-foreground/40 shadow-sm transition-transform",
+                    "relative block size-4 rounded-md border-2 border-background shadow-sm ring-1 ring-foreground/40 transition-transform",
                     selected && "scale-110 ring-2 ring-ring"
                   )}
                   style={{ backgroundColor: stop.color }}
@@ -493,7 +495,7 @@ export function GradientPickerTrack({ className }: { className?: string }) {
                     e.stopPropagation()
                     removeStop(idx)
                   }}
-                  className="absolute -top-2 -right-2 z-10 size-5 rounded-full p-0 opacity-0 transition-opacity group-hover/pin:opacity-100 group-focus-within/pin:opacity-100"
+                  className="absolute -top-2 -right-2 z-10 size-5 rounded-full p-0 opacity-0 transition-opacity group-focus-within/pin:opacity-100 group-hover/pin:opacity-100"
                 >
                   <X className="size-2.5" aria-hidden />
                 </Button>
@@ -623,7 +625,7 @@ export function GradientPickerColor({ className }: { className?: string }) {
               ;(e.target as HTMLInputElement).blur()
             }
           }}
-          className="flex-1 text-xs bg-transparent"
+          className="flex-1 bg-transparent text-xs"
           spellCheck={false}
           autoComplete="off"
           aria-label="Color value"
@@ -686,7 +688,9 @@ export function GradientPickerStop({ className }: { className?: string }) {
           className="text-xs tabular-nums"
           aria-label="Stop position percentage"
         />
-        <InputGroupAddon align="inline-end" className="text-xs">%</InputGroupAddon>
+        <InputGroupAddon align="inline-end" className="text-xs">
+          %
+        </InputGroupAddon>
       </InputGroup>
     </Field>
   )
@@ -750,7 +754,9 @@ export function GradientPickerAngle({ className }: { className?: string }) {
       data-slot="gradient-picker-angle"
       className={className}
     >
-      <FieldLabel className="text-xs text-muted-foreground">Position</FieldLabel>
+      <FieldLabel className="text-xs text-muted-foreground">
+        Position
+      </FieldLabel>
       <Select
         items={RADIAL_POSITION_LABELS}
         value={current}
@@ -824,7 +830,9 @@ function AngleInputField({
           className="text-xs tabular-nums"
           aria-label="Gradient angle in degrees"
         />
-        <InputGroupAddon align="inline-end" className="text-xs">deg</InputGroupAddon>
+        <InputGroupAddon align="inline-end" className="text-xs">
+          deg
+        </InputGroupAddon>
       </InputGroup>
     </Field>
   )

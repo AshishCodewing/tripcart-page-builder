@@ -121,13 +121,15 @@ function LayerRow({ layer, property, selected }: LayerRowProps) {
         data-dragging={isDragging || undefined}
         className={cn(
           "flex items-center gap-1.5 rounded-md border bg-background/40 px-2 py-1 transition-colors motion-reduce:transition-none",
-          selected ? "border-primary/50" : "border-transparent hover:border-border",
+          selected
+            ? "border-primary/50"
+            : "border-transparent hover:border-border",
           isDragging && "z-10 shadow-md ring-1 ring-border"
         )}
       >
         <button
           type="button"
-          className="flex size-5 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          className="flex size-5 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing"
           aria-label="Reorder layer"
           {...attributes}
           {...listeners}
@@ -158,9 +160,7 @@ function LayerRow({ layer, property, selected }: LayerRowProps) {
       </div>
       <PopoverContent side="left" sideOffset={8} className="w-64 gap-2.5">
         {property.getProperties().map((p) => (
-          <React.Fragment key={p.getId()}>
-            {renderProperty(p)}
-          </React.Fragment>
+          <React.Fragment key={p.getId()}>{renderProperty(p)}</React.Fragment>
         ))}
       </PopoverContent>
     </Popover>

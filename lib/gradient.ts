@@ -129,7 +129,8 @@ const splitStopToken = (token: string): { color: string; position: string } => {
 //   [red 0%, green, blue 100%]   → 0%, 50%, 100%
 const fillPositions = (stops: GradientStop[]): GradientStop[] => {
   if (stops.length === 0) return stops
-  if (stops.length === 1) return [{ ...stops[0], position: stops[0].position || "0%" }]
+  if (stops.length === 1)
+    return [{ ...stops[0], position: stops[0].position || "0%" }]
   return stops.map((s, i) => {
     if (s.position) return s
     const pct = (i / (stops.length - 1)) * 100
@@ -137,7 +138,9 @@ const fillPositions = (stops: GradientStop[]): GradientStop[] => {
   })
 }
 
-export function parseGradient(css: string | null | undefined): ParsedGradient | null {
+export function parseGradient(
+  css: string | null | undefined
+): ParsedGradient | null {
   if (!css) return null
   const value = String(css).trim()
   if (!value) return null
@@ -155,15 +158,21 @@ export function parseGradient(css: string | null | undefined): ParsedGradient | 
   // the direction. Look for direction keywords and `<angle>` units.
   const looksLikeDirection = (token: string): boolean => {
     return (
-      /^(to\s|from\s|at\s|circle\b|ellipse\b|closest-|farthest-)/i.test(token) ||
+      /^(to\s|from\s|at\s|circle\b|ellipse\b|closest-|farthest-)/i.test(
+        token
+      ) ||
       /-?\d+(\.\d+)?(deg|rad|grad|turn)$/i.test(token) ||
-      (["top", "right", "bottom", "left", "center"].includes(token.toLowerCase()) &&
+      (["top", "right", "bottom", "left", "center"].includes(
+        token.toLowerCase()
+      ) &&
         parts.length > 2)
     )
   }
 
   let direction =
-    type === "linear" || type === "repeating-linear" ? "90deg" : "circle at center"
+    type === "linear" || type === "repeating-linear"
+      ? "90deg"
+      : "circle at center"
 
   let stopTokens = parts
   if (parts.length > 0 && looksLikeDirection(parts[0])) {
@@ -248,7 +257,9 @@ export function directionToDegrees(direction: string): number | null {
     }
   }
 
-  const toMatch = dir.match(/^to\s+(top|right|bottom|left)(?:\s+(top|right|bottom|left))?$/i)
+  const toMatch = dir.match(
+    /^to\s+(top|right|bottom|left)(?:\s+(top|right|bottom|left))?$/i
+  )
   if (toMatch) {
     const a = toMatch[1].toLowerCase()
     const b = toMatch[2]?.toLowerCase()
@@ -366,7 +377,8 @@ export function radialPositionFromDirection(direction: string): RadialPosition {
   // Single axis (`top`, `right`, …): center it on the other axis.
   if (RADIAL_AXES.has(stripped)) {
     if (stripped === "center") return "center"
-    if (stripped === "top" || stripped === "bottom") return stripped as RadialPosition
+    if (stripped === "top" || stripped === "bottom")
+      return stripped as RadialPosition
     return stripped as RadialPosition // "left" / "right" are valid grid entries
   }
 

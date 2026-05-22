@@ -34,11 +34,7 @@ const DEFAULT_CSS = toGradient(
 const TYPE_SUBPROP = "background-image-gradient-type"
 const DIR_SUBPROP = "background-image-gradient-dir"
 
-export default function GradientField({
-  property,
-}: {
-  property: Property
-}) {
+export default function GradientField({ property }: { property: Property }) {
   const value = String(property.getValue() ?? "")
   // Render the unparseable fallback for values like `var(--brand-gradient)`
   // that we can't model as stops.

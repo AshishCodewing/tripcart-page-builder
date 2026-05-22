@@ -36,12 +36,14 @@ import { cn } from "@/lib/utils"
 const NEUTRAL_STATE = ""
 const NEUTRAL_VALUE = "__neutral__"
 
-const STATE_ICON: Record<string, React.ComponentType<{ className?: string }>> =
-  {
-    "": Ban,
-    hover: MousePointer2,
-    focus: Crosshair,
-  }
+const STATE_ICON: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
+  "": Ban,
+  hover: MousePointer2,
+  focus: Crosshair,
+}
 
 type CustomSelectorsState = {
   selectors: Selector[]
@@ -73,8 +75,8 @@ function SelectorManagerInner({
 
   // componentFirst is a runtime config — there's no event for changes, so we
   // mirror it in local state and write through to the manager on toggle.
-  const [componentFirst, setComponentFirstState] = React.useState<boolean>(
-    () => editor.Selectors.getComponentFirst()
+  const [componentFirst, setComponentFirstState] = React.useState<boolean>(() =>
+    editor.Selectors.getComponentFirst()
   )
   const [selectedComp, setSelectedComp] = React.useState<Component | null>(
     () => editor.getSelected() ?? null
@@ -284,7 +286,7 @@ function TargetRow({
               aria-pressed={active}
               aria-label={tooltip}
               className={cn(
-                "flex w-9 shrink-0 items-center justify-center self-stretch border-e outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-inset motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50",
+                "flex w-9 shrink-0 items-center justify-center self-stretch border-e transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
                 active && !disabled
                   ? "border-primary/50 bg-primary text-primary-foreground"
                   : "border-border/60 bg-muted/50 text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground"
@@ -367,7 +369,7 @@ function ClassChip({
   return (
     <span
       className={cn(
-        "group/chip inline-flex h-6 min-w-0 max-w-full items-center rounded-sm bg-muted text-xs transition-colors duration-150 motion-reduce:transition-none hover:bg-muted/70 dark:bg-muted/50 dark:hover:bg-muted",
+        "group/chip inline-flex h-6 max-w-full min-w-0 items-center rounded-sm bg-muted text-xs transition-colors duration-150 hover:bg-muted/70 motion-reduce:transition-none dark:bg-muted/50 dark:hover:bg-muted",
         !active && "line-through opacity-50"
       )}
     >

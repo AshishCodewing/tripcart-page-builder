@@ -29,25 +29,46 @@ export const defaultTokens: TokenSchema = {
     background: { label: "Background", value: "hsl(var(--gray-0-hsl))" },
     foreground: { label: "Foreground", value: "hsl(var(--gray-12-hsl))" },
     card: { label: "Card", value: "hsl(var(--gray-0-hsl))" },
-    cardForeground: { label: "Card Foreground", value: "hsl(var(--gray-12-hsl))" },
+    cardForeground: {
+      label: "Card Foreground",
+      value: "hsl(var(--gray-12-hsl))",
+    },
     popover: { label: "Popover", value: "hsl(var(--gray-0-hsl))" },
-    popoverForeground: { label: "Popover Foreground", value: "hsl(var(--gray-12-hsl))" },
+    popoverForeground: {
+      label: "Popover Foreground",
+      value: "hsl(var(--gray-12-hsl))",
+    },
     primary: { label: "Primary", value: "hsl(var(--blue-6-hsl))" },
-    primaryForeground: { label: "Primary Foreground", value: "hsl(var(--gray-0-hsl))" },
+    primaryForeground: {
+      label: "Primary Foreground",
+      value: "hsl(var(--gray-0-hsl))",
+    },
     secondary: { label: "Secondary", value: "hsl(var(--gray-2-hsl))" },
     secondaryForeground: {
       label: "Secondary Foreground",
       value: "hsl(var(--gray-12-hsl))",
     },
     muted: { label: "Muted", value: "hsl(var(--gray-2-hsl))" },
-    mutedForeground: { label: "Muted Foreground", value: "hsl(var(--gray-7-hsl))" },
+    mutedForeground: {
+      label: "Muted Foreground",
+      value: "hsl(var(--gray-7-hsl))",
+    },
     accent: { label: "Accent", value: "hsl(var(--gray-2-hsl))" },
-    accentForeground: { label: "Accent Foreground", value: "hsl(var(--gray-12-hsl))" },
+    accentForeground: {
+      label: "Accent Foreground",
+      value: "hsl(var(--gray-12-hsl))",
+    },
     destructive: { label: "Destructive", value: "hsl(var(--red-6-hsl))" },
     warning: { label: "Warning", value: "hsl(var(--yellow-6-hsl))" },
-    warningForeground: { label: "Warning Foreground", value: "hsl(var(--gray-0-hsl))" },
+    warningForeground: {
+      label: "Warning Foreground",
+      value: "hsl(var(--gray-0-hsl))",
+    },
     success: { label: "Success", value: "hsl(var(--green-6-hsl))" },
-    successForeground: { label: "Success Foreground", value: "hsl(var(--gray-0-hsl))" },
+    successForeground: {
+      label: "Success Foreground",
+      value: "hsl(var(--gray-0-hsl))",
+    },
     border: {
       label: "Border",
       value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 10%, transparent)",

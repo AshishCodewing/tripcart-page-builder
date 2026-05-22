@@ -55,7 +55,8 @@ function useAllCustom(): AllCustomContextValue {
 
 // Use getFullValue so the comparison reflects what actually hits the canvas
 // (e.g. "10px" vs "10em" differ even though their bare values both equal "10").
-const valueKey = (p: Property): string => p.getFullValue?.() ?? p.getValue() ?? ""
+const valueKey = (p: Property): string =>
+  p.getFullValue?.() ?? p.getValue() ?? ""
 
 function detectMode(subs: Property[]): ToggleMode {
   if (subs.length === 0) return "all"
@@ -91,10 +92,7 @@ export function AllCustomField({
   const units = firstNum?.getUnits?.() ?? []
   const currentUnit = firstNum?.getUnit?.() ?? ""
 
-  const propagate = (
-    raw: string,
-    opts: { partial?: boolean } = {}
-  ): void => {
+  const propagate = (raw: string, opts: { partial?: boolean } = {}): void => {
     const trimmed = raw.trim()
     for (const s of subs) s.upValue(trimmed, opts)
   }
@@ -129,7 +127,7 @@ export function AllCustomField({
 
   return (
     <AllCustomCtx.Provider value={ctx}>
-      <div className="rounded-md border border-border/60 bg-muted/30 p-2 space-y-2">
+      <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 p-2">
         {children}
       </div>
     </AllCustomCtx.Provider>
@@ -161,7 +159,7 @@ export function AllCustomFieldControl({
   } = useAllCustom()
 
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex items-center gap-2">
       <NumberInput
         key={propertyId}
         value={value}
@@ -244,7 +242,7 @@ export function AllCustomSelectControl({
   const { value, allMatch, name, propagate, mode, setMode } = useAllCustom()
 
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex items-center gap-2">
       <Select
         value={allMatch && value ? value : ""}
         onValueChange={(next) => {

@@ -18,7 +18,8 @@ const TARGETS: Target[] = [
     pathPrefix: "/themes/core-concepts/theme-structure",
   },
   {
-    rootUrl: "https://developer.wordpress.org/themes/global-settings-and-styles/",
+    rootUrl:
+      "https://developer.wordpress.org/themes/global-settings-and-styles/",
     pathPrefix: "/themes/global-settings-and-styles",
   },
 ]

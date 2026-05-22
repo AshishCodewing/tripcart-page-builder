@@ -50,9 +50,7 @@ function TraitRow({
       <span className="truncate text-xs text-muted-foreground capitalize">
         {trait.getLabel()}
       </span>
-      <div className="w-full">
-        {children}
-      </div>
+      <div className="w-full">{children}</div>
     </div>
   )
 }

@@ -102,7 +102,10 @@ export default function RightPanel({ content, deleteAction }: Props) {
         <TabsIndicator />
       </TabsList>
 
-      <TabsContent value={tabValue} className="@apply opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0 flex min-h-0 flex-col">
+      <TabsContent
+        value={tabValue}
+        className="@apply flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
+      >
         <SidebarContent className="px-3 py-4">
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium">{record.title}</p>
@@ -181,7 +184,10 @@ export default function RightPanel({ content, deleteAction }: Props) {
         </SidebarFooter>
       </TabsContent>
 
-      <TabsContent value="block" className="@apply opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0 flex min-h-0 flex-col">
+      <TabsContent
+        value="block"
+        className="@apply flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
+      >
         <BlockSettings />
       </TabsContent>
     </Tabs>

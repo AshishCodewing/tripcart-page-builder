@@ -118,8 +118,7 @@ export function NumberInput({
     // `value` arrives composed ("279deg", "50%", "0.5"). Strip the unit so
     // the slider and the type="number" input get a bare numeric.
     const sliderShape = parseValueShape(value)
-    const numericStr =
-      sliderShape.kind === "numeric" ? sliderShape.number : ""
+    const numericStr = sliderShape.kind === "numeric" ? sliderShape.number : ""
     const numeric = Number(numericStr)
     const safe = Number.isFinite(numeric) ? numeric : minN
     const showUnitSelectSlider = units.length > 1
@@ -150,11 +149,11 @@ export function NumberInput({
             step={step}
             value={numericStr}
             onChange={(e) => onCommit(e.target.value)}
-            className="no-spinner text-end tabular-nums text-xs"
+            className="no-spinner text-end text-xs tabular-nums"
             aria-label={ariaLabel}
           />
           {showUnitSelectSlider && (
-            <InputGroupAddon align="inline-end" className="gap-1 me-[-0.3rem]">
+            <InputGroupAddon align="inline-end" className="me-[-0.3rem] gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -235,8 +234,7 @@ export function NumberInput({
   // the current draft isn't a parseable number (fixed-value or expression).
   const showUnitSelect = units.length > 1
   const unitDisabled = shape.kind !== "numeric"
-  const triggerUnit =
-    shape.kind === "numeric" ? shape.unit || currentUnit : ""
+  const triggerUnit = shape.kind === "numeric" ? shape.unit || currentUnit : ""
 
   return (
     <InputGroup className="h-8">
@@ -259,14 +257,14 @@ export function NumberInput({
         aria-label={ariaLabel}
       />
       {(showUnitSelect || varCategories) && (
-        <InputGroupAddon align="inline-end" className="gap-1 me-[-0.3rem]">
+        <InputGroupAddon align="inline-end" className="me-[-0.3rem] gap-1">
           {showUnitSelect &&
             (unitDisabled ? (
               // Inert chip for fixed-values (var(), auto, …). We avoid a
               // `disabled` button here because InputGroup's `has-disabled`
               // selector would dim the whole field (input-group.tsx:15).
               <span
-                className="flex h-6 select-none items-center px-1 text-xs tabular-nums text-muted-foreground/60"
+                className="flex h-6 items-center px-1 text-xs text-muted-foreground/60 tabular-nums select-none"
                 aria-label="Unit (not applicable)"
               >
                 —

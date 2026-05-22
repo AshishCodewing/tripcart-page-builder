@@ -9,7 +9,6 @@ import type {
 } from "grapesjs"
 import * as React from "react"
 
-
 import BaseField from "./base-field"
 import ColorField from "./color-field"
 import CompositeField from "./composite-field"
@@ -45,7 +44,7 @@ const BLOCK_LAYOUT_PROPS = new Set([
   "__background-type",
   // Grapick gradient picker — needs full width for the color-stop preview.
   "background-image-gradient",
-  "background-color"
+  "background-color",
 ])
 
 // Properties whose UI is folded into another field's interactive surface, so
@@ -114,10 +113,7 @@ export default function PropertyField({ property }: PropertyFieldProps) {
     type === "radio" && FLEX_AXIS_BLOCK_PROPS.has(property.getName())
   const isBlockByName = BLOCK_LAYOUT_PROPS.has(property.getName())
   const layout =
-    type === "stack" ||
-    type === "composite" ||
-    isFlexAxisRadio ||
-    isBlockByName
+    type === "stack" || type === "composite" || isFlexAxisRadio || isBlockByName
       ? "block"
       : "inline"
 

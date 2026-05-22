@@ -20,7 +20,6 @@ interface Props {
   config?: RendererReactOptions
 }
 
-
 export function PagePreview({ projectData, config }: Props) {
   if (!projectData || typeof projectData !== "object") {
     return <PreviewEmpty reason="No saved project data." />

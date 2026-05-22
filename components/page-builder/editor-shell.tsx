@@ -97,7 +97,7 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       { name: "focus", label: "Focused" },
     ],
   },
-    // Sectors drive what CSS our custom Style Manager (style-settings.tsx)
+  // Sectors drive what CSS our custom Style Manager (style-settings.tsx)
   // exposes. Strings are buildProps shorthand — GrapesJS resolves them
   // through its built-in property registry (units, options, composite
   // sub-properties, etc.). Use `{ extend: 'name', ... }` to tweak a
@@ -123,12 +123,23 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
         name: "Position",
         open: false,
         properties: [
-          { property: "position", type: "select", default: "static", options: [{ id: "static" }, { id: "relative" }, { id: "absolute" }, { id: "fixed" }, { id: "sticky"}] },
+          {
+            property: "position",
+            type: "select",
+            default: "static",
+            options: [
+              { id: "static" },
+              { id: "relative" },
+              { id: "absolute" },
+              { id: "fixed" },
+              { id: "sticky" },
+            ],
+          },
           lengthProp("top", { extend: "top" }),
           lengthProp("right", { extend: "right" }),
           lengthProp("bottom", { extend: "bottom" }),
           lengthProp("left", { extend: "left" }),
-          { extend: "z-index", type: "integer"}
+          { extend: "z-index", type: "integer" },
         ],
       },
       {
@@ -140,20 +151,20 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             extend: "margin",
             type: "composite",
             properties: [
-              lengthProp("margin-top",    { default: "0" }),
-              lengthProp("margin-right",  { default: "0" }),
+              lengthProp("margin-top", { default: "0" }),
+              lengthProp("margin-right", { default: "0" }),
               lengthProp("margin-bottom", { default: "0" }),
-              lengthProp("margin-left",   { default: "0" }),
+              lengthProp("margin-left", { default: "0" }),
             ],
           },
           {
             extend: "padding",
             type: "composite",
             properties: [
-              lengthProp("padding-top",    { default: "0" }),
-              lengthProp("padding-right",  { default: "0" }),
+              lengthProp("padding-top", { default: "0" }),
+              lengthProp("padding-right", { default: "0" }),
               lengthProp("padding-bottom", { default: "0" }),
-              lengthProp("padding-left",   { default: "0" }),
+              lengthProp("padding-left", { default: "0" }),
             ],
           },
         ],
@@ -169,24 +180,63 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
           "font-weight",
           lengthProp("line-height", { extend: "line-height" }),
           lengthProp("letter-spacing", { extend: "letter-spacing" }),
-          { property: "font-style", type: "radio", options: [{ id: "normal" }, { id: "italic" }] },
+          {
+            property: "font-style",
+            type: "radio",
+            options: [{ id: "normal" }, { id: "italic" }],
+          },
           "text-align",
-          { property: "text-transform", type: "radio", options: [{ id: "none" }, { id: "capitalize" }, { id: "uppercase" }, { id: "lowercase" }] },
-          { property: "text-decoration", type: "radio", options: [{ id: "none" }, { id: "underline" }, { id: "overline" }, { id: "line-through" }] },
-          { property: "white-space", type: "select", options: [{ id: "normal" }, { id: "nowrap", label: "No wrap" }, { id: "pre" }, { id: "pre-wrap" }, { id: "pre-line" }] },
-          { property: "text-wrap", type: "select", options: [{ id: "wrap" }, { id: "nowrap", label: "No wrap" }, { id: "balance" }, { id: "pretty" }, { id: "stable" }] },
+          {
+            property: "text-transform",
+            type: "radio",
+            options: [
+              { id: "none" },
+              { id: "capitalize" },
+              { id: "uppercase" },
+              { id: "lowercase" },
+            ],
+          },
+          {
+            property: "text-decoration",
+            type: "radio",
+            options: [
+              { id: "none" },
+              { id: "underline" },
+              { id: "overline" },
+              { id: "line-through" },
+            ],
+          },
+          {
+            property: "white-space",
+            type: "select",
+            options: [
+              { id: "normal" },
+              { id: "nowrap", label: "No wrap" },
+              { id: "pre" },
+              { id: "pre-wrap" },
+              { id: "pre-line" },
+            ],
+          },
+          {
+            property: "text-wrap",
+            type: "select",
+            options: [
+              { id: "wrap" },
+              { id: "nowrap", label: "No wrap" },
+              { id: "balance" },
+              { id: "pretty" },
+              { id: "stable" },
+            ],
+          },
         ],
       },
       {
         id: "background",
         name: "Background",
         open: false,
-        properties: [
-          "background",
-          "background-color",
-        ],
+        properties: ["background", "background-color"],
       },
-      
+
       {
         id: "border",
         name: "Border",
@@ -197,10 +247,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
             extend: "border-radius",
             type: "composite",
             properties: [
-              lengthProp("border-top-left-radius",     { default: "0" }),
-              lengthProp("border-top-right-radius",    { default: "0" }),
+              lengthProp("border-top-left-radius", { default: "0" }),
+              lengthProp("border-top-right-radius", { default: "0" }),
               lengthProp("border-bottom-right-radius", { default: "0" }),
-              lengthProp("border-bottom-left-radius",  { default: "0" }),
+              lengthProp("border-bottom-left-radius", { default: "0" }),
             ],
           },
         ],
@@ -208,15 +258,15 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       {
         id: "effects",
         name: "Effects",
-        open:false,
+        open: false,
         properties: [
           "opacity",
           "cursor",
-          { extend: "box-shadow",  layerLabel: composedLayerLabel },
+          { extend: "box-shadow", layerLabel: composedLayerLabel },
           { extend: "text-shadow", layerLabel: composedLayerLabel },
           "filter",
           { extend: "filter", property: "backdrop-filter" },
-          { extend: "transition",  layerLabel: composedLayerLabel },
+          { extend: "transition", layerLabel: composedLayerLabel },
           "transform",
           {
             property: "overflow",
@@ -237,8 +287,8 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
               },
             ],
           },
-        ]
-      }
+        ],
+      },
     ],
   },
   // Default panels removed in favor of the WP-style React chrome.

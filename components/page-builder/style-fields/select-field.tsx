@@ -35,9 +35,7 @@ export default function SelectField({
         >
           {(val) => {
             if (val == null || val === "") return null
-            const opt = options.find(
-              (o) => property.getOptionId(o) === val
-            )
+            const opt = options.find((o) => property.getOptionId(o) === val)
             return humanizeLabel(
               opt ? property.getOptionLabel(opt) : String(val)
             )

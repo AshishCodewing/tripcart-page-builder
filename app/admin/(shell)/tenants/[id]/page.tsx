@@ -56,12 +56,7 @@ export default async function TenantDetailPage({
         <form action={updateAction} className="flex flex-wrap items-end gap-3">
           <div className="grow space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              defaultValue={tenant.name}
-              required
-            />
+            <Input id="name" name="name" defaultValue={tenant.name} required />
           </div>
           <div className="grow space-y-2">
             <Label htmlFor="slug">Slug</Label>

@@ -56,7 +56,7 @@ export const columnsPlugin = (editor: Editor): void => {
     "min-width": "30px",
     padding: "10px",
     display: "block",
-    width: "100%"
+    width: "100%",
   })
 
   // 2. `gridRow` — flex container, only accepts gridColumn children, vertical

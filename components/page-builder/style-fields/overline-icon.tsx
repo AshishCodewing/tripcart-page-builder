@@ -4,7 +4,11 @@ import type { LucideProps } from "lucide-react"
 
 export const OverlineIcon = forwardRef<SVGSVGElement, Omit<LucideProps, "ref">>(
   ({ className, ...props }, ref) => (
-    <Underline ref={ref} className={`rotate-180 ${className ?? ""}`} {...props} />
+    <Underline
+      ref={ref}
+      className={`rotate-180 ${className ?? ""}`}
+      {...props}
+    />
   )
 )
 OverlineIcon.displayName = "OverlineIcon"

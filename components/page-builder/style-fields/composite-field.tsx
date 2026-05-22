@@ -110,9 +110,13 @@ export default function CompositeField({ property }: CompositeFieldProps) {
     const colEnd = byName("grid-column-end")
     return (
       <div className="grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
-        {rowStart ? <AllCustomFieldItem sub={rowStart} label="Row start" /> : null}
+        {rowStart ? (
+          <AllCustomFieldItem sub={rowStart} label="Row start" />
+        ) : null}
         {rowEnd ? <AllCustomFieldItem sub={rowEnd} label="Row end" /> : null}
-        {colStart ? <AllCustomFieldItem sub={colStart} label="Column start" /> : null}
+        {colStart ? (
+          <AllCustomFieldItem sub={colStart} label="Column start" />
+        ) : null}
         {colEnd ? <AllCustomFieldItem sub={colEnd} label="Column end" /> : null}
       </div>
     )
@@ -190,9 +194,7 @@ export default function CompositeField({ property }: CompositeFieldProps) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
       {properties.map((p) => (
-        <React.Fragment key={p.getId()}>
-          {renderProperty(p)}
-        </React.Fragment>
+        <React.Fragment key={p.getId()}>{renderProperty(p)}</React.Fragment>
       ))}
     </div>
   )
@@ -214,9 +216,7 @@ function FlexCompositeField({ property }: { property: PropertyComposite }) {
       />
       {customActive
         ? properties.map((p) => (
-            <React.Fragment key={p.getId()}>
-              {renderProperty(p)}
-            </React.Fragment>
+            <React.Fragment key={p.getId()}>{renderProperty(p)}</React.Fragment>
           ))
         : null}
     </div>

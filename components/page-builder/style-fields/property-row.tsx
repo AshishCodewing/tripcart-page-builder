@@ -41,12 +41,14 @@ export default function PropertyRow({
         {label ? (
           <span
             className={cn(
-              "min-w-0 flex-1 truncate text-xs text-muted-foreground py-1",
+              "min-w-0 flex-1 truncate py-1 text-xs text-muted-foreground",
               inherited ? "flex items-center gap-2" : ""
             )}
           >
             {label}
-            {inherited && <span className="size-1.5 shrink-0 rounded-full bg-warning" />}
+            {inherited && (
+              <span className="size-1.5 shrink-0 rounded-full bg-warning" />
+            )}
           </span>
         ) : null}
         {canClear ? (
@@ -75,16 +77,14 @@ export default function PropertyRow({
                 <Plus />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              Add {label.toLowerCase()} layer
-            </TooltipContent>
+            <TooltipContent>Add {label.toLowerCase()} layer</TooltipContent>
           </Tooltip>
         ) : null}
       </div>
       <div
         className={cn(
           layout === "inline"
-            ? "flex min-w-0 max-w-[60%] flex-1 items-center"
+            ? "flex max-w-[60%] min-w-0 flex-1 items-center"
             : ""
         )}
       >

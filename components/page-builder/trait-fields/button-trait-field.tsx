@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 
 export default function ButtonTraitField({ trait }: { trait: Trait }) {
   return (
-    <div className="py-2 w-full">
+    <div className="w-full py-2">
       <Button
         type="button"
         variant="outline"

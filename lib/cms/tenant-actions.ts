@@ -18,7 +18,8 @@ export async function createTenant(form: FormData): Promise<void> {
   validateSlug(slug)
 
   const existingSlug = await prisma.tenant.findUnique({ where: { slug } })
-  if (existingSlug) throw new Error(`A tenant with slug "${slug}" already exists.`)
+  if (existingSlug)
+    throw new Error(`A tenant with slug "${slug}" already exists.`)
 
   if (domain) {
     const existingDomain = await prisma.tenant.findUnique({ where: { domain } })
@@ -51,7 +52,8 @@ export async function updateTenant(id: string, form: FormData): Promise<void> {
 
   if (domain && domain !== existing.domain) {
     const clash = await prisma.tenant.findUnique({ where: { domain } })
-    if (clash) throw new Error(`A tenant with domain "${domain}" already exists.`)
+    if (clash)
+      throw new Error(`A tenant with domain "${domain}" already exists.`)
   }
 
   await prisma.tenant.update({

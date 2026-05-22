@@ -46,7 +46,7 @@ const VISIBILITY: Record<string, (ctx: StyleContext) => boolean> = {
   right: (ctx) => ctx.position !== "static",
   bottom: (ctx) => ctx.position !== "static",
   left: (ctx) => ctx.position !== "static",
-  "z-index": (ctx) => ctx.position !== "static"
+  "z-index": (ctx) => ctx.position !== "static",
 }
 
 export function isPropertyVisible(name: string, ctx: StyleContext): boolean {

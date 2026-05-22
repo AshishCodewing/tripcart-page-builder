@@ -21,7 +21,11 @@ import {
 import { useThemeSelector } from "@/hooks/use-theme"
 
 import { TOKENS, type Token, type TokenCategory } from "./open-props-tokens"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const KEBAB_LETTER_RE = /-([a-z])/g
 
@@ -96,7 +100,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
           <span className="min-w-0 flex-1 truncate text-xs">
             {displayNameFor(token)}
           </span>
-          <span className="shrink-0 max-w-[40%] truncate text-xs text-muted-foreground">
+          <span className="max-w-[40%] shrink-0 truncate text-xs text-muted-foreground">
             {liveValue ?? token.value}
           </span>
         </ComboboxItem>
@@ -133,7 +137,6 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
         </TooltipTrigger>
         <TooltipContent>Variables</TooltipContent>
       </Tooltip>
-
 
       {/*
        * Focus issue: CssVarPicker lives inside InputGroupAddon, which has an

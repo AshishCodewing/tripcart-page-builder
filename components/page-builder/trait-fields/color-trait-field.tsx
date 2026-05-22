@@ -3,10 +3,7 @@
 import * as React from "react"
 import type { Trait } from "grapesjs"
 
-import {
-  InputGroup,
-  InputGroupInput,
-} from "@/components/ui/input-group"
+import { InputGroup, InputGroupInput } from "@/components/ui/input-group"
 
 const CHECKER_BG: React.CSSProperties = {
   backgroundImage:

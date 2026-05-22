@@ -37,11 +37,7 @@ export default function ColorField({ property }: { property: Property }) {
             />
           }
         />
-        <PopoverContent
-          align="start"
-          sideOffset={6}
-          className="w-64 gap-3 p-3"
-        >
+        <PopoverContent align="start" sideOffset={6} className="w-64 gap-3 p-3">
           <ColorPicker
             value={valueWithDef}
             onChange={(next, opts) => property.upValue(next, opts)}

@@ -32,6 +32,7 @@ export type {
   WithEditorProps,
 } from "./types"
 export { ErrorType } from "./types"
+export { processReactElements } from "./process"
 
 type Plugin = (editor: Editor, options?: RendererReactOptions) => void
 type PluginWithInit = Plugin & {
