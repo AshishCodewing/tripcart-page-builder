@@ -1,140 +1,161 @@
 /**
- * Source of truth for all Tripcart brand design tokens.
+ * Source of truth for Tripcart's bundled brand defaults.
  *
- * Defaults reference Open Props variables (https://open-props.style) so the
- * design system has a well-considered baseline out of the box. Open Props is
- * loaded into the GrapesJS canvas iframe via `canvas.styles` in editor-shell;
- * any environment that renders authored content must also load Open Props for
- * these `var(...)` references to resolve.
+ * The defaults reference Open Props variables (https://open-props.style)
+ * so the design system has a well-considered baseline. Open Props is
+ * loaded into the GrapesJS canvas iframe via `canvas.styles` in
+ * editor-shell; any environment that renders authored content must also
+ * load Open Props for these `var(...)` references to resolve.
+ *
+ * Shape mirrors WordPress `theme.json`:
+ *   - `defaultTheme.settings` is the *registry* of design tokens.
+ *   - `defaultTheme.styles`   is reserved for default style application
+ *     (root, per-element, per-component). Empty in this PR; populated
+ *     in the styles-application follow-up.
+ *
+ * `tokensFromStored` rehydrates a `Theme` from a persisted `:root` style
+ * object. It accepts both the new `--tc--preset--*` variable names and
+ * the pre-migration `--theme-*` / `--font-*` legacy aliases — so existing
+ * GrapesJS projects keep loading correctly.
  */
 
-import { toKebab } from "@/lib/toKebab"
+import {
+  legacyVarName,
+  presetVarName,
+  type PresetCategory,
+} from "@/lib/theme/compile"
+import type { Theme, Token } from "@/lib/theme/schema"
 
-export type TokenValue = {
-  label: string
-  value: string
-}
+export type ActivePresetId = Partial<Record<PresetCategory, string>>
 
-export type TokenSchema = {
-  colors: Record<string, TokenValue>
-  typography: Record<string, TokenValue>
-}
-
-// Default theme is "blue + system-sans" — a light, neutral baseline. It
-// matches `COLOR_PRESETS[blue]` and `TYPOGRAPHY_PRESETS[system-sans]` exactly,
-// so on first run the preset cards reflect the active state and applying a
-// different preset is a clean swap rather than a custom-token edit.
-export const defaultTokens: TokenSchema = {
-  colors: {
-    background: { label: "Background", value: "hsl(var(--gray-0-hsl))" },
-    foreground: { label: "Foreground", value: "hsl(var(--gray-12-hsl))" },
-    card: { label: "Card", value: "hsl(var(--gray-0-hsl))" },
-    cardForeground: {
-      label: "Card Foreground",
-      value: "hsl(var(--gray-12-hsl))",
-    },
-    popover: { label: "Popover", value: "hsl(var(--gray-0-hsl))" },
-    popoverForeground: {
-      label: "Popover Foreground",
-      value: "hsl(var(--gray-12-hsl))",
-    },
-    primary: { label: "Primary", value: "hsl(var(--blue-6-hsl))" },
-    primaryForeground: {
-      label: "Primary Foreground",
-      value: "hsl(var(--gray-0-hsl))",
-    },
-    secondary: { label: "Secondary", value: "hsl(var(--gray-2-hsl))" },
-    secondaryForeground: {
-      label: "Secondary Foreground",
-      value: "hsl(var(--gray-12-hsl))",
-    },
-    muted: { label: "Muted", value: "hsl(var(--gray-2-hsl))" },
-    mutedForeground: {
-      label: "Muted Foreground",
-      value: "hsl(var(--gray-7-hsl))",
-    },
-    accent: { label: "Accent", value: "hsl(var(--gray-2-hsl))" },
-    accentForeground: {
-      label: "Accent Foreground",
-      value: "hsl(var(--gray-12-hsl))",
-    },
-    destructive: { label: "Destructive", value: "hsl(var(--red-6-hsl))" },
-    warning: { label: "Warning", value: "hsl(var(--yellow-6-hsl))" },
-    warningForeground: {
-      label: "Warning Foreground",
-      value: "hsl(var(--gray-0-hsl))",
-    },
-    success: { label: "Success", value: "hsl(var(--green-6-hsl))" },
-    successForeground: {
-      label: "Success Foreground",
-      value: "hsl(var(--gray-0-hsl))",
-    },
-    border: {
-      label: "Border",
-      value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 10%, transparent)",
-    },
-    input: {
-      label: "Input",
-      value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 15%, transparent)",
-    },
-    ring: { label: "Ring", value: "hsl(var(--blue-6-hsl))" },
+const colorPalette: Token[] = [
+  { slug: "background", name: "Background", value: "hsl(var(--gray-0-hsl))" },
+  { slug: "foreground", name: "Foreground", value: "hsl(var(--gray-12-hsl))" },
+  { slug: "card", name: "Card", value: "hsl(var(--gray-0-hsl))" },
+  {
+    slug: "cardForeground",
+    name: "Card Foreground",
+    value: "hsl(var(--gray-12-hsl))",
   },
+  { slug: "popover", name: "Popover", value: "hsl(var(--gray-0-hsl))" },
+  {
+    slug: "popoverForeground",
+    name: "Popover Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "primary", name: "Primary", value: "hsl(var(--blue-6-hsl))" },
+  {
+    slug: "primaryForeground",
+    name: "Primary Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  { slug: "secondary", name: "Secondary", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "secondaryForeground",
+    name: "Secondary Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "muted", name: "Muted", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "mutedForeground",
+    name: "Muted Foreground",
+    value: "hsl(var(--gray-7-hsl))",
+  },
+  { slug: "accent", name: "Accent", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "accentForeground",
+    name: "Accent Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "destructive", name: "Destructive", value: "hsl(var(--red-6-hsl))" },
+  { slug: "warning", name: "Warning", value: "hsl(var(--yellow-6-hsl))" },
+  {
+    slug: "warningForeground",
+    name: "Warning Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  { slug: "success", name: "Success", value: "hsl(var(--green-6-hsl))" },
+  {
+    slug: "successForeground",
+    name: "Success Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  {
+    slug: "border",
+    name: "Border",
+    value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 10%, transparent)",
+  },
+  {
+    slug: "input",
+    name: "Input",
+    value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 15%, transparent)",
+  },
+  { slug: "ring", name: "Ring", value: "hsl(var(--blue-6-hsl))" },
+]
 
-  typography: {
-    body: { label: "Body Font", value: "var(--font-sans)" },
-    heading: { label: "Heading Font", value: "var(--font-sans)" },
+const fontFamilies: Token[] = [
+  { slug: "body", name: "Body Font", value: "var(--font-sans)" },
+  { slug: "heading", name: "Heading Font", value: "var(--font-sans)" },
+]
+
+// Default theme = "blue + system-sans". Matches COLOR_PRESETS[blue] and
+// TYPOGRAPHY_PRESETS[system-sans] exactly, so on first run the preset
+// cards reflect the active state.
+export const defaultTheme: Theme = {
+  version: 1,
+  settings: {
+    color: { palette: colorPalette },
+    typography: { fontFamilies },
   },
 }
 
-/** Preset IDs the default theme is built on. Drives initial selection in UI. */
-export const defaultActivePresetId = {
-  colors: "blue",
-  typography: "system-sans",
-} as const
-
-export const tokenToCssVar = (
-  category: keyof TokenSchema,
-  key: string
-): string => {
-  // Colours use the --theme- prefix so they don't collide with shadcn's
-  // own variable names (--background, --primary, etc.).
-  const prefixMap: Record<keyof TokenSchema, string> = {
-    colors: "theme",
-    typography: "font",
-  }
-  const prefix = prefixMap[category]
-  const name = toKebab(key)
-  return `--${prefix}-${name}`
-}
-
-export const tokensToStyleObject = (
-  tokens: TokenSchema
-): Record<string, string> => {
-  const styles: Record<string, string> = {}
-  for (const [category, group] of Object.entries(tokens)) {
-    for (const [key, token] of Object.entries(group)) {
-      styles[tokenToCssVar(category as keyof TokenSchema, key)] = token.value
-    }
-  }
-
-  return styles
+export const defaultActivePresetId: ActivePresetId = {
+  color: "blue",
+  "font-family": "system-sans",
 }
 
 /**
- * Build a TokenSchema by overlaying values pulled from a CSS style object
- * (typically the styles attached to the persisted `:root` CssRule). Token
- * keys absent from the style object keep their existing value, so this is
- * safe across schema additions.
+ * Categories we know how to hydrate from a stored `:root` style object.
+ * Each entry pairs a `PresetCategory` (used to build the variable name)
+ * with an accessor that returns the matching `Token[]` slot in the
+ * mutable theme draft.
  */
-export const tokensFromStyleObject = (
-  base: TokenSchema,
+const HYDRATABLE: ReadonlyArray<{
+  category: PresetCategory
+  pick: (draft: Theme) => Token[] | undefined
+}> = [
+  { category: "color", pick: (t) => t.settings.color?.palette },
+  { category: "font-family", pick: (t) => t.settings.typography?.fontFamilies },
+  { category: "font-weight", pick: (t) => t.settings.typography?.fontWeights },
+  { category: "line-height", pick: (t) => t.settings.typography?.lineHeights },
+  {
+    category: "letter-spacing",
+    pick: (t) => t.settings.typography?.letterSpacings,
+  },
+  { category: "spacing", pick: (t) => t.settings.spacing?.sizes },
+  { category: "radius", pick: (t) => t.settings.border?.radii },
+  { category: "border-width", pick: (t) => t.settings.border?.widths },
+  { category: "border-style", pick: (t) => t.settings.border?.styles },
+  { category: "shadow", pick: (t) => t.settings.shadow?.presets },
+]
+
+/**
+ * Overlay stored CSS variable values onto a base theme draft. Tokens
+ * absent from `styles` keep their default value, so this is safe across
+ * additive schema changes.
+ */
+export const tokensFromStored = (
+  base: Theme,
   styles: Record<string, string>
-): TokenSchema => {
+): Theme => {
   const next = structuredClone(base)
-  for (const [category, group] of Object.entries(next)) {
-    for (const [key, token] of Object.entries(group)) {
-      const varName = tokenToCssVar(category as keyof TokenSchema, key)
-      const stored = styles[varName]
+  for (const { category, pick } of HYDRATABLE) {
+    const tokens = pick(next)
+    if (!tokens) continue
+    for (const token of tokens) {
+      const newName = presetVarName(category, token.slug)
+      const legacy = legacyVarName(category, token.slug)
+      const stored = styles[newName] ?? (legacy ? styles[legacy] : undefined)
       if (typeof stored === "string" && stored.length > 0) {
         token.value = stored
       }

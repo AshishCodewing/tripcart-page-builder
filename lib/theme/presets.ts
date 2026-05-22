@@ -1,22 +1,28 @@
 /**
- * Built-in presets - collections of token overrides that swap a category ( or a slice of one ) in a single click. Pick a palette, get a coordinated brand identity.
- * A preset only specifies the tokens it cares about. Everything else on the active theme is preserved when the preset is applied.
+ * Built-in presets — collections of token overrides that swap a slice
+ * of the active theme in a single click. Pick a palette, get a
+ * coordinated brand identity.
+ *
+ * A preset is scoped to ONE `PresetCategory` and only specifies the
+ * tokens it cares about. Anything else on the active theme is preserved
+ * when the preset is applied — `themeStore.applyPreset` merges by slug.
+ *
+ * Cross-category combos (e.g. "Brutalist Mono" pairing a font-family
+ * AND font-size scale) belong in Style Variations, not single presets
+ * — that layer lands in a later PR.
  */
 
-import type { TokenSchema, TokenValue } from "@/lib/tokens"
-
-export type PresetCategory = "colors" | "typography"
+import type { PresetCategory } from "@/lib/theme/compile"
+import type { Token } from "@/lib/theme/schema"
 
 export type Preset = {
   id: string
   name: string
   category: PresetCategory
   description?: string
-  /** Subset of tokens to merge into the active theme. */
-  tokens: Partial<{
-    [K in keyof TokenSchema]: Partial<Record<string, TokenValue>>
-  }>
-  /** Three accent swatches for the preset card. */
+  /** Tokens to merge into the active theme, matched by slug. */
+  tokens: Token[]
+  /** Four accent swatches for the preset card. */
   swatches?: [string, string, string, string]
 }
 
@@ -30,19 +36,18 @@ const buildColorPreset = (
 ): Preset => ({
   id,
   name,
-  category: "colors",
+  category: "color",
   swatches: [primary, primaryForeground, background, foreground],
-  tokens: {
-    colors: {
-      primary: { label: "Primary", value: primary },
-      primaryForeground: {
-        label: "Primary Foreground",
-        value: primaryForeground,
-      },
-      background: { label: "Background", value: background },
-      foreground: { label: "Foreground", value: foreground },
+  tokens: [
+    { slug: "primary", name: "Primary", value: primary },
+    {
+      slug: "primaryForeground",
+      name: "Primary Foreground",
+      value: primaryForeground,
     },
-  },
+    { slug: "background", name: "Background", value: background },
+    { slug: "foreground", name: "Foreground", value: foreground },
+  ],
 })
 
 const LIGHT_BG = "hsl(var(--gray-0-hsl))"
@@ -104,9 +109,10 @@ export const COLOR_PRESETS: Preset[] = [
 ]
 
 /**
- * Typography presets pair a heading font with a body font. Each pairing is
- * picked for tonal coherence (display weight + reading texture) rather than
- * variety alone. `system-sans` is the default (see `defaultActivePresetId`).
+ * Typography presets pair a heading font with a body font. Each pairing
+ * is picked for tonal coherence (display weight + reading texture)
+ * rather than variety alone. `system-sans` is the default (see
+ * `defaultActivePresetId`).
  */
 const buildTypographyPreset = (
   id: string,
@@ -117,14 +123,12 @@ const buildTypographyPreset = (
 ): Preset => ({
   id,
   name,
-  category: "typography",
+  category: "font-family",
   description,
-  tokens: {
-    typography: {
-      heading: { label: "Heading Font", value: heading },
-      body: { label: "Body Font", value: body },
-    },
-  },
+  tokens: [
+    { slug: "heading", name: "Heading Font", value: heading },
+    { slug: "body", name: "Body Font", value: body },
+  ],
 })
 
 export const TYPOGRAPHY_PRESETS: Preset[] = [
