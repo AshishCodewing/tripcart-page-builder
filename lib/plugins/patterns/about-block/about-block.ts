@@ -8,9 +8,9 @@ const aboutCss = `
 .tc-about {
   padding-block: clamp(4.5rem, 9vw, 8rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--theme-background, hsl(var(--gray-0-hsl)));
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
-  font-family: var(--font-body, var(--font-sans));
+  background-color: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
 }
 
 .tc-about {
@@ -49,17 +49,17 @@ const aboutCss = `
 }
 
 .tc-about__eyebrow {
-  font-family: var(--font-body, var(--font-sans));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
   font-size: var(--font-size-0);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   margin: 0;
 }
 
 .tc-about__title {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(2rem, 4.4vw, 3.75rem);
   line-height: 1.04;
   letter-spacing: -0.02em;
@@ -70,14 +70,14 @@ const aboutCss = `
 
 .tc-about__title em {
   font-style: italic;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
 .tc-about__lede {
   font-size: clamp(1.0625rem, 1.3vw, 1.1875rem);
   line-height: 1.6;
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
   text-wrap: pretty;
   margin: 0;
 }
@@ -88,7 +88,7 @@ const aboutCss = `
   gap: clamp(1.25rem, 3vw, 2rem);
   margin-block-start: clamp(1rem, 2vw, 1.5rem);
   padding-block-start: clamp(1rem, 2vw, 1.5rem);
-  border-block-start: 1px solid var(--theme-border, color-mix(in oklch, hsl(var(--gray-12-hsl)) 12%, transparent));
+  border-block-start: 1px solid var(--tc--preset--color--border, color-mix(in oklch, hsl(var(--gray-12-hsl)) 12%, transparent));
 }
 
 .tc-about__meta-item {
@@ -98,19 +98,19 @@ const aboutCss = `
 }
 
 .tc-about__meta-value {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.5rem, 2.4vw, 1.875rem);
   font-weight: var(--font-weight-8);
   letter-spacing: -0.01em;
   line-height: 1;
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
 }
 
 .tc-about__meta-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
 .tc-about__media {
@@ -118,7 +118,7 @@ const aboutCss = `
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-3, 1rem);
-  background: color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
+  background: color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
 .tc-about__image {
@@ -135,8 +135,8 @@ const aboutCss = `
   inset-inline-start: clamp(0.875rem, 2vw, 1.5rem);
   inset-block-end: clamp(0.875rem, 2vw, 1.5rem);
   padding: clamp(0.875rem, 1.4vw, 1.125rem) clamp(1rem, 1.6vw, 1.375rem);
-  background: var(--theme-background, hsl(var(--gray-0-hsl)));
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
+  background: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   border-radius: var(--radius-2, 0.625rem);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.04),
@@ -148,19 +148,19 @@ const aboutCss = `
 }
 
 .tc-about__badge-value {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.375rem, 2.2vw, 1.75rem);
   font-weight: var(--font-weight-9);
   letter-spacing: -0.015em;
   line-height: 1;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
 }
 
 .tc-about__badge-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
 @media (prefers-reduced-motion: reduce) {

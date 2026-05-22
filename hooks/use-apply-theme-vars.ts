@@ -5,7 +5,7 @@
  * The canvas iframe already gets these via `designSystemPlugin` (which
  * writes a `:root` CssRule into CssComposer). But anything rendered in
  * the outer React document — Style Manager swatches, popovers, panel
- * previews — also needs them so values like `var(--theme-primary)` or
+ * previews — also needs them so values like
  * `var(--tc--preset--color--primary)` can resolve there.
  *
  * Scope: applied to the document root because shadcn primitives

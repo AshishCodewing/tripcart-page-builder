@@ -7,9 +7,9 @@ const tripsCss = `
 .tc-trips {
   padding-block: clamp(4.5rem, 9vw, 8rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--theme-background, hsl(var(--gray-0-hsl)));
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
-  font-family: var(--font-body, var(--font-sans));
+  background-color: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
 }
 
 .tc-trips__inner {
@@ -43,12 +43,12 @@ const tripsCss = `
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   margin: 0;
 }
 
 .tc-trips__title {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.875rem, 4vw, 3.25rem);
   line-height: 1.05;
   letter-spacing: -0.018em;
@@ -59,14 +59,14 @@ const tripsCss = `
 
 .tc-trips__title em {
   font-style: italic;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
 .tc-trips__lede {
   font-size: clamp(0.9375rem, 1.2vw, 1.0625rem);
   line-height: 1.55;
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
   margin: 0;
   max-width: 32rem;
   justify-self: end;
@@ -119,7 +119,7 @@ const tripsCss = `
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-3, 1rem);
-  background: color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
+  background: color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
 .tc-trip-card__image {
@@ -143,16 +143,16 @@ const tripsCss = `
   font-weight: var(--font-weight-6);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
 .tc-trip-card__title {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.125rem, 1.7vw, 1.375rem);
   line-height: 1.2;
   letter-spacing: -0.01em;
   font-weight: var(--font-weight-7);
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   margin: 0;
   text-wrap: balance;
 }

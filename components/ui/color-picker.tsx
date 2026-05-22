@@ -74,11 +74,12 @@ function useDefaultThemeSwatches(): TokenSwatch[] {
     if (!palette) return out
     for (const token of palette) {
       if (!token.value) continue
-      // camelCase slug -> kebab token name (the `--theme-` prefix is added below).
+      // camelCase slug -> kebab token name. The `--tc--preset--color--`
+      // prefix is added below; `kebab` is used as the picker label.
       const kebab = token.slug.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
       out.push({
         kind: "token",
-        token: `--theme-${kebab}`,
+        token: `--tc--preset--color--${kebab}`,
         hex: token.value,
         label: kebab,
       })
