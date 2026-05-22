@@ -8,7 +8,7 @@ export type PageRecord = {
   slug: string
   parentId: string | null
   path: string
-  tenantId: string | null
+  tenantId: string
   status: "DRAFT" | "PUBLISHED"
   updatedAt: Date
 }
@@ -18,7 +18,7 @@ export type PostRecord = {
   title: string
   slug: string
   excerpt: string | null
-  tenantId: string | null
+  tenantId: string
   status: "DRAFT" | "PUBLISHED"
   updatedAt: Date
 }
@@ -65,11 +65,10 @@ export const contentKindLabel = (content: EditorContent): string =>
 export const contentIndexHref = (content: EditorContent): string => {
   const tenantId =
     content.kind === "page" ? content.page.tenantId : content.post.tenantId
-  return tenantId ? `/admin/tenants/${tenantId}` : "/admin/tenants"
+  return `/admin/tenants/${tenantId}`
 }
 
-export const contentIndexLabel = (content: EditorContent): string => {
-  const tenantId =
-    content.kind === "page" ? content.page.tenantId : content.post.tenantId
-  return tenantId ? "Back to tenant" : "Back to tenants"
-}
+// Signature retained for symmetry with contentIndexHref even though the
+// content arg isn't needed now that every page/post has a tenant.
+export const contentIndexLabel = (_content: EditorContent): string =>
+  "Back to tenant"
