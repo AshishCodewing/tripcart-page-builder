@@ -13,10 +13,10 @@
  *   `--tc--preset--<category>--<slug>`   for registered tokens
  *   `--tc--custom--<segment>--<segment>` for the escape-hatch tree
  *
- * In addition, color-palette and font-family tokens emit a legacy
- * alias (`--theme-<slug>` / `--font-<slug>`) so pattern templates,
- * shadcn bindings, and other consumers from before the migration keep
- * resolving until they're swept onto the new names in a follow-up PR.
+ * `legacyVarName` (pre-rename `--theme-<slug>` / `--font-<slug>`) is no
+ * longer emitted by the compiler — kept as a one-shot helper that
+ * `tokensFromStored` uses to upgrade `:root` rules saved before the
+ * rename PR.
  */
 
 import { toKebab } from "@/lib/toKebab"
@@ -64,9 +64,13 @@ export const customVarName = (path: readonly string[]): string =>
   `--tc--custom--${path.map(toKebab).join("--")}`
 
 /**
- * Pre-migration variable name for the two categories that existed in
- * the old theme system. Returns null for newer categories — they have
- * no legacy form, only the new naming applies.
+ * Pre-rename variable name for the two categories that existed before
+ * the WP-style schema migration. Returns null for newer categories.
+ *
+ * NOT used by the compiler anymore — `compileTheme` only emits the
+ * canonical `--tc--preset--…` names. Retained as a hydration helper for
+ * `tokensFromStored`, which still reads the legacy names when loading
+ * projects last saved before the rename PR.
  */
 export const legacyVarName = (
   category: PresetCategory,
@@ -110,8 +114,6 @@ const writePresetVars = (
   if (!tokens) return
   for (const token of tokens) {
     out[presetVarName(category, token.slug)] = token.value
-    const legacy = legacyVarName(category, token.slug)
-    if (legacy) out[legacy] = token.value
   }
 }
 

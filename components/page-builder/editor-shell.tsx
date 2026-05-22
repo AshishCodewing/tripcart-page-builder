@@ -368,9 +368,9 @@ function EditorShellInner({ content, saveAction, deleteAction }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
 
-  // Mirror themeStore tokens onto the document root so `var(--theme-*)` /
-  // `var(--font-*)` resolve in the outer chrome (style-manager swatches,
-  // popovers, etc.), not just inside the canvas iframe.
+  // Mirror themeStore tokens onto the document root so
+  // `var(--tc--preset--*)` resolves in the outer chrome (style-manager
+  // swatches, popovers, etc.), not just inside the canvas iframe.
   useApplyThemeVars()
 
   // Build options once per record so each page/post has its own local-storage

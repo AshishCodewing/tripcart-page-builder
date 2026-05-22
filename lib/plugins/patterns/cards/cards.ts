@@ -25,8 +25,8 @@
 //
 // Tokens: Open Props (`--size-*`, `--font-*`, `--radius-*`, `--gray-*-hsl`,
 // `--indigo-*-hsl`, `--shadow-*`) and the design-system theme vars
-// (`--theme-background`, `--theme-foreground`, `--theme-primary`,
-// `--theme-primary-foreground`, `--theme-border`).
+// (`--tc--preset--color--background`, `--tc--preset--color--foreground`, `--tc--preset--color--primary`,
+// `--tc--preset--color--primary-foreground`, `--tc--preset--color--border`).
 
 import type { Component, Editor } from "grapesjs"
 
@@ -37,12 +37,12 @@ const getCardProp = (cmp: Component, key: CardProp): string =>
 
 const cardsCss = `
 .tc-card {
-  --tc-card-bg: var(--theme-background, hsl(var(--gray-0-hsl)));
-  --tc-card-fg: var(--theme-foreground, hsl(var(--gray-12-hsl)));
+  --tc-card-bg: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  --tc-card-fg: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   --tc-card-muted: color-mix(in oklch, var(--tc-card-fg) 62%, transparent);
-  --tc-card-border: var(--theme-border, color-mix(in oklch, var(--tc-card-fg) 12%, transparent));
-  --tc-card-accent: var(--theme-primary, hsl(var(--indigo-6-hsl)));
-  --tc-card-accent-fg: var(--theme-primary-foreground, hsl(var(--gray-0-hsl)));
+  --tc-card-border: var(--tc--preset--color--border, color-mix(in oklch, var(--tc-card-fg) 12%, transparent));
+  --tc-card-accent: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
+  --tc-card-accent-fg: var(--tc--preset--color--primary-foreground, hsl(var(--gray-0-hsl)));
 
   display: flex;
   flex-direction: column;
@@ -55,7 +55,7 @@ const cardsCss = `
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.04),
     0 16px 32px -24px rgba(0, 0, 0, 0.18);
-  font-family: var(--font-body, var(--font-sans));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
   transition:
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -69,13 +69,13 @@ const cardsCss = `
 }
 
 /* Patch-injected theme modifier (applied at runtime by applyCardTheme). */
-.tc-card--theme-dark {
+.tc-card--tc--preset--color--dark {
   --tc-card-bg: color-mix(in oklch, hsl(var(--gray-12-hsl)) 92%, black);
   --tc-card-fg: hsl(var(--gray-0-hsl));
   --tc-card-border: color-mix(in oklch, hsl(var(--gray-0-hsl)) 14%, transparent);
 }
 
-.tc-card--theme-accent {
+.tc-card--tc--preset--color--accent {
   --tc-card-bg: var(--tc-card-accent);
   --tc-card-fg: var(--tc-card-accent-fg);
   --tc-card-border: color-mix(in oklch, var(--tc-card-accent-fg) 22%, transparent);
@@ -100,7 +100,7 @@ const cardsCss = `
 }
 
 .tc-card__title {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: var(--font-size-4);
   font-weight: var(--font-weight-8);
   letter-spacing: -0.01em;
@@ -123,7 +123,7 @@ const cardsCss = `
 }
 
 .tc-card__stat-value {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(2.5rem, 5vw, 3.5rem);
   font-weight: var(--font-weight-9);
   letter-spacing: -0.025em;
@@ -158,7 +158,7 @@ const cardsCss = `
   position: absolute;
   inset-block-start: -0.35em;
   inset-inline-start: 0.35em;
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(4rem, 8vw, 6rem);
   line-height: 1;
   color: color-mix(in oklch, var(--tc-card-accent) 38%, transparent);
@@ -166,7 +166,7 @@ const cardsCss = `
 }
 
 .tc-card__quote {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: var(--font-size-4);
   font-weight: var(--font-weight-6);
   line-height: 1.35;
@@ -267,10 +267,10 @@ export const registerCardBlocks = (editor: Editor): void => {
         // Strip any prior theme modifier, then add the new one. `light` is
         // the implicit default so it gets no class.
         const cleaned = classes.filter(
-          (c: string) => !c.startsWith("tc-card--theme-")
+          (c: string) => !c.startsWith("tc-card--tc--preset--color--")
         )
         this.setClass(cleaned)
-        if (theme !== "light") this.addClass(`tc-card--theme-${theme}`)
+        if (theme !== "light") this.addClass(`tc-card--tc--preset--color--${theme}`)
       },
     },
   })

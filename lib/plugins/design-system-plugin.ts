@@ -9,11 +9,11 @@
  *   edits flow through to the canvas with no extra wiring at the call
  *   site.
  *
- * The injected `:root` rule is built by `compileTheme`, which emits the
- * new `--tc--preset--<category>--<slug>` variable names alongside the
- * legacy `--theme-<slug>` / `--font-<slug>` aliases. The aliases keep
- * pattern templates and shadcn bindings resolving until they're swept
- * onto the new names in a follow-up PR.
+ * The injected `:root` rule is built by `compileTheme`, which emits
+ * the `--tc--preset--<category>--<slug>` variable names. Pre-rename
+ * `--theme-*` / `--font-*` aliases are no longer written; consumers
+ * (pattern templates, the Tailwind `font-heading` bridge in globals.css,
+ * the Style Manager pickers) all read the new names directly.
  *
  * Note on export contract: tokens reference Open Props variables by
  * name (e.g. `var(--gray-9)`). Any environment that renders authored

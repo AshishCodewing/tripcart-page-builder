@@ -14,9 +14,11 @@
  *     in the styles-application follow-up.
  *
  * `tokensFromStored` rehydrates a `Theme` from a persisted `:root` style
- * object. It accepts both the new `--tc--preset--*` variable names and
- * the pre-migration `--theme-*` / `--font-*` legacy aliases — so existing
- * GrapesJS projects keep loading correctly.
+ * object. It primarily reads the canonical `--tc--preset--*` names and
+ * falls back to the pre-rename `--theme-*` / `--font-*` aliases as a
+ * one-shot upgrade path — projects last saved before the rename PR
+ * still load correctly. A subsequent save rewrites the rule with the
+ * new names only.
  */
 
 import {
