@@ -178,6 +178,13 @@ const shadowPresets: Token[] = [
 // Default theme = "blue + system-sans". Matches COLOR_PRESETS[blue] and
 // TYPOGRAPHY_PRESETS[system-sans] exactly, so on first run the preset
 // cards reflect the active state.
+//
+// `styles` populates element-level defaults so the new compileTheme
+// styles path produces visible output: every <button> picks up the
+// brand primary; every <h1> uses the heading font at xx-large bold;
+// links inherit primary with a hover underline. Slugs in StyleRefs
+// are written exactly as stored in the token arrays — resolveStyleRef
+// kebabs them when assembling the final CSS variable name.
 export const defaultTheme: Theme = {
   version: 1,
   settings: {
@@ -196,6 +203,42 @@ export const defaultTheme: Theme = {
       styles: borderStyles,
     },
     shadow: { presets: shadowPresets },
+  },
+  styles: {
+    color: {
+      text: "var:preset|color|foreground",
+      background: "var:preset|color|background",
+    },
+    typography: {
+      fontFamily: "var:preset|font-family|body",
+      fontSize: "var:preset|font-size|medium",
+      lineHeight: "var:preset|line-height|normal",
+    },
+    elements: {
+      heading: {
+        typography: {
+          fontFamily: "var:preset|font-family|heading",
+          fontWeight: "var:preset|font-weight|bold",
+          lineHeight: "var:preset|line-height|tight",
+        },
+      },
+      h1: { typography: { fontSize: "var:preset|font-size|xx-large" } },
+      h2: { typography: { fontSize: "var:preset|font-size|x-large" } },
+      h3: { typography: { fontSize: "var:preset|font-size|large" } },
+      button: {
+        color: {
+          text: "var:preset|color|primaryForeground",
+          background: "var:preset|color|primary",
+        },
+        border: { radius: "var:preset|radius|md" },
+      },
+      link: {
+        color: { text: "var:preset|color|primary" },
+        ":hover": {
+          typography: { textDecoration: "underline" },
+        },
+      },
+    },
   },
 }
 

@@ -15,6 +15,18 @@
  * (pattern templates, the Tailwind `font-heading` bridge in globals.css,
  * the Style Manager pickers) all read the new names directly.
  *
+ * `compileTheme.rules` adds element- and component-level defaults
+ * (`body`, `button`, `a`, `h1`-`h6`, `[data-gjs-type="…"]`, …) on top
+ * of the `:root` variables. These are NOT marked protected — users can
+ * still inspect and override them via the Style Manager — but each
+ * theme re-compile rewrites the managed selectors, so a preset change
+ * always wins over a stale manual edit.
+ *
+ * A closure-scoped `managedSelectors` Set tracks every selector we've
+ * ever written, so removing a style block from the theme on a
+ * subsequent compile cycle clears its declarations from the canvas
+ * (we re-setRule the old selector with an empty style map).
+ *
  * Note on export contract: tokens reference Open Props variables by
  * name (e.g. `var(--gray-9)`). Any environment that renders authored
  * content must also load Open Props, or the variables won't resolve.
@@ -27,13 +39,31 @@ import { tokensFromStored } from "@/lib/tokens"
 import type { Theme } from "@/lib/theme/schema"
 
 export const designSystemPlugin = (editor: Editor): void => {
+  let managedSelectors = new Set<string>()
+
   const inject = (theme: Theme): void => {
-    const { rootVars } = compileTheme(theme)
+    const { rootVars, rules } = compileTheme(theme)
+
+    // :root variables — protected so users can't accidentally delete
+    // the rule from the Style Manager.
     editor.CssComposer.setRule(":root", rootVars)
-    const rule = editor.CssComposer.getRule(":root")
-    // `protected` is a CssRule model attribute (Backbone-backed); set
-    // via `.set()` so users can't delete the rule from the Style Manager.
-    if (rule) rule.set("protected", true)
+    const rootRule = editor.CssComposer.getRule(":root")
+    if (rootRule) rootRule.set("protected", true)
+
+    // Element / component style rules.
+    const incoming = new Set<string>()
+    for (const rule of rules) {
+      editor.CssComposer.setRule(rule.selector, rule.style)
+      incoming.add(rule.selector)
+    }
+
+    // Clear selectors we wrote previously that aren't in this compile.
+    for (const stale of managedSelectors) {
+      if (!incoming.has(stale)) {
+        editor.CssComposer.setRule(stale, {})
+      }
+    }
+    managedSelectors = incoming
   }
 
   let unsubscribe: (() => void) | null = null
