@@ -52,7 +52,15 @@ export default async function TenantDetailPage({
       </header>
 
       <section className="rounded-lg border p-4">
-        <h2 className="mb-3 text-sm font-medium">Tenant details</h2>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-sm font-medium">Tenant details</h2>
+          <Link
+            href={`/admin/tenants/${tenant.id}/theme`}
+            className="text-sm text-primary hover:underline"
+          >
+            Edit theme →
+          </Link>
+        </div>
         <form action={updateAction} className="flex flex-wrap items-end gap-3">
           <div className="grow space-y-2">
             <Label htmlFor="name">Name</Label>

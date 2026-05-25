@@ -23,6 +23,8 @@ import { layoutSector } from "./style-config/layout-sector"
 
 import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import type { Theme } from "@/lib/theme/schema"
+import { themeStore } from "@/lib/theme/theme-store"
 import LeftPanel from "./left-panel/left-panel"
 import {
   LeftPanelProvider,
@@ -361,6 +363,13 @@ type Props = {
    * preview path branch on `kind`.
    */
   content: EditorContent
+  /**
+   * Tenant's persisted brand theme, resolved on the server from
+   * `getTenantTheme(tenantId)`. Pushed into `themeStore` on mount so the
+   * canvas, Style Manager, and outer chrome all render with the tenant's
+   * brand instead of the bundled `defaultTheme`.
+   */
+  tenantTheme: Theme
   /** Server action — already bound to (id). Receives form data on submit. */
   saveAction: (form: FormData) => Promise<void>
   /** Server action — already bound to (id). No-arg. */
@@ -375,9 +384,22 @@ export default function EditorShell(props: Props) {
   )
 }
 
-function EditorShellInner({ content, saveAction, deleteAction }: Props) {
+function EditorShellInner({
+  content,
+  tenantTheme,
+  saveAction,
+  deleteAction,
+}: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+
+  // Bootstrap themeStore from the tenant's persisted theme before the
+  // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
+  // to the store, so this single setTheme call cascades into the canvas
+  // :root rule and the outer document root CSS variables.
+  React.useEffect(() => {
+    themeStore.setTheme(tenantTheme)
+  }, [tenantTheme])
 
   // Mirror themeStore tokens onto the document root so
   // `var(--tc--preset--*)` resolves in the outer chrome (style-manager
