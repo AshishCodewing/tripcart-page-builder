@@ -14,18 +14,11 @@
  *     in the styles-application follow-up.
  *
  * `tokensFromStored` rehydrates a `Theme` from a persisted `:root` style
- * object. It primarily reads the canonical `--tc--preset--*` names and
- * falls back to the pre-rename `--theme-*` / `--font-*` aliases as a
- * one-shot upgrade path — projects last saved before the rename PR
- * still load correctly. A subsequent save rewrites the rule with the
- * new names only.
+ * object by reading the canonical `--tc--preset--*` names. Tokens absent
+ * from the stored rule keep their default value.
  */
 
-import {
-  legacyVarName,
-  presetVarName,
-  type PresetCategory,
-} from "@/lib/theme/compile"
+import { presetVarName, type PresetCategory } from "@/lib/theme/compile"
 import type { FontSizeToken, Theme, Token } from "@/lib/theme/schema"
 
 export type ActivePresetId = Partial<Record<PresetCategory, string>>
@@ -293,9 +286,7 @@ export const tokensFromStored = (
     const tokens = pick(next)
     if (!tokens) continue
     for (const token of tokens) {
-      const newName = presetVarName(category, token.slug)
-      const legacy = legacyVarName(category, token.slug)
-      const stored = styles[newName] ?? (legacy ? styles[legacy] : undefined)
+      const stored = styles[presetVarName(category, token.slug)]
       if (typeof stored === "string" && stored.length > 0) {
         token.value = stored
       }

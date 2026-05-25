@@ -10,10 +10,9 @@
  *   site.
  *
  * The injected `:root` rule is built by `compileTheme`, which emits
- * the `--tc--preset--<category>--<slug>` variable names. Pre-rename
- * `--theme-*` / `--font-*` aliases are no longer written; consumers
+ * the `--tc--preset--<category>--<slug>` variable names. Consumers
  * (pattern templates, the Tailwind `font-heading` bridge in globals.css,
- * the Style Manager pickers) all read the new names directly.
+ * the Style Manager pickers) all read those names directly.
  *
  * `compileTheme.rules` adds element- and component-level defaults
  * (`body`, `button`, `a`, `h1`-`h6`, `[data-gjs-type="…"]`, …) on top
