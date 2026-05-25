@@ -68,23 +68,24 @@ const useColorPicker = () => {
 // Default swatch list: every theme color token, resolved to its live hex
 // via the theme store (so editing the theme updates the picker).
 function useDefaultThemeSwatches(): TokenSwatch[] {
-  const themeColors = useThemeSelector((s) => s.theme.colors)
+  const palette = useThemeSelector((s) => s.theme.settings.color?.palette)
   return React.useMemo(() => {
     const out: TokenSwatch[] = []
-    for (const [camelKey, slot] of Object.entries(themeColors)) {
-      const live = (slot as { value?: string } | undefined)?.value
-      if (!live) continue
-      // camelKey -> kebab token name (without `--theme-` prefix here, we add it).
-      const kebab = camelKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+    if (!palette) return out
+    for (const token of palette) {
+      if (!token.value) continue
+      // camelCase slug -> kebab token name. The `--tc--preset--color--`
+      // prefix is added below; `kebab` is used as the picker label.
+      const kebab = token.slug.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
       out.push({
         kind: "token",
-        token: `--theme-${kebab}`,
-        hex: live,
+        token: `--tc--preset--color--${kebab}`,
+        hex: token.value,
         label: kebab,
       })
     }
     return out
-  }, [themeColors])
+  }, [palette])
 }
 
 // Serialize a color in the shape matching the active channel mode, so

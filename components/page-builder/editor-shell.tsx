@@ -17,6 +17,7 @@ import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
+import { tcStorageAdapter } from "@/lib/plugins/tc-storage-adapter"
 import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
@@ -78,11 +79,18 @@ function composedLayerLabel(
 const buildGjsOptions = (storageKey: string): EditorConfig => ({
   height: "100%",
   storageManager: {
-    type: "local",
+    // `tc-local` is our custom storage type registered by tcStorageAdapter
+    // — same localStorage backend as the built-in `local`, but filters
+    // out CssRules marked `protected` (the tenant-wide theme rules) so
+    // they don't get duplicated into every per-page project blob.
+    type: "tc-local",
     autosave: true,
     autoload: true,
     stepsBeforeSave: 1,
     options: {
+      // The inner `local` adapter still owns the actual write, so we
+      // keep configuring it under the `local` key. tc-local delegates
+      // and forwards these options through.
       local: { key: storageKey },
     },
   },
@@ -301,6 +309,9 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
   // `editor.Blocks.add(...)` calls run.
   plugins: [
     parserPostCSS,
+    // Storage adapter registers BEFORE designSystemPlugin so the
+    // `tc-local` type is known by the time autoload fires.
+    tcStorageAdapter,
     designSystemPlugin,
     reactRendererPlugin.init({ components: patternComponents }),
     // gjsBlocksBasic ships its own column blocks (table-based by default,
@@ -368,9 +379,9 @@ function EditorShellInner({ content, saveAction, deleteAction }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
 
-  // Mirror themeStore tokens onto the document root so `var(--theme-*)` /
-  // `var(--font-*)` resolve in the outer chrome (style-manager swatches,
-  // popovers, etc.), not just inside the canvas iframe.
+  // Mirror themeStore tokens onto the document root so
+  // `var(--tc--preset--*)` resolves in the outer chrome (style-manager
+  // swatches, popovers, etc.), not just inside the canvas iframe.
   useApplyThemeVars()
 
   // Build options once per record so each page/post has its own local-storage

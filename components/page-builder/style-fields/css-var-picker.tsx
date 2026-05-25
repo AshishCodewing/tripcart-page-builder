@@ -52,7 +52,7 @@ const displayNameFor = (token: Token): string => {
 export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
   const [query, setQuery] = React.useState("")
 
-  const themeColors = useThemeSelector((s) => s.theme.colors)
+  const palette = useThemeSelector((s) => s.theme.settings.color?.palette)
 
   const pool = React.useMemo(
     () =>
@@ -82,7 +82,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
     (token: Token) => {
       const liveValue =
         token.category === "theme-color"
-          ? themeColors[themeKeyToCamel(token.name)]?.value
+          ? palette?.find((p) => p.slug === themeKeyToCamel(token.name))?.value
           : undefined
       const swatchColor =
         liveValue ??
@@ -106,7 +106,7 @@ export function CssVarPicker({ onSelect, categories }: CssVarPickerProps) {
         </ComboboxItem>
       )
     },
-    [themeColors]
+    [palette]
   )
 
   return (

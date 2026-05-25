@@ -38,10 +38,10 @@ const handleTypographyChange = applyFrom(TYPOGRAPHY_PRESETS_BY_ID)
 
 export default function PresetsPanel() {
   const selectedColorId = useThemeSelector(
-    (s) => s.activePresetId.colors ?? null
+    (s) => s.activePresetId.color ?? null
   )
   const selectedTypographyId = useThemeSelector(
-    (s) => s.activePresetId.typography ?? null
+    (s) => s.activePresetId["font-family"] ?? null
   )
 
   return (
@@ -105,8 +105,12 @@ export default function PresetsPanel() {
             onValueChange={handleTypographyChange}
           >
             {TYPOGRAPHY_PRESETS.map((t) => {
-              const headingFont = t.tokens.typography?.heading?.value
-              const bodyFont = t.tokens.typography?.body?.value
+              const headingFont = t.tokens.find(
+                (tok) => tok.slug === "heading"
+              )?.value
+              const bodyFont = t.tokens.find(
+                (tok) => tok.slug === "body"
+              )?.value
               return (
                 <FieldLabel
                   key={t.id}

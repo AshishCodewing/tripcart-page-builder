@@ -9,9 +9,9 @@ const testimonialCss = `
   position: relative;
   padding-block: clamp(5rem, 10vw, 9rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background: var(--theme-muted, color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 4%, var(--theme-background, hsl(var(--gray-0-hsl)))));
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
-  font-family: var(--font-body, var(--font-sans));
+  background: var(--tc--preset--color--muted, color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 4%, var(--tc--preset--color--background, hsl(var(--gray-0-hsl)))));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
   overflow: hidden;
 }
 
@@ -28,11 +28,11 @@ const testimonialCss = `
 
 /* Oversized opening quote — purely decorative. */
 .tc-testimonial__mark {
-  font-family: var(--font-heading, var(--font-serif, serif));
+  font-family: var(--tc--preset--font-family--heading, var(--font-serif, serif));
   font-size: clamp(7rem, 14vw, 12rem);
   line-height: 0.7;
   font-weight: var(--font-weight-9);
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   opacity: 0.18;
   user-select: none;
   letter-spacing: -0.05em;
@@ -41,7 +41,7 @@ const testimonialCss = `
 }
 
 .tc-testimonial__quote {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.625rem, 3.4vw, 2.5rem);
   line-height: 1.22;
   letter-spacing: -0.012em;
@@ -53,7 +53,7 @@ const testimonialCss = `
 
 .tc-testimonial__quote em {
   font-style: italic;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
@@ -62,7 +62,7 @@ const testimonialCss = `
   align-items: center;
   gap: clamp(0.875rem, 1.6vw, 1.125rem);
   padding-block-start: clamp(0.75rem, 1.5vw, 1rem);
-  border-block-start: 1px solid var(--theme-border, color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 12%, transparent));
+  border-block-start: 1px solid var(--tc--preset--color--border, color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 12%, transparent));
 }
 
 .tc-testimonial__avatar {
@@ -72,7 +72,7 @@ const testimonialCss = `
   object-fit: cover;
   flex-shrink: 0;
   display: block;
-  border: 2px solid var(--theme-background, hsl(var(--gray-0-hsl)));
+  border: 2px solid var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
   box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.12);
 }
 
@@ -85,24 +85,24 @@ const testimonialCss = `
 }
 
 .tc-testimonial__author-name {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: var(--font-size-2, 1.0625rem);
   font-weight: var(--font-weight-7);
   letter-spacing: -0.005em;
-  color: var(--theme-foreground, hsl(var(--gray-12-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   line-height: 1.2;
 }
 
 .tc-testimonial__author-meta {
   font-size: var(--font-size-0, 0.8125rem);
-  color: var(--theme-foreground, hsl(var(--gray-7-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
   letter-spacing: 0.04em;
 }
 
 .tc-testimonial__divider {
   width: 1px;
   height: 1.5rem;
-  background: var(--theme-border, color-mix(in oklch, var(--theme-foreground, hsl(var(--gray-12-hsl))) 20%, transparent));
+  background: var(--tc--preset--color--border, color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 20%, transparent));
 }
 `
 

@@ -11,15 +11,19 @@ import { validateSlug } from "./path"
 export async function createPost(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
-  const tenantId = (form.get("tenantId") as string) || null
+  const tenantId = String(form.get("tenantId") ?? "").trim()
 
   if (!title) throw new Error("Title is required.")
+  if (!tenantId) throw new Error("Tenant is required.")
   validateSlug(slug)
 
   const post = await prisma.post.create({ data: { slug, title, tenantId } })
   redirect(`/admin/posts/${post.id}/edit`)
 }
 
+// NB: `tenantId` is intentionally NOT read or written here. Post tenancy
+// is immutable post-creation — a post belongs to the tenant it was
+// created under, and reassigning it would orphan its theme references.
 export async function savePost(id: string, form: FormData): Promise<void> {
   const existing = await prisma.post.findUnique({ where: { id } })
   if (!existing) throw new Error("Post not found.")
@@ -83,5 +87,5 @@ export async function deletePost(id: string): Promise<void> {
   await prisma.post.delete({ where: { id } })
   updateTag(cacheTags.post(post.slug))
   if (post.status === "PUBLISHED") updateTag(cacheTags.postIndex)
-  redirect(post.tenantId ? `/admin/tenants/${post.tenantId}` : "/admin/tenants")
+  redirect(`/admin/tenants/${post.tenantId}`)
 }

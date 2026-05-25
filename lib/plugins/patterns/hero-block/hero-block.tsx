@@ -24,9 +24,9 @@ const heroCss = `
   min-height: 100svh;
   padding-block: var(--spacing-section);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  font-family: var(--font-body, var(--font-sans));
-  background-color: var(--theme-background, hsl(var(--gray-0-hsl)));
-  color: var(--theme-foreground, var(--text-1));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
+  background-color: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, var(--text-1));
 }
 
 .tc-hero__inner {
@@ -44,18 +44,18 @@ const heroCss = `
   font-weight: var(--font-weight-7);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
 }
 
 .tc-hero__title {
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(2.25rem, 6.5vw, 5.25rem);
   line-height: 1.02;
   letter-spacing: -0.02em;
   font-weight: var(--font-weight-9);
   max-width: 18ch;
   text-wrap: balance;
-  color: var(--theme-foreground, var(--text-1));
+  color: var(--tc--preset--color--foreground, var(--text-1));
 }
 
 .tc-hero__subtitle {
@@ -63,7 +63,7 @@ const heroCss = `
   line-height: 1.55;
   max-width: 56ch;
   text-wrap: pretty;
-  color: var(--theme-foreground, var(--text-2));
+  color: var(--tc--preset--color--foreground, var(--text-2));
   margin-block-start: clamp(0.25rem, 0.8vw, 0.75rem);
 }
 
@@ -92,30 +92,30 @@ const heroCss = `
 }
 
 .tc-hero__cta:focus-visible {
-  outline: 2px solid var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  outline: 2px solid var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   outline-offset: 3px;
 }
 
 .tc-hero__cta--primary {
-  background: var(--theme-primary, hsl(var(--indigo-6-hsl)));
-  color: var(--theme-primary-foreground, hsl(var(--gray-0-hsl)));
-  border-color: var(--theme-primary, hsl(var(--indigo-6-hsl)));
+  background: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
+  color: var(--tc--preset--color--primary-foreground, hsl(var(--gray-0-hsl)));
+  border-color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
 }
 
 .tc-hero__cta--primary:hover {
-  background: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
-  border-color: color-mix(in oklch, var(--theme-primary, hsl(var(--indigo-6-hsl))) 88%, var(--theme-foreground, currentColor));
+  background: color-mix(in oklch, var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl))) 88%, var(--tc--preset--color--foreground, currentColor));
+  border-color: color-mix(in oklch, var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl))) 88%, var(--tc--preset--color--foreground, currentColor));
 }
 
 .tc-hero__cta--secondary {
   background: transparent;
-  color: var(--theme-foreground, var(--text-1));
-  border-color: color-mix(in oklch, var(--theme-foreground, currentColor) 28%, transparent);
+  color: var(--tc--preset--color--foreground, var(--text-1));
+  border-color: color-mix(in oklch, var(--tc--preset--color--foreground, currentColor) 28%, transparent);
 }
 
 .tc-hero__cta--secondary:hover {
-  border-color: var(--theme-foreground, currentColor);
-  background: color-mix(in oklch, var(--theme-foreground, currentColor) 6%, transparent);
+  border-color: var(--tc--preset--color--foreground, currentColor);
+  background: color-mix(in oklch, var(--tc--preset--color--foreground, currentColor) 6%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
