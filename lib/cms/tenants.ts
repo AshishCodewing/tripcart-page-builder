@@ -1,6 +1,34 @@
+import { cookies } from "next/headers"
+
 import { prisma } from "@/lib/prisma"
 import { defaultTheme } from "@/lib/tokens"
 import type { Theme } from "@/lib/theme/schema"
+
+/**
+ * Cookie set by `/api/preview` to pin the preview session to a single
+ * tenant. Read by the preview catch-all routes (which only run with
+ * draft mode on) to resolve `Page.path` / `Post.slug` against the right
+ * tenant. Cleared by `/api/preview/exit` alongside draft mode.
+ *
+ * The public renderer (separate deployment) should NOT use this cookie
+ * — it resolves tenant from request host instead.
+ */
+export const PREVIEW_TENANT_COOKIE = "tc-preview-tenant"
+
+/**
+ * Read the preview tenant cookie and verify the tenant still exists.
+ * Returns null when the cookie is absent or points at a deleted tenant.
+ */
+export async function getPreviewTenantId(): Promise<string | null> {
+  const cookieStore = await cookies()
+  const value = cookieStore.get(PREVIEW_TENANT_COOKIE)?.value
+  if (!value) return null
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: value },
+    select: { id: true },
+  })
+  return tenant?.id ?? null
+}
 
 export async function listTenants() {
   return prisma.tenant.findMany({

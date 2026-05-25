@@ -43,7 +43,14 @@ function getDeviceIcon(id: string): LucideIcon {
 }
 
 export default function TopBarRight({ content, className }: Props) {
-  const previewHref = `/api/preview?path=${encodeURIComponent(previewPath(content))}`
+  // Tenant must be on the preview URL so `/api/preview` can pin the
+  // session via the `tc-preview-tenant` cookie. Without it the preview
+  // routes can't disambiguate when two tenants share a path.
+  const tenantId =
+    content.kind === "page" ? content.page.tenantId : content.post.tenantId
+  const previewHref =
+    `/api/preview?path=${encodeURIComponent(previewPath(content))}` +
+    `&tenantId=${encodeURIComponent(tenantId)}`
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
   return (

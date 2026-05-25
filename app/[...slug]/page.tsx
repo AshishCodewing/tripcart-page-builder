@@ -2,12 +2,18 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { getPreviewTenantId } from "@/lib/cms/tenants"
 import { patternComponents } from "@/lib/plugins/patterns"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only catch-all. Public rendering of CMS pages happens in a
 // separate deployment that consumes this DB; here we serve the current
 // editor draft when draft mode is active, and 404 otherwise.
+//
+// Tenant resolution: pinned by the `tc-preview-tenant` cookie that
+// `/api/preview` sets when the editor launches a preview session. The
+// page lookup uses the per-tenant compound key `(tenantId, path)` so
+// two tenants with the same `/about` resolve to the right draft.
 //
 // Rendering uses the React-renderer project module against the persisted
 // project JSON so React-component patterns (e.g. <HeroSection/>) stay in
@@ -20,13 +26,14 @@ export default async function PreviewCatchAllPage({
   const { isEnabled: isDraft } = await draftMode()
   if (!isDraft) notFound()
 
+  const tenantId = await getPreviewTenantId()
+  if (!tenantId) notFound()
+
   const { slug } = await params
   const path = slug.join("/")
-  // `findFirst` (not `findUnique`) — path is unique per tenant, not
-  // globally. This preview route has no host-based tenant dispatch, so
-  // we just return the first matching draft. The real public renderer
-  // (separate deployment) resolves tenant from host first.
-  const page = await prisma.page.findFirst({ where: { path } })
+  const page = await prisma.page.findUnique({
+    where: { tenantId_path: { tenantId, path } },
+  })
   if (!page) notFound()
 
   return (
