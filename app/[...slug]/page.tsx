@@ -2,7 +2,7 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
-import { getPreviewTenantId } from "@/lib/cms/tenants"
+import { getPreviewTenantId, getTenantTheme } from "@/lib/cms/tenants"
 import { patternComponents } from "@/lib/plugins/patterns"
 import { prisma } from "@/lib/prisma"
 
@@ -31,14 +31,18 @@ export default async function PreviewCatchAllPage({
 
   const { slug } = await params
   const path = slug.join("/")
-  const page = await prisma.page.findUnique({
-    where: { tenantId_path: { tenantId, path } },
-  })
+  const [page, tenantTheme] = await Promise.all([
+    prisma.page.findUnique({
+      where: { tenantId_path: { tenantId, path } },
+    }),
+    getTenantTheme(tenantId),
+  ])
   if (!page) notFound()
 
   return (
     <PagePreview
       projectData={page.data}
+      tenantTheme={tenantTheme}
       config={{ components: patternComponents }}
     />
   )

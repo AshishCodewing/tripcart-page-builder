@@ -17,7 +17,10 @@ import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
-import { tcStorageAdapter } from "@/lib/plugins/tc-storage-adapter"
+import {
+  filterProtectedStyles,
+  tcStorageAdapter,
+} from "@/lib/plugins/tc-storage-adapter"
 import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
@@ -443,11 +446,19 @@ function EditorShellInner({
   // outgoing FormData before delegating to the server action. The server
   // action persists the project JSON to the Page row; the page-preview
   // route renders that JSON via the React-renderer project module.
+  //
+  // `filterProtectedStyles` strips theme rules (`:root` token vars and
+  // the body/element/component defaults injected by designSystemPlugin)
+  // before serialization, mirroring what `tc-local` does on the
+  // autosave path. Without this, every publish would bake the current
+  // theme snapshot into `page.data` and stale entries would win the
+  // cascade over the fresh tenant theme on preview/public render.
   const augmentedSave = React.useCallback(
     async (formData: FormData) => {
       const editor = editorRef.current
       if (editor) {
-        formData.set("data", JSON.stringify(editor.getProjectData()))
+        const filtered = filterProtectedStyles(editor.getProjectData())
+        formData.set("data", JSON.stringify(filtered))
       }
       await saveAction(formData)
     },

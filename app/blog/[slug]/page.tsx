@@ -2,7 +2,7 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
-import { getPreviewTenantId } from "@/lib/cms/tenants"
+import { getPreviewTenantId, getTenantTheme } from "@/lib/cms/tenants"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only single post. Public rendering happens elsewhere.
@@ -28,13 +28,16 @@ export default async function BlogPostPreview({
   if (!tenantId) notFound()
 
   const { slug } = await params
-  const post = await prisma.post.findUnique({
-    where: { tenantId_slug: { tenantId, slug } },
-    include: {
-      categories: { select: { name: true, slug: true } },
-      tags: { select: { name: true, slug: true } },
-    },
-  })
+  const [post, tenantTheme] = await Promise.all([
+    prisma.post.findUnique({
+      where: { tenantId_slug: { tenantId, slug } },
+      include: {
+        categories: { select: { name: true, slug: true } },
+        tags: { select: { name: true, slug: true } },
+      },
+    }),
+    getTenantTheme(tenantId),
+  ])
   if (!post) notFound()
 
   return (
@@ -47,7 +50,7 @@ export default async function BlogPostPreview({
           </div>
         )}
       </header>
-      <PagePreview projectData={post.data} />
+      <PagePreview projectData={post.data} tenantTheme={tenantTheme} />
     </article>
   )
 }
