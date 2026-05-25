@@ -38,7 +38,7 @@ model Tenant {
 model Page {
   id          String        @id @default(cuid())
   slug        String
-  path        String        @unique
+  path        String
   parentId    String?
   parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
   children    Page[]        @relation("PageTree")
@@ -51,6 +51,11 @@ model Page {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // Path uniqueness is scoped per tenant — two tenants can each own
+  // `/about` independently. Sibling uniqueness keeps slugs unique
+  // within a parent's children regardless of tenant (which is fine
+  // because parentId values don't overlap across tenants).
+  @@unique([tenantId, path])
   @@unique([parentId, slug])
   @@index([status])
   @@index([tenantId])
@@ -59,7 +64,7 @@ model Page {
 
 model Post {
   id          String        @id @default(cuid())
-  slug        String        @unique
+  slug        String
   tenantId    String
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
@@ -72,6 +77,9 @@ model Post {
   categories  Category[]    @relation("PostCategories")
   tags        Tag[]         @relation("PostTags")
 
+  // Slug uniqueness is scoped per tenant — two tenants can each own
+  // `/blog/hello-world` independently.
+  @@unique([tenantId, slug])
   @@index([status, publishedAt])
   @@index([tenantId])
   @@map("posts")

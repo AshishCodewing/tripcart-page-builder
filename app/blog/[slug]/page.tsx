@@ -18,7 +18,11 @@ export default async function BlogPostPreview({
   if (!isDraft) notFound()
 
   const { slug } = await params
-  const post = await prisma.post.findUnique({
+  // `findFirst` (not `findUnique`) — slug is unique per tenant, not
+  // globally. This preview route has no host-based tenant dispatch, so
+  // we just return the first matching draft. The real public renderer
+  // (separate deployment) resolves tenant from host first.
+  const post = await prisma.post.findFirst({
     where: { slug },
     include: {
       categories: { select: { name: true, slug: true } },

@@ -22,7 +22,11 @@ export default async function PreviewCatchAllPage({
 
   const { slug } = await params
   const path = slug.join("/")
-  const page = await prisma.page.findUnique({ where: { path } })
+  // `findFirst` (not `findUnique`) — path is unique per tenant, not
+  // globally. This preview route has no host-based tenant dispatch, so
+  // we just return the first matching draft. The real public renderer
+  // (separate deployment) resolves tenant from host first.
+  const page = await prisma.page.findFirst({ where: { path } })
   if (!page) notFound()
 
   return (
