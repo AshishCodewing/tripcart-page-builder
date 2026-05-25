@@ -2,7 +2,7 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
-import { getPreviewTenantId, getTenantTheme } from "@/lib/cms/tenants"
+import { getPreviewTenantId } from "@/lib/cms/tenants"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only single post. Public rendering happens elsewhere.
@@ -12,6 +12,10 @@ import { prisma } from "@/lib/prisma"
 // post lookup uses the per-tenant compound key `(tenantId, slug)` so
 // two tenants with the same `/blog/hello-world` resolve to the right
 // draft.
+//
+// The tenant's brand theme is injected by `app/(preview)/layout.tsx`,
+// not here — that layout reads the same cookie and emits the compiled
+// theme CSS once for the whole preview subtree.
 //
 // Same render path as pages: persisted project JSON (`post.data`) goes
 // through the React-renderer project module so React-component patterns
@@ -28,16 +32,13 @@ export default async function BlogPostPreview({
   if (!tenantId) notFound()
 
   const { slug } = await params
-  const [post, tenantTheme] = await Promise.all([
-    prisma.post.findUnique({
-      where: { tenantId_slug: { tenantId, slug } },
-      include: {
-        categories: { select: { name: true, slug: true } },
-        tags: { select: { name: true, slug: true } },
-      },
-    }),
-    getTenantTheme(tenantId),
-  ])
+  const post = await prisma.post.findUnique({
+    where: { tenantId_slug: { tenantId, slug } },
+    include: {
+      categories: { select: { name: true, slug: true } },
+      tags: { select: { name: true, slug: true } },
+    },
+  })
   if (!post) notFound()
 
   return (
@@ -50,7 +51,7 @@ export default async function BlogPostPreview({
           </div>
         )}
       </header>
-      <PagePreview projectData={post.data} tenantTheme={tenantTheme} />
+      <PagePreview projectData={post.data} />
     </article>
   )
 }
