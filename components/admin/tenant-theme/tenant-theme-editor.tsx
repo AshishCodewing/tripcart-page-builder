@@ -6,10 +6,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
 import { updateTenantTheme } from "@/lib/cms/tenant-actions"
+import { COLOR_PRESETS, TYPOGRAPHY_PRESETS } from "@/lib/theme/presets"
 import { themeStore } from "@/lib/theme/theme-store"
 import type { Theme } from "@/lib/theme/schema"
 
 import PresetGrid from "./preset-grid"
+
+const ALL_PRESETS = [...COLOR_PRESETS, ...TYPOGRAPHY_PRESETS]
 
 type Props = {
   tenantId: string
@@ -34,6 +37,7 @@ type Props = {
 export default function TenantThemeEditor({ tenantId, initialTheme }: Props) {
   useEffect(() => {
     themeStore.setTheme(initialTheme)
+    themeStore.detectActivePresets(ALL_PRESETS)
   }, [initialTheme])
 
   useApplyThemeVars()
@@ -57,6 +61,7 @@ export default function TenantThemeEditor({ tenantId, initialTheme }: Props) {
 
   const onDiscard = (): void => {
     themeStore.setTheme(initialTheme)
+    themeStore.detectActivePresets(ALL_PRESETS)
     setError(null)
   }
 

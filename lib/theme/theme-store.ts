@@ -202,6 +202,31 @@ export const themeStore = {
     emit()
   },
 
+  /**
+   * Recompute `activePresetId` by comparing the current theme's tokens
+   * against the supplied preset library. A preset is marked active when
+   * every one of its tokens exactly matches the current value for that
+   * slug in the matching category.
+   *
+   * Used after `setTheme` (which wipes `activePresetId`) so the picker
+   * highlight survives a server round-trip. False positives are possible
+   * when hand-edited tokens coincidentally match a preset.
+   */
+  detectActivePresets(presets: readonly Preset[]): void {
+    const next: ActivePresetId = {}
+    for (const preset of presets) {
+      const current = getGroup(snapshot.theme, preset.category)
+      if (!current) continue
+      const allMatch = preset.tokens.every((t) => {
+        const found = current.find((c) => c.slug === t.slug)
+        return found?.value === t.value
+      })
+      if (allMatch) next[preset.category] = preset.id
+    }
+    snapshot = { ...snapshot, activePresetId: next }
+    emit()
+  },
+
   applyPreset(preset: Preset): void {
     const existing = getGroup(snapshot.theme, preset.category) ?? []
     const updates = new Map(preset.tokens.map((t) => [t.slug, t]))
