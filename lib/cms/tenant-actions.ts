@@ -101,7 +101,13 @@ export async function updateTenantTheme(
 
   await prisma.tenant.update({
     where: { id: tenantId },
-    data: { theme: parsed.data },
+    data: {
+      theme: parsed.data,
+      // Bump the version so the compiled-theme CSS URL changes. The
+      // route handler serves the current theme for any URL; the version
+      // exists only to invalidate browser/CDN caches by URL rotation.
+      themeVersion: { increment: 1 },
+    },
   })
 
   updateTag(cacheTags.tenantTheme(tenantId))

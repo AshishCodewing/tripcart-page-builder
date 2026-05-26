@@ -1,17 +1,15 @@
-import { cookies, draftMode } from "next/headers"
+import { draftMode } from "next/headers"
 import { redirect } from "next/navigation"
 import type { NextRequest } from "next/server"
 
-import { PREVIEW_TENANT_COOKIE } from "@/lib/cms/tenants"
 import { prisma } from "@/lib/prisma"
 
-// Enable draft mode, pin the preview session to a tenant, and redirect
-// to the requested preview path.
+// Enable draft mode and redirect into the tenant-scoped preview tree.
 //
-// The tenant cookie is what makes the preview routes return the right
-// page when multiple tenants share a path (e.g. both have `/about`).
-// HttpOnly + sameSite=lax: the cookie is server-only and travels with
-// in-preview navigation.
+// Tenant is encoded in the redirect target (`/preview/<tenantId>...`)
+// rather than a cookie — the preview routes read it from params, which
+// keeps the URL self-describing and lets multiple tenants be previewed
+// concurrently in different tabs of the same browser.
 //
 // TODO: gate this route behind real auth before exposing beyond local
 // dev. Today, anyone who knows this URL can enable draft mode for any
@@ -33,8 +31,8 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Validate before pinning. A stale tenantId in the URL shouldn't
-  // produce a cookie that 404s every subsequent navigation.
+  // Validate before redirecting. A stale tenantId in the URL shouldn't
+  // produce a permanent 404 link the user has to escape from manually.
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { id: true },
@@ -46,12 +44,5 @@ export async function GET(request: NextRequest) {
   const draft = await draftMode()
   draft.enable()
 
-  const cookieStore = await cookies()
-  cookieStore.set(PREVIEW_TENANT_COOKIE, tenant.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  })
-
-  redirect(path)
+  redirect(`/preview/${tenant.id}${path}`)
 }
