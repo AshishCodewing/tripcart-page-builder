@@ -43,7 +43,15 @@ function getDeviceIcon(id: string): LucideIcon {
 }
 
 export default function TopBarRight({ content, className }: Props) {
-  const previewHref = `/api/preview?path=${encodeURIComponent(previewPath(content))}`
+  // Tenant rides on the preview URL — `/api/preview` validates it and
+  // redirects into `/preview/<tenantId><path>`, where the preview routes
+  // read the tenant from the URL segment. Without it those routes can't
+  // disambiguate when two tenants share a path.
+  const tenantId =
+    content.kind === "page" ? content.page.tenantId : content.post.tenantId
+  const previewHref =
+    `/api/preview?path=${encodeURIComponent(previewPath(content))}` +
+    `&tenantId=${encodeURIComponent(tenantId)}`
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
   return (

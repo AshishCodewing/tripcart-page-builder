@@ -137,6 +137,17 @@ flowchart TD
 
 The key insight: theme rules are tagged as `protected` when they're injected into the canvas. When a page saves, the `tc-local` storage adapter filters those protected rules out — so the tenant's brand CSS lives in **one** place (the tenant record) instead of being copy-pasted into every page's save blob.
 
+## Where the theme gets loaded
+
+Two routes consume `Tenant.theme`. Both follow the same pattern: load on the server, push into `themeStore` on mount, and let the existing subscribers (`designSystemPlugin`, `useApplyThemeVars`) cascade the change to the canvas and the outer document.
+
+| Surface | Route | What it does |
+|---|---|---|
+| **Tenant settings** | `/admin/tenants/[id]/theme` | Mounts `<TenantThemeEditor>` for editing. Save commits via `updateTenantTheme` server action. |
+| **Page builder** | `/admin/pages/[id]/edit` and `/admin/posts/[id]/edit` | Read-only consumer. Resolves `tenantTheme = await getTenantTheme(record.tenantId)` on the server, passes it to `<EditorShell>` as a prop, and the shell calls `themeStore.setTheme(tenantTheme)` on mount so the canvas renders with the tenant's brand. |
+
+Theme editing is intentionally **only** available on the tenant settings route — the page builder's left sidebar is for content (blocks + layers), not brand. This keeps per-page edits scoped to per-page CSS rules and prevents one tenant's draft mutations from leaking into another's editor session.
+
 ## A minimal example
 
 ```json

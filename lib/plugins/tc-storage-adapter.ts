@@ -28,7 +28,21 @@ type StyleEntry = {
   [k: string]: unknown
 }
 
-const filterProtectedStyles = (data: ProjectData): ProjectData => {
+/**
+ * Drop every CssRule marked `protected: true` from a `ProjectData`
+ * blob. Used everywhere data leaves the editor for persistence: the
+ * tc-local storage adapter (localStorage autosaves), the publish
+ * flow in editor-shell (Postgres writes), and the preview renderer
+ * (defensive — strips any protected rules legacy publishes baked
+ * into the DB before this filter was applied on the publish path).
+ *
+ * Theme rules — `:root` token vars and the body/element/component
+ * defaults — are the protected category. Keeping them out of saved
+ * project data means the tenant theme is the single source of truth
+ * across surfaces, and a tenant-side theme change shows up everywhere
+ * on next render without needing to re-publish every page.
+ */
+export const filterProtectedStyles = (data: ProjectData): ProjectData => {
   // ProjectData is loosely typed; the styles array isn't always present
   // (e.g. on first-ever store of an empty project).
   const styles = (data as { styles?: StyleEntry[] }).styles

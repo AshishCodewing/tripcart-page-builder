@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useEditor } from "@grapesjs/react"
-import { Layers, Palette, Plus, Redo, SquareDashed, Undo } from "lucide-react"
+import { Layers, Plus, Redo, SquareDashed, Undo } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,6 @@ export default function TopBarLeft({ className }: Props) {
 
   const blocksActive = activeMode === "blocks"
   const layersActive = activeMode === "layers"
-  const themeActive = activeMode === "theme"
 
   // Tracks the GrapesJS core outline command (runs the dashed-border overlay
   // on every component). The `update` listener above already re-renders this
@@ -61,26 +60,6 @@ export default function TopBarLeft({ className }: Props) {
   return (
     <TooltipProvider delay={500}>
       <div className={cn("flex items-center gap-1", className)}>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Theme"
-                aria-pressed={themeActive}
-                onClick={() => togglePanel("theme")}
-                className={cn(
-                  themeActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Palette />
-              </Button>
-            }
-          />
-          <TooltipContent>Theme</TooltipContent>
-        </Tooltip>
         <Tooltip>
           <TooltipTrigger
             render={

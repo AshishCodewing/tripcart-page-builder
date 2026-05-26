@@ -233,6 +233,38 @@ const emitWithPseudos = (
   }
 }
 
+/**
+ * Flatten a `CompiledTheme` into a CSS string, ready to drop into a
+ * `<style>` block. Used by server-rendered surfaces (preview routes,
+ * public renderer) that can't use `editor.Css.setRule` and instead
+ * compose the tenant theme alongside per-page CSS at render time.
+ *
+ * The editor canvas does not call this — `designSystemPlugin` feeds
+ * `rootVars` and `rules` straight into CssComposer via setRule, which
+ * is the right interface for live mutation.
+ */
+export const compiledThemeToCss = ({
+  rootVars,
+  rules,
+}: CompiledTheme): string => {
+  const rootBody = Object.entries(rootVars)
+    .map(([name, value]) => `  ${name}: ${value};`)
+    .join("\n")
+  const rootBlock = rootBody.length > 0 ? `:root {\n${rootBody}\n}` : ""
+
+  const ruleBlocks = rules
+    .map(({ selector, style }) => {
+      const body = Object.entries(style)
+        .map(([prop, value]) => `  ${prop}: ${value};`)
+        .join("\n")
+      return body.length > 0 ? `${selector} {\n${body}\n}` : ""
+    })
+    .filter(Boolean)
+    .join("\n\n")
+
+  return [rootBlock, ruleBlocks].filter(Boolean).join("\n\n")
+}
+
 export const compileTheme = (theme: Theme): CompiledTheme => {
   const rootVars: Record<string, string> = {}
   const { settings, custom, styles } = theme

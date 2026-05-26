@@ -17,12 +17,17 @@ import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
-import { tcStorageAdapter } from "@/lib/plugins/tc-storage-adapter"
+import {
+  filterProtectedStyles,
+  tcStorageAdapter,
+} from "@/lib/plugins/tc-storage-adapter"
 import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
 import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import type { Theme } from "@/lib/theme/schema"
+import { themeStore } from "@/lib/theme/theme-store"
 import LeftPanel from "./left-panel/left-panel"
 import {
   LeftPanelProvider,
@@ -361,6 +366,13 @@ type Props = {
    * preview path branch on `kind`.
    */
   content: EditorContent
+  /**
+   * Tenant's persisted brand theme, resolved on the server from
+   * `getTenantTheme(tenantId)`. Pushed into `themeStore` on mount so the
+   * canvas, Style Manager, and outer chrome all render with the tenant's
+   * brand instead of the bundled `defaultTheme`.
+   */
+  tenantTheme: Theme
   /** Server action — already bound to (id). Receives form data on submit. */
   saveAction: (form: FormData) => Promise<void>
   /** Server action — already bound to (id). No-arg. */
@@ -375,9 +387,22 @@ export default function EditorShell(props: Props) {
   )
 }
 
-function EditorShellInner({ content, saveAction, deleteAction }: Props) {
+function EditorShellInner({
+  content,
+  tenantTheme,
+  saveAction,
+  deleteAction,
+}: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+
+  // Bootstrap themeStore from the tenant's persisted theme before the
+  // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
+  // to the store, so this single setTheme call cascades into the canvas
+  // :root rule and the outer document root CSS variables.
+  React.useEffect(() => {
+    themeStore.setTheme(tenantTheme)
+  }, [tenantTheme])
 
   // Mirror themeStore tokens onto the document root so
   // `var(--tc--preset--*)` resolves in the outer chrome (style-manager
@@ -421,11 +446,19 @@ function EditorShellInner({ content, saveAction, deleteAction }: Props) {
   // outgoing FormData before delegating to the server action. The server
   // action persists the project JSON to the Page row; the page-preview
   // route renders that JSON via the React-renderer project module.
+  //
+  // `filterProtectedStyles` strips theme rules (`:root` token vars and
+  // the body/element/component defaults injected by designSystemPlugin)
+  // before serialization, mirroring what `tc-local` does on the
+  // autosave path. Without this, every publish would bake the current
+  // theme snapshot into `page.data` and stale entries would win the
+  // cascade over the fresh tenant theme on preview/public render.
   const augmentedSave = React.useCallback(
     async (formData: FormData) => {
       const editor = editorRef.current
       if (editor) {
-        formData.set("data", JSON.stringify(editor.getProjectData()))
+        const filtered = filterProtectedStyles(editor.getProjectData())
+        formData.set("data", JSON.stringify(filtered))
       }
       await saveAction(formData)
     },
