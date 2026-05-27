@@ -11,6 +11,11 @@
 
 import type { Template } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import type {
+  ComponentDefinition,
+  ProjectDefinition,
+  Rule,
+} from "@/lib/plugins/react-renderer/project/types"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -88,69 +93,105 @@ const SLUG_ATTR = "data-slug"
  */
 const MAX_DEPTH = 16
 
-/**
- * Minimal shape we touch on a GrapesJS component node. The rest of the
- * keys ride through untouched in the spread.
- */
-type ComponentNode = {
-  type?: string
-  attributes?: Record<string, unknown>
-  components?: ComponentNode[]
-  [key: string]: unknown
+type ResolveCtx = {
+  tenantId: string
+  cache: Map<string, Template | null>
+  visiting: Set<string>
+  styles: Rule[]
+  stylesAdded: Set<string>
 }
 
 /**
- * Walk a GrapesJS component tree and replace every `template-ref` node
- * with its resolved `Template.data`. Used by the preview render path
- * (and eventually the published renderer).
+ * Walk a saved page/post `ProjectDefinition`, replacing every
+ * `template-ref` component with its resolved Template content and
+ * merging any template-scoped styles into the project's `styles[]`.
+ * Used by the preview render path (and eventually the published
+ * renderer).
  *
  *   - Tenant-first / global fallback at each lookup (via loadTemplate).
  *   - Recursive: a resolved template can itself contain refs.
  *   - Cycle guard via a "currently resolving" slug stack — bails with
  *     a placeholder when the same slug reappears mid-chain. Sibling
- *     refs to the same template do NOT trip it (they're not a cycle,
- *     just reuse).
- *   - Per-resolution memoization: the same (tenant, slug) hits the DB
- *     once per call, even if referenced from many branches.
+ *     refs to the same template do NOT trip it (they're reuse, not
+ *     a cycle).
+ *   - Per-resolution memoization of the DB lookup, plus per-slug
+ *     style dedupe so a template referenced N times still contributes
+ *     its `styles[]` once.
+ *   - Template styles append AFTER page styles. For nested templates,
+ *     the outer wrapper's styles append last so its rules win the
+ *     cascade against any inner template they wrap.
  */
 export async function resolvePageTree(
   tenantId: string,
-  tree: ComponentNode
-): Promise<ComponentNode> {
-  const cache = new Map<string, Template | null>()
-  return resolveNode(tenantId, tree, cache, new Set(), 0)
+  data: ProjectDefinition
+): Promise<ProjectDefinition> {
+  const firstPage = data?.pages?.[0]
+  const firstFrame = firstPage?.frames?.[0]
+  const root = firstFrame?.component
+  if (!firstPage || !firstFrame || !root) return data
+
+  const ctx: ResolveCtx = {
+    tenantId,
+    cache: new Map(),
+    visiting: new Set(),
+    styles: [],
+    stylesAdded: new Set(),
+  }
+  const resolvedRoot = await resolveNode(ctx, root, 0)
+
+  if (ctx.styles.length === 0 && resolvedRoot === root) return data
+
+  return {
+    ...data,
+    pages: [
+      {
+        ...firstPage,
+        frames: [
+          { ...firstFrame, component: resolvedRoot },
+          ...firstPage.frames!.slice(1),
+        ],
+      },
+      ...data.pages!.slice(1),
+    ],
+    styles: [...(data.styles ?? []), ...ctx.styles],
+  }
 }
 
 async function resolveNode(
-  tenantId: string,
-  node: ComponentNode,
-  cache: Map<string, Template | null>,
-  visiting: Set<string>,
+  ctx: ResolveCtx,
+  node: ComponentDefinition,
   depth: number
-): Promise<ComponentNode> {
+): Promise<ComponentDefinition> {
   if (depth > MAX_DEPTH) return placeholder("max-depth-exceeded")
 
   if (node.type === TEMPLATE_REF_TYPE) {
     const slug = String(node.attributes?.[SLUG_ATTR] ?? "")
     if (!slug) return placeholder("missing-slug")
-    if (visiting.has(slug)) return placeholder(`cycle:${slug}`)
+    if (ctx.visiting.has(slug)) return placeholder(`cycle:${slug}`)
 
-    let tpl = cache.get(slug)
+    let tpl = ctx.cache.get(slug)
     if (tpl === undefined) {
-      tpl = await loadTemplate(tenantId, slug)
-      cache.set(slug, tpl)
+      tpl = await loadTemplate(ctx.tenantId, slug)
+      ctx.cache.set(slug, tpl)
     }
     if (!tpl) return placeholder(`missing:${slug}`)
 
-    visiting.add(slug)
-    const resolved = await resolveNode(
-      tenantId,
-      tpl.data as ComponentNode,
-      cache,
-      visiting,
-      depth + 1
-    )
-    visiting.delete(slug)
+    const tplData = tpl.data as ProjectDefinition | null
+    const tplRoot = tplData?.pages?.[0]?.frames?.[0]?.component
+    if (!tplRoot) return placeholder(`empty:${slug}`)
+
+    ctx.visiting.add(slug)
+    const resolved = await resolveNode(ctx, tplRoot, depth + 1)
+    ctx.visiting.delete(slug)
+
+    if (!ctx.stylesAdded.has(slug)) {
+      ctx.stylesAdded.add(slug)
+      const tplStyles = tplData?.styles
+      if (Array.isArray(tplStyles) && tplStyles.length > 0) {
+        ctx.styles.push(...tplStyles)
+      }
+    }
+
     return resolved
   }
 
@@ -159,20 +200,18 @@ async function resolveNode(
   }
 
   const resolvedChildren = await Promise.all(
-    node.components.map((c) =>
-      resolveNode(tenantId, c, cache, visiting, depth + 1)
-    )
+    node.components.map((c) => resolveNode(ctx, c, depth + 1))
   )
   return { ...node, components: resolvedChildren }
 }
 
 /**
  * Emitted in place of a `template-ref` that couldn't be resolved
- * (missing template, cycle, depth limit). The renderer can detect it
- * via the `data-template-placeholder` attribute and choose to render
- * it visibly in dev / silently in prod.
+ * (missing template, cycle, depth limit, empty data). The renderer
+ * can detect it via the `data-template-placeholder` attribute and
+ * choose to render it visibly in dev / silently in prod.
  */
-function placeholder(reason: string): ComponentNode {
+function placeholder(reason: string): ComponentDefinition {
   return {
     tagName: "div",
     attributes: { "data-template-placeholder": reason },

@@ -2,6 +2,8 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { resolvePageTree } from "@/lib/cms/templates"
+import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only single post. Public rendering happens elsewhere.
@@ -36,6 +38,11 @@ export default async function BlogPostPreview({
   })
   if (!post) notFound()
 
+  const projectData = await resolvePageTree(
+    tenantId,
+    post.data as ProjectDefinition
+  )
+
   return (
     <article className="mx-auto max-w-2xl px-6 py-12">
       <header className="mb-6">
@@ -46,7 +53,7 @@ export default async function BlogPostPreview({
           </div>
         )}
       </header>
-      <PagePreview projectData={post.data} />
+      <PagePreview projectData={projectData} />
     </article>
   )
 }
