@@ -21,6 +21,12 @@ import {
   filterProtectedStyles,
   tcStorageAdapter,
 } from "@/lib/plugins/tc-storage-adapter"
+import {
+  TEMPLATE_REF_EDIT_EVENT,
+  templateRefPlugin,
+} from "@/lib/plugins/template-ref"
+import { useRouter } from "next/navigation"
+import { contentTenantId } from "./types"
 import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
@@ -57,6 +63,8 @@ const storageKeyFor = (content: EditorContent): string => {
       return `tripcart:page-builder:page:${content.page.id}`
     case "post":
       return `tripcart:page-builder:post:${content.post.id}`
+    case "template":
+      return `tripcart:page-builder:template:${content.template.id}`
   }
 }
 
@@ -331,6 +339,10 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       }),
     columnsPlugin,
     patternsPlugin,
+    // template-ref must register AFTER designSystemPlugin so the
+    // placeholder CSS can reference --tc--preset--* vars without
+    // racing the theme injection.
+    templateRefPlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],
@@ -395,6 +407,21 @@ function EditorShellInner({
 }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+  const router = useRouter()
+
+  // Refs read from inside the editor.on callback below. The editor
+  // instance is stable for one content id (storageKey forces a remount
+  // when it changes), but `content` and `router` can be replaced
+  // mid-mount via parent re-renders — we read the latest off the ref
+  // each time the callback fires.
+  const contentRef = React.useRef(content)
+  const routerRef = React.useRef(router)
+  React.useEffect(() => {
+    contentRef.current = content
+  }, [content])
+  React.useEffect(() => {
+    routerRef.current = router
+  }, [router])
 
   // Bootstrap themeStore from the tenant's persisted theme before the
   // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
@@ -440,6 +467,22 @@ function EditorShellInner({
       },
     })
     attachTracking(editor)
+
+    // Wire the "Edit template" toolbar action on `template-ref` nodes.
+    // The plugin emits this event with the ref's slug; we resolve the
+    // tenant via the current content, then route to a slug→id redirect
+    // handler that finally lands on the canonical
+    // `/admin/templates/[id]/edit` route. Reading from refs keeps the
+    // closure correct without making onEditor itself re-bind on every
+    // content change.
+    editor.on(TEMPLATE_REF_EDIT_EVENT, ({ slug }: { slug: string }) => {
+      if (!slug) return
+      const tenantId = contentTenantId(contentRef.current)
+      const seg = tenantId ?? "global"
+      routerRef.current.push(
+        `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
+      )
+    })
   }, [])
 
   // Wrapping client action that copies the live editor state into the

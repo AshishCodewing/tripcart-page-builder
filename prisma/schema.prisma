@@ -19,6 +19,20 @@ enum ContentStatus {
   PUBLISHED
 }
 
+enum TemplateKind {
+  // Page-shaped starting point — the "layout" in Next.js terms.
+  // Includes a content slot and typically references one or more PART
+  // templates (header, footer). Used to scaffold a new Page.
+  LAYOUT
+  // Section-scope starting point — a block of content (hero, pricing
+  // table, etc.). Surfaced in the in-canvas inserter alongside
+  // code-defined Block primitives.
+  PATTERN
+  // Area-tagged reusable chrome (header, footer, sidebar, …). Always
+  // synced by intent. `area` is required when kind = PART.
+  PART
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -35,6 +49,7 @@ model Tenant {
   updatedAt DateTime @updatedAt
   pages     Page[]
   posts     Post[]
+  templates Template[]
 
   @@map("tenants")
 }
@@ -105,6 +120,54 @@ model Tag {
   posts Post[] @relation("PostTags")
 
   @@map("tags")
+}
+
+// Reusable content units referenced from Page/Post project data.
+//
+// One table covers three UX roles (see `kind`) plus the global-vs-tenant
+// library split (see `tenantId` nullability). See docs/templates.md for
+// the design walkthrough.
+//
+// Slug uniqueness is enforced by two indexes, since Prisma 7's `@@unique`
+// can't express partial conditions:
+//   - `@@unique([tenantId, slug])` (below) — for tenant rows, the
+//     standard composite. NULL tenantIds are treated as distinct by
+//     default Postgres semantics, so this does NOT prevent duplicate
+//     globals.
+//   - A partial unique index `(slug) WHERE tenantId IS NULL`, added in
+//     the migration SQL — guarantees one row per slug among globals.
+// Within a tenant, a row with the same slug as a global shadows it at
+// render — the renderer prefers the tenant row over the global fallback.
+model Template {
+  id          String        @id @default(cuid())
+  // null = global library; non-null = tenant-scoped (can shadow global)
+  tenantId    String?
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug        String
+  kind        TemplateKind
+  // Only set when kind = PART, e.g. "header" | "footer" | "sidebar".
+  // Not enforced in the DB; the app layer should validate.
+  area        String?
+  // true = insert as `template-ref` (resolved at render, edits propagate)
+  // false = copy the `data` subtree into the consuming Page on insert
+  // The flag affects FUTURE inserts only; existing refs/copies are
+  // unchanged when this toggles.
+  synced      Boolean       @default(false)
+  title       String
+  description String?
+  // GrapesJS subtree (styles + components) — same shape as a slice of
+  // `Page.data.pages[].frames[].component`.
+  data        Json          @default("{}")
+  // Optional thumbnail URL for inserter UIs.
+  preview     String?
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, kind])
+  @@map("templates")
 }
 
 // Stub for post-MVP slug-rename redirects. Unused at MVP.
