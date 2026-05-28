@@ -431,6 +431,16 @@ type Props = {
 }
 
 export default function EditorShell(props: Props) {
+  // GrapesJS is browser-only (needs window + a canvas iframe), and the
+  // surrounding Base UI primitives generate useId() values that drift
+  // between server and client because parts of the tree (@grapesjs/react
+  // providers, Tooltip/DropdownMenu portals) only stabilize after the
+  // editor instance mounts. Defer the whole subtree to the client to
+  // sidestep the hydration mismatch instead of fighting it piece-by-piece.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
   return (
     <LeftPanelProvider>
       <EditorShellInner {...props} />

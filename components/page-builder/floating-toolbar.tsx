@@ -50,7 +50,7 @@ export function FloatingToolbar() {
   return (
     <CanvasFloating target={selected} placement="top-end">
       <TooltipProvider delay={300}>
-        <ButtonGroup>
+        <ButtonGroup className="bg-white rounded-lg">
           <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs bg-primary text-white dark:bg-primary hover:bg-primary dark:hover:bg-primary border-0">
             {selected.getName()}
           </ButtonGroupText>
