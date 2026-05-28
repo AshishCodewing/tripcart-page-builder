@@ -35,6 +35,7 @@ import {
   type EditorContent,
   type PageContent,
   type PostContent,
+  type TemplateContent,
 } from "@/components/page-builder/types"
 import BlockSettings from "../managers/block-settings"
 type Props = {
@@ -69,9 +70,20 @@ function FieldRow({
   )
 }
 
+function recordOf(content: EditorContent) {
+  switch (content.kind) {
+    case "page":
+      return content.page
+    case "post":
+      return content.post
+    case "template":
+      return content.template
+  }
+}
+
 export default function RightPanel({ content, deleteAction }: Props) {
   const editor = useEditorMaybe()
-  const record = content.kind === "page" ? content.page : content.post
+  const record = recordOf(content)
   const isPublished = record.status === "PUBLISHED"
   const kindLabel = contentKindLabel(content)
   const tabValue = content.kind
@@ -162,8 +174,10 @@ export default function RightPanel({ content, deleteAction }: Props) {
 
               {content.kind === "page" ? (
                 <PageOnlyFields content={content} isPublished={isPublished} />
-              ) : (
+              ) : content.kind === "post" ? (
                 <PostOnlyFields content={content} />
+              ) : (
+                <TemplateOnlyFields content={content} />
               )}
             </SidebarGroupContent>
           </SidebarGroup>
@@ -239,6 +253,36 @@ function PostOnlyFields({ content }: { content: PostContent }) {
         defaultValue={content.post.excerpt ?? ""}
         rows={3}
       />
+    </div>
+  )
+}
+
+// MVP placeholder: surfaces template metadata as read-only badges. The
+// title/slug inputs above are still rendered (shared with page/post)
+// but `saveTemplate` currently ignores them — see template-actions.ts.
+// A full metadata form (rename slug, change kind/area, toggle synced)
+// lands with the templates admin index.
+function TemplateOnlyFields({ content }: { content: TemplateContent }) {
+  const { kind, area, synced } = content.template
+  return (
+    <div className="flex flex-col gap-3">
+      <FieldRow label="Kind">
+        <Badge variant="secondary" className="capitalize">
+          {kind.toLowerCase()}
+        </Badge>
+      </FieldRow>
+      {area ? (
+        <FieldRow label="Area">
+          <Badge variant="secondary" className="capitalize">
+            {area}
+          </Badge>
+        </FieldRow>
+      ) : null}
+      <FieldRow label="Synced">
+        <Badge variant={synced ? "default" : "secondary"}>
+          {synced ? "On" : "Off"}
+        </Badge>
+      </FieldRow>
     </div>
   )
 }

@@ -2,7 +2,9 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { resolvePageTree } from "@/lib/cms/templates"
 import { patternComponents } from "@/lib/plugins/patterns"
+import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
 import { prisma } from "@/lib/prisma"
 
 // Preview-only catch-all. Public rendering of CMS pages happens in a
@@ -37,9 +39,14 @@ export default async function PreviewCatchAllPage({
   })
   if (!page) notFound()
 
+  const projectData = await resolvePageTree(
+    tenantId,
+    page.data as ProjectDefinition
+  )
+
   return (
     <PagePreview
-      projectData={page.data}
+      projectData={projectData}
       config={{ components: patternComponents }}
     />
   )

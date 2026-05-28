@@ -14,6 +14,10 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 import { columnsPlugin } from "@/lib/plugins/columns"
+import {
+  CONVERT_OPEN_EVENT,
+  convertToTemplatePlugin,
+} from "@/lib/plugins/convert-to-template"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
@@ -21,6 +25,22 @@ import {
   filterProtectedStyles,
   tcStorageAdapter,
 } from "@/lib/plugins/tc-storage-adapter"
+import {
+  TEMPLATE_REF_EDIT_EVENT,
+  templateRefPlugin,
+} from "@/lib/plugins/template-ref"
+import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
+import { useRouter } from "next/navigation"
+import type { Component } from "grapesjs"
+import type { Template } from "@/generated/prisma/client"
+import { contentTenantId } from "./types"
+import { ConvertTemplateDialog } from "./convert-template-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
@@ -57,6 +77,8 @@ const storageKeyFor = (content: EditorContent): string => {
       return `tripcart:page-builder:page:${content.page.id}`
     case "post":
       return `tripcart:page-builder:post:${content.post.id}`
+    case "template":
+      return `tripcart:page-builder:template:${content.template.id}`
   }
 }
 
@@ -81,7 +103,10 @@ function composedLayerLabel(
   return String(style[property.getName()] ?? "")
 }
 
-const buildGjsOptions = (storageKey: string): EditorConfig => ({
+const buildGjsOptions = (
+  storageKey: string,
+  templates: Template[]
+): EditorConfig => ({
   height: "100%",
   storageManager: {
     // `tc-local` is our custom storage type registered by tcStorageAdapter
@@ -331,6 +356,20 @@ const buildGjsOptions = (storageKey: string): EditorConfig => ({
       }),
     columnsPlugin,
     patternsPlugin,
+    // template-ref must register AFTER designSystemPlugin so the
+    // placeholder CSS can reference --tc--preset--* vars without
+    // racing the theme injection.
+    templateRefPlugin,
+    // Register tenant templates as Block-Manager entries so they
+    // become draggable from the sidebar (§8). Runs after template-ref
+    // so the `template-ref` component type is known when the block
+    // content `{ type: "template-ref", ... }` resolves.
+    templateBlocksPlugin(templates),
+    // convert-to-template registers AFTER template-ref so its skip
+    // check (`cmp.get("type") === TEMPLATE_REF_TYPE`) sees the resolved
+    // type. The subscriber runs on every selection, regardless of how
+    // the component type was declared.
+    convertToTemplatePlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],
@@ -377,6 +416,13 @@ type Props = {
   saveAction: (form: FormData) => Promise<void>
   /** Server action — already bound to (id). No-arg. */
   deleteAction: () => Promise<void>
+  /**
+   * Tenant templates (plus visible globals) to surface as Block-Manager
+   * entries — see §8 in docs/templates-followups.md. Fetched server-side
+   * in the editor route. Pass `[]` for global-template editing where
+   * there's no tenant context.
+   */
+  templates: Template[]
 }
 
 export default function EditorShell(props: Props) {
@@ -392,9 +438,47 @@ function EditorShellInner({
   tenantTheme,
   saveAction,
   deleteAction,
+  templates,
 }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+  const router = useRouter()
+
+  // Convert-to-template UI state. The plugin fires CONVERT_OPEN_EVENT
+  // with the toolbar button's screen rect; we anchor a DropdownMenu at
+  // that point via an invisible trigger span. Selecting the menu item
+  // closes the dropdown and opens the form dialog. The selection ref
+  // is captured at menu-open time so a later canvas click can't
+  // repoint the conversion mid-flow. `editorReady` is the same
+  // instance held in `editorRef` but exposed as state so the dialog
+  // can read it during render without tripping the refs-in-render
+  // lint rule.
+  const [editorReady, setEditorReady] = React.useState<Editor | null>(null)
+  const [convertMenuOpen, setConvertMenuOpen] = React.useState(false)
+  const [convertAnchor, setConvertAnchor] = React.useState<{
+    x: number
+    y: number
+  } | null>(null)
+  const [convertDialogOpen, setConvertDialogOpen] = React.useState(false)
+  // Captured as an array — `getSelectedAll()` lets us bundle multiple
+  // selected blocks into one template. Single-select is just an
+  // array-of-one; the dialog wraps multi-select in a thin container at
+  // save time.
+  const [convertSelected, setConvertSelected] = React.useState<Component[]>([])
+
+  // Refs read from inside the editor.on callback below. The editor
+  // instance is stable for one content id (storageKey forces a remount
+  // when it changes), but `content` and `router` can be replaced
+  // mid-mount via parent re-renders — we read the latest off the ref
+  // each time the callback fires.
+  const contentRef = React.useRef(content)
+  const routerRef = React.useRef(router)
+  React.useEffect(() => {
+    contentRef.current = content
+  }, [content])
+  React.useEffect(() => {
+    routerRef.current = router
+  }, [router])
 
   // Bootstrap themeStore from the tenant's persisted theme before the
   // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
@@ -414,12 +498,13 @@ function EditorShellInner({
   // GjsEditor remount is forced via `key` below when the storage key changes.
   const storageKey = storageKeyFor(content)
   const gjsOptions = React.useMemo(
-    () => buildGjsOptions(storageKey),
-    [storageKey]
+    () => buildGjsOptions(storageKey, templates),
+    [storageKey, templates]
   )
 
   const onEditor = React.useCallback((editor: Editor) => {
     editorRef.current = editor
+    setEditorReady(editor)
     if (typeof window !== "undefined") {
       ;(window as unknown as { editor: Editor }).editor = editor
     }
@@ -440,6 +525,35 @@ function EditorShellInner({
       },
     })
     attachTracking(editor)
+
+    // Wire the "Edit template" toolbar action on `template-ref` nodes.
+    // The plugin emits this event with the ref's slug; we resolve the
+    // tenant via the current content, then route to a slug→id redirect
+    // handler that finally lands on the canonical
+    // `/admin/templates/[id]/edit` route. Reading from refs keeps the
+    // closure correct without making onEditor itself re-bind on every
+    // content change.
+    editor.on(TEMPLATE_REF_EDIT_EVENT, ({ slug }: { slug: string }) => {
+      if (!slug) return
+      const tenantId = contentTenantId(contentRef.current)
+      const seg = tenantId ?? "global"
+      routerRef.current.push(
+        `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
+      )
+    })
+
+    // Open the convert-to-template dropdown next to the More toolbar
+    // button. The plugin sends a rect of the clicked element so we
+    // can anchor the menu via a fixed-positioned trigger.
+    editor.on(
+      CONVERT_OPEN_EVENT,
+      ({ rect }: { rect: { x: number; y: number } | null }) => {
+        if (!rect) return
+        setConvertSelected(editor.getSelectedAll())
+        setConvertAnchor({ x: rect.x, y: rect.y })
+        setConvertMenuOpen(true)
+      }
+    )
   }, [])
 
   // Wrapping client action that copies the live editor state into the
@@ -511,6 +625,58 @@ function EditorShellInner({
               </Sidebar>
             </div>
           </div>
+
+          {/* Convert-to-template dropdown anchored to the rect the
+              plugin reports when its More toolbar button is clicked.
+              The trigger is an invisible 0×0 element positioned fixed
+              at the rect; base-ui's Positioner anchors the popup to
+              it. The dialog opens once the user picks the menu item. */}
+          <DropdownMenu
+            open={convertMenuOpen}
+            onOpenChange={setConvertMenuOpen}
+          >
+            {/* nativeButton={false} — the trigger here is a 0×0
+                positioning anchor with pointer-events: none, not a
+                user-clickable button. base-ui defaults to expecting a
+                real <button> in render; we're not delivering one
+                because the menu is opened programmatically from the
+                CONVERT_OPEN_EVENT handler, not from a user clicking
+                the trigger. */}
+            <DropdownMenuTrigger
+              nativeButton={false}
+              render={
+                <span
+                  aria-hidden
+                  style={{
+                    position: "fixed",
+                    top: convertAnchor?.y ?? 0,
+                    left: convertAnchor?.x ?? 0,
+                    width: 0,
+                    height: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              }
+            />
+            <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setConvertMenuOpen(false)
+                  setConvertDialogOpen(true)
+                }}
+              >
+                Create template…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <ConvertTemplateDialog
+            open={convertDialogOpen}
+            onOpenChange={setConvertDialogOpen}
+            selected={convertSelected}
+            tenantId={contentTenantId(content)}
+            editor={editorReady}
+          />
         </GjsEditor>
       </SidebarProvider>
     </form>

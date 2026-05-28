@@ -26,6 +26,8 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import {
   contentIndexHref,
   contentIndexLabel,
+  contentTenantId,
+  hasPreview,
   previewPath,
   type EditorContent,
 } from "@/components/page-builder/types"
@@ -46,12 +48,14 @@ export default function TopBarRight({ content, className }: Props) {
   // Tenant rides on the preview URL — `/api/preview` validates it and
   // redirects into `/preview/<tenantId><path>`, where the preview routes
   // read the tenant from the URL segment. Without it those routes can't
-  // disambiguate when two tenants share a path.
-  const tenantId =
-    content.kind === "page" ? content.page.tenantId : content.post.tenantId
-  const previewHref =
-    `/api/preview?path=${encodeURIComponent(previewPath(content))}` +
-    `&tenantId=${encodeURIComponent(tenantId)}`
+  // disambiguate when two tenants share a path. Templates have no
+  // preview path (no public route) — `showPreview` gates the link.
+  const tenantId = contentTenantId(content)
+  const showPreview = hasPreview(content) && tenantId !== null
+  const previewHref = showPreview
+    ? `/api/preview?path=${encodeURIComponent(previewPath(content))}` +
+      `&tenantId=${encodeURIComponent(tenantId)}`
+    : ""
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
   return (
@@ -126,20 +130,26 @@ export default function TopBarRight({ content, className }: Props) {
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            render={
-              <a href={previewHref} target="_blank" rel="noreferrer">
-                Preview
-              </a>
-            }
-          />
+          {showPreview ? (
+            <DropdownMenuItem
+              render={
+                <a href={previewHref} target="_blank" rel="noreferrer">
+                  Preview
+                </a>
+              }
+            />
+          ) : null}
           <DropdownMenuItem render={<Link href={indexHref} />}>
             {indexLabel}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="font-mono text-xs">
-            {previewPath(content)}
-          </DropdownMenuItem>
+          {showPreview ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="font-mono text-xs">
+                {previewPath(content)}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

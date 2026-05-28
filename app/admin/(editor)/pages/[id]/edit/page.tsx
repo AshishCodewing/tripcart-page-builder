@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import EditorShell from "@/components/page-builder/editor-shell"
 import { deletePage, savePage } from "@/lib/cms/page-actions"
 import { getPageById, listPageParents } from "@/lib/cms/pages"
+import { listTemplates } from "@/lib/cms/templates"
 import { getTenantTheme } from "@/lib/cms/tenants"
 
 export default async function EditPagePage({
@@ -17,7 +18,10 @@ export default async function EditPagePage({
   ])
   if (!page) notFound()
 
-  const tenantTheme = await getTenantTheme(page.tenantId)
+  const [tenantTheme, templates] = await Promise.all([
+    getTenantTheme(page.tenantId),
+    listTemplates(page.tenantId),
+  ])
   const saveAction = savePage.bind(null, id)
   const deleteAction = deletePage.bind(null, id)
 
@@ -27,6 +31,7 @@ export default async function EditPagePage({
       tenantTheme={tenantTheme}
       saveAction={saveAction}
       deleteAction={deleteAction}
+      templates={templates}
     />
   )
 }
