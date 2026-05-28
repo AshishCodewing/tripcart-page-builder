@@ -56,6 +56,7 @@ import {
 import RightPanel from "./right-panel/right-panel"
 import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
+import { FloatingToolbar } from "./floating-toolbar"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
 // are framework-agnostic and stable. We don't use `import "...?url"` because
@@ -375,6 +376,8 @@ const buildGjsOptions = (
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
+    customSpots: {
+    }
   },
 })
 
@@ -613,6 +616,7 @@ function EditorShellInner({
 
                 <SidebarInset className="bg-muted/20">
                   <Canvas className="gjs-custom-editor-canvas grow" />
+                  <FloatingToolbar />
                 </SidebarInset>
               </SidebarProvider>
 
