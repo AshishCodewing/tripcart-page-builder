@@ -1,7 +1,7 @@
 import { useEditorMaybe } from "@grapesjs/react"
 import { useEffect, useState } from "react"
 import type { Component } from "grapesjs"
-import { Copy, Trash2, ArrowUp, Move } from "lucide-react"
+import { Copy, Trash2, ArrowUp, Move, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ButtonGroup,
@@ -14,6 +14,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { CONVERT_OPEN_EVENT } from "@/lib/plugins/convert-to-template"
+import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
 import { CanvasFloating } from "./canvas-floating"
 
 export function FloatingToolbar() {
@@ -42,11 +44,14 @@ export function FloatingToolbar() {
 
   if (!selected) return null
 
+  const canConvert =
+    selected.get("type") !== TEMPLATE_REF_TYPE && !selected.get("locked")
+
   return (
     <CanvasFloating target={selected} placement="top-end">
       <TooltipProvider delay={300}>
-        <ButtonGroup className="rounded-md bg-primary shadow-lg">
-          <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-xs font-medium text-primary-foreground">
+        <ButtonGroup>
+          <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
             {selected.getName()}
           </ButtonGroupText>
           <ButtonGroupSeparator className="bg-primary-foreground/10" />
@@ -55,11 +60,10 @@ export function FloatingToolbar() {
               render={
                 <Button
                   size="icon-xs"
-                  variant="ghost"
-                  className="text-white"
+                  variant="outline"
                   onClick={() => editor?.runCommand("tlb-move")}
                 >
-                  <Move className="h-3.5 w-3.5" />
+                  <Move />
                 </Button>
               }
             />
@@ -70,14 +74,13 @@ export function FloatingToolbar() {
               render={
                 <Button
                   size="icon-xs"
-                  variant="ghost"
-                  className="text-white"
+                  variant="outline"
                   onClick={() => {
                     const parent = selected.parent()
                     if (parent) editor?.select(parent)
                   }}
                 >
-                  <ArrowUp className="h-3.5 w-3.5" />
+                  <ArrowUp />
                 </Button>
               }
             />
@@ -88,15 +91,14 @@ export function FloatingToolbar() {
               render={
                 <Button
                   size="icon-xs"
-                  variant="ghost"
-                  className="text-white"
+                  variant="outline"
                   onClick={() => {
                     const parent = selected.parent()
                     const idx = selected.index()
                     parent?.append(selected.clone(), { at: idx + 1 })
                   }}
                 >
-                  <Copy className="h-3.5 w-3.5" />
+                  <Copy />
                 </Button>
               }
             />
@@ -107,16 +109,41 @@ export function FloatingToolbar() {
               render={
                 <Button
                   size="icon-xs"
-                  variant="ghost"
-                  className="text-white"
+                  variant="outline"
                   onClick={() => selected.remove()}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 />
                 </Button>
               }
             />
             <TooltipContent>Delete</TooltipContent>
           </Tooltip>
+          {canConvert && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="outline"
+
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      editor?.trigger(CONVERT_OPEN_EVENT, {
+                        rect: {
+                          x: rect.left,
+                          y: rect.bottom,
+                          width: rect.width,
+                        },
+                      })
+                    }}
+                  >
+                    <MoreVertical />
+                  </Button>
+                }
+              />
+              <TooltipContent>More</TooltipContent>
+            </Tooltip>
+          )}
         </ButtonGroup>
       </TooltipProvider>
     </CanvasFloating>

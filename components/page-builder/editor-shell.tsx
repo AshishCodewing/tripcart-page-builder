@@ -31,6 +31,7 @@ import {
 } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
 import { useRouter } from "next/navigation"
+import { Component as ComponentIcon } from "lucide-react"
 import type { Component } from "grapesjs"
 import type { Template } from "@/generated/prisma/client"
 import { contentTenantId } from "./types"
@@ -666,12 +667,14 @@ function EditorShellInner({
             />
             <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
               <DropdownMenuItem
+                className="text-xs whitespace-nowrap"
                 onClick={() => {
                   setConvertMenuOpen(false)
                   setConvertDialogOpen(true)
                 }}
               >
-                Create template…
+                Create Pattern
+                <ComponentIcon className="h-3.5 w-3.5" />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
