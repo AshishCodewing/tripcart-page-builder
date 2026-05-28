@@ -51,16 +51,16 @@ export function FloatingToolbar() {
     <CanvasFloating target={selected} placement="top-end">
       <TooltipProvider delay={300}>
         <ButtonGroup>
-          <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
+          <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs bg-primary text-white dark:bg-primary hover:bg-primary dark:hover:bg-primary border-0">
             {selected.getName()}
           </ButtonGroupText>
-          <ButtonGroupSeparator className="bg-primary-foreground/10" />
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   size="icon-xs"
                   variant="outline"
+                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
                   onClick={() => editor?.runCommand("tlb-move")}
                 >
                   <Move />
@@ -75,6 +75,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
+                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
                   onClick={() => {
                     const parent = selected.parent()
                     if (parent) editor?.select(parent)
@@ -92,6 +93,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
+                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
                   onClick={() => {
                     const parent = selected.parent()
                     const idx = selected.index()
@@ -110,6 +112,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
+                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
                   onClick={() => selected.remove()}
                 >
                   <Trash2 />
@@ -125,7 +128,7 @@ export function FloatingToolbar() {
                   <Button
                     size="icon-xs"
                     variant="outline"
-
+                    className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect()
                       editor?.trigger(CONVERT_OPEN_EVENT, {

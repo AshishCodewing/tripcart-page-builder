@@ -50,9 +50,9 @@ export function FloatingBadge() {
   if (hovered.getId() === selectedId) return null
 
   return (
-    <CanvasFloating target={hovered} placement="top-start" pointerEvents="none">
+    <CanvasFloating target={hovered} placement="top-end" pointerEvents="none">
       <ButtonGroup className="rounded-md bg-primary shadow-lg">
-        <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-xs font-medium text-primary-foreground">
+        <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 h-6 text-xs font-medium text-primary-foreground">
           {hovered.getName()}
         </ButtonGroupText>
       </ButtonGroup>

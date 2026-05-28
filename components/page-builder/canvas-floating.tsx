@@ -1,6 +1,6 @@
 import { useEditorMaybe } from "@grapesjs/react"
 import { createPortal } from "react-dom"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import {
   useFloating,
   autoUpdate,
@@ -47,27 +47,11 @@ export function CanvasFloating({
 }: Props) {
   const editor = useEditorMaybe()
 
-  const virtualRef = useRef({
-    getBoundingClientRect: () => ({
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      toJSON() {
-        return this
-      },
-    }),
-  })
-
   const { refs, floatingStyles, context } = useFloating({
     open: !!target,
     placement,
     middleware: [
-      offset(8),
+      offset(4),
       flip({ fallbackPlacements: fallbacks }),
       shift({ padding: 8, mainAxis: true, crossAxis: true }),
     ],
@@ -85,17 +69,23 @@ export function CanvasFloating({
       const el = target?.getEl()
       const frame = editor.Canvas.getFrameEl?.()
       if (!el || !frame) return
-      virtualRef.current.getBoundingClientRect = () => {
-        const elRect = el.getBoundingClientRect()
-        const frameRect = frame.getBoundingClientRect()
-        return new DOMRect(
-          elRect.x + frameRect.x,
-          elRect.y + frameRect.y,
-          elRect.width,
-          elRect.height
-        )
-      }
-      setPositionReference(virtualRef.current)
+      // Pass a *fresh* virtual element each call. floating-ui's
+      // setPositionReference compares incoming node === stored ref and
+      // bails on identity match — mutating a stable ref in place would
+      // silently skip re-positioning when the user switches between two
+      // components that share an instance shape (e.g. two Buttons).
+      setPositionReference({
+        getBoundingClientRect: () => {
+          const elRect = el.getBoundingClientRect()
+          const frameRect = frame.getBoundingClientRect()
+          return new DOMRect(
+            elRect.x + frameRect.x,
+            elRect.y + frameRect.y,
+            elRect.width,
+            elRect.height
+          )
+        },
+      })
     }
 
     requestAnimationFrame(updateRect)
