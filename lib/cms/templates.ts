@@ -93,6 +93,26 @@ const SLUG_ATTR = "data-slug"
  */
 const MAX_DEPTH = 16
 
+/**
+ * Shape stored in `Template.data` after the §9 slim-shape refactor.
+ *
+ * A template is conceptually a component + its styles, not "a one-page
+ * project that happens to be a template". Keeping the stored shape
+ * matched to the intent removes the `pages[0].frames[0].component`
+ * walk from every reader.
+ *
+ * The `pages` field is kept for backward-compat during the migration
+ * transition window — older rows shaped as a full `ProjectDefinition`
+ * still resolve correctly. TODO(§9): drop the `pages` fallback once
+ * the migration has run everywhere.
+ */
+export type TemplateBody = {
+  component?: ComponentDefinition
+  styles?: Rule[]
+  /** Legacy shape — see TODO above. */
+  pages?: ProjectDefinition["pages"]
+}
+
 type ResolveCtx = {
   tenantId: string
   cache: Map<string, Template | null>
@@ -176,8 +196,12 @@ async function resolveNode(
     }
     if (!tpl) return placeholder(`missing:${slug}`)
 
-    const tplData = tpl.data as ProjectDefinition | null
-    const tplRoot = tplData?.pages?.[0]?.frames?.[0]?.component
+    // Slim shape first; fall back to the legacy ProjectDefinition shape
+    // for rows that predate the §9 migration. Drop the fallback once
+    // every environment has run the migration.
+    const tplData = tpl.data as TemplateBody | null
+    const tplRoot =
+      tplData?.component ?? tplData?.pages?.[0]?.frames?.[0]?.component
     if (!tplRoot) return placeholder(`empty:${slug}`)
 
     ctx.visiting.add(slug)

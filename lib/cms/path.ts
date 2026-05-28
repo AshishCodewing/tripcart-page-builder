@@ -17,6 +17,20 @@ export function validateSlug(slug: string): void {
   }
 }
 
+/**
+ * Derive a slug from a human-readable title. Lowercases, replaces every
+ * run of non-alphanumeric characters with a single hyphen, and trims
+ * leading/trailing hyphens. Used by the convert-to-template flow where
+ * users only enter a title; the action then de-duplicates against the
+ * tenant's existing template slugs.
+ */
+export function titleToSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
 export function validateTopLevelSlug(slug: string): void {
   if (RESERVED_TOP_SEGMENTS.has(slug)) {
     throw new Error(`"${slug}" is a reserved top-level segment.`)

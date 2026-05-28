@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import EditorShell from "@/components/page-builder/editor-shell"
 import { deletePost, savePost } from "@/lib/cms/post-actions"
 import { getPostById } from "@/lib/cms/posts"
+import { listTemplates } from "@/lib/cms/templates"
 import { getTenantTheme } from "@/lib/cms/tenants"
 
 export default async function EditPostPage({
@@ -14,7 +15,10 @@ export default async function EditPostPage({
   const post = await getPostById(id)
   if (!post) notFound()
 
-  const tenantTheme = await getTenantTheme(post.tenantId)
+  const [tenantTheme, templates] = await Promise.all([
+    getTenantTheme(post.tenantId),
+    listTemplates(post.tenantId),
+  ])
   const saveAction = savePost.bind(null, id)
   const deleteAction = deletePost.bind(null, id)
 
@@ -35,6 +39,7 @@ export default async function EditPostPage({
       tenantTheme={tenantTheme}
       saveAction={saveAction}
       deleteAction={deleteAction}
+      templates={templates}
     />
   )
 }

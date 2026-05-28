@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
 import type { TemplateRecord } from "@/components/page-builder/types"
-import { getTemplateById } from "@/lib/cms/templates"
+import { getTemplateById, listTemplates } from "@/lib/cms/templates"
 import { saveTemplate } from "@/lib/cms/template-actions"
 import { getTenantTheme } from "@/lib/cms/tenants"
 import { defaultTheme } from "@/lib/tokens"
@@ -19,9 +19,18 @@ export default async function EditTemplatePage({
   // Tenant-scoped templates inherit the owning tenant's theme. Globals
   // (tenantId IS NULL) have no owning tenant; fall back to the bundled
   // defaultTheme so the editor still renders with a complete document.
-  const tenantTheme = tpl.tenantId
-    ? await getTenantTheme(tpl.tenantId)
-    : defaultTheme
+  // Template blocks aren't surfaced when editing a global template
+  // (no tenant context for `listTemplates`); resolve that case later
+  // by exposing the global library as a separate block source.
+  const [tenantTheme, allTemplates] = await Promise.all([
+    tpl.tenantId ? getTenantTheme(tpl.tenantId) : Promise.resolve(defaultTheme),
+    tpl.tenantId ? listTemplates(tpl.tenantId) : Promise.resolve([]),
+  ])
+  // Don't expose the template currently being edited as a draggable
+  // block — dragging self would create a recursive `template-ref`
+  // that the resolver handles via its cycle guard, but the UX would
+  // just confuse users.
+  const templates = allTemplates.filter((t) => t.id !== tpl.id)
 
   const record: TemplateRecord = {
     id: tpl.id,
@@ -49,6 +58,7 @@ export default async function EditTemplatePage({
       tenantTheme={tenantTheme}
       saveAction={saveAction}
       deleteAction={deleteAction}
+      templates={templates}
     />
   )
 }

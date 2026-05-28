@@ -53,6 +53,20 @@ export const filterProtectedStyles = (data: ProjectData): ProjectData => {
   return { ...data, styles: kept }
 }
 
+/**
+ * Collect serialized page-scoped CSS rules from the live editor, dropping
+ * any rule marked `protected` (theme rules from `designSystemPlugin`).
+ * Mirrors `filterProtectedStyles` but reads the CssRules collection
+ * directly instead of building a full `getProjectData()` shape just to
+ * dig out `.styles`. Use when the caller only needs styles (e.g. the
+ * convert-to-template dialog snapshotting CSS for the new template).
+ */
+export const getPageStyles = (editor: Editor): StyleEntry[] => {
+  return editor.Css.getRules()
+    .filter((rule) => rule.get("protected") !== true)
+    .map((rule) => rule.toJSON() as StyleEntry)
+}
+
 export const tcStorageAdapter = (editor: Editor): void => {
   const getLocal = () => {
     const local = editor.Storage.get("local")
