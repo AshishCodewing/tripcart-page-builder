@@ -27,10 +27,8 @@ type Props = {
 }
 
 const DEFAULT_FALLBACKS: Placement[] = [
-  "bottom-start",
-  "top-start",
   "bottom-end",
-  "left",
+  "right",
 ]
 
 // Shared floating-ui + portal wrapper used by FloatingToolbar (anchored to the
