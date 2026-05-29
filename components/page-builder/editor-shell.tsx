@@ -361,8 +361,10 @@ const buildGjsOptions = (
     patternsPlugin,
     // template-ref must register AFTER designSystemPlugin so the
     // placeholder CSS can reference --tc--preset--* vars without
-    // racing the theme injection.
-    templateRefPlugin,
+    // racing the theme injection. Closes over `templates` so refs can
+    // inline the referenced template's content as a locked on-canvas
+    // preview (§7) without a per-ref fetch.
+    templateRefPlugin(templates),
     // Register tenant templates as Block-Manager entries so they
     // become draggable from the sidebar (§8). Runs after template-ref
     // so the `template-ref` component type is known when the block
