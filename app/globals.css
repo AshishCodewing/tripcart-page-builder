@@ -339,3 +339,12 @@
         @apply font-sans;
     }
 }
+
+#gjs-tools .gjs-toolbar,
+#gjs-tools .gjs-badge,
+#gjs-tools .gjs-com-badge,
+.gjs-com-badge .gjs-toolbar,
+.gjs-tools .gjs-badge,
+.gjs-tools .gjs-com-badge {
+  display:none!important
+}

@@ -55,6 +55,16 @@ function formatRelative(date: Date): string {
   return RTF.format(Math.round(diffMs / 86_400_000), "day")
 }
 
+function RelativeTime({ date }: { date: Date }) {
+  const [label, setLabel] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    setLabel(formatRelative(date))
+    const id = setInterval(() => setLabel(formatRelative(date)), 30_000)
+    return () => clearInterval(id)
+  }, [date])
+  return <>{label ?? ""}</>
+}
+
 function FieldRow({
   label,
   children,
@@ -122,7 +132,7 @@ export default function RightPanel({ content, deleteAction }: Props) {
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium">{record.title}</p>
             <p className="text-xs text-muted-foreground">
-              Last edited {formatRelative(record.updatedAt)}
+              Last edited <RelativeTime date={record.updatedAt} />
             </p>
           </div>
 

@@ -31,6 +31,7 @@ import {
 } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
 import { useRouter } from "next/navigation"
+import { Component as ComponentIcon } from "lucide-react"
 import type { Component } from "grapesjs"
 import type { Template } from "@/generated/prisma/client"
 import { contentTenantId } from "./types"
@@ -56,6 +57,8 @@ import {
 import RightPanel from "./right-panel/right-panel"
 import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
+import { FloatingBadge } from "./floating-badge"
+import { FloatingToolbar } from "./floating-toolbar"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
 // are framework-agnostic and stable. We don't use `import "...?url"` because
@@ -375,6 +378,8 @@ const buildGjsOptions = (
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
+    customSpots: {
+    }
   },
 })
 
@@ -426,6 +431,16 @@ type Props = {
 }
 
 export default function EditorShell(props: Props) {
+  // GrapesJS is browser-only (needs window + a canvas iframe), and the
+  // surrounding Base UI primitives generate useId() values that drift
+  // between server and client because parts of the tree (@grapesjs/react
+  // providers, Tooltip/DropdownMenu portals) only stabilize after the
+  // editor instance mounts. Defer the whole subtree to the client to
+  // sidestep the hydration mismatch instead of fighting it piece-by-piece.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
   return (
     <LeftPanelProvider>
       <EditorShellInner {...props} />
@@ -613,6 +628,8 @@ function EditorShellInner({
 
                 <SidebarInset className="bg-muted/20">
                   <Canvas className="gjs-custom-editor-canvas grow" />
+                  <FloatingToolbar />
+                  <FloatingBadge />
                 </SidebarInset>
               </SidebarProvider>
 
@@ -660,12 +677,14 @@ function EditorShellInner({
             />
             <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
               <DropdownMenuItem
+                className="text-xs whitespace-nowrap"
                 onClick={() => {
                   setConvertMenuOpen(false)
                   setConvertDialogOpen(true)
                 }}
               >
-                Create template…
+                Create Pattern
+                <ComponentIcon className="h-3.5 w-3.5" />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
