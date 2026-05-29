@@ -44,6 +44,7 @@ import type { TemplateBody } from "@/lib/cms/templates"
 import { applyTemplateStyles } from "@/lib/plugins/template-styles"
 
 import {
+  registerTemplateRefBody,
   rootComponentOf,
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
@@ -119,6 +120,11 @@ export function registerTemplateBlock(
       type: TEMPLATE_REF_TYPE,
       attributes: { [TEMPLATE_REF_SLUG_ATTR]: tpl.slug },
     }
+    // Make the slug resolvable by the §7 inline-preview resolver, so a
+    // synced ref (dropped from this block or produced by the convert
+    // dialog's replaceWith) inlines its content immediately instead of
+    // rendering a `missing:<slug>` placeholder until the next reload.
+    registerTemplateRefBody(editor, tpl.slug, tpl.data)
   } else {
     const root = rootComponentOf(tpl.data)
     if (!root) return null

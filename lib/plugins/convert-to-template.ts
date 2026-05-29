@@ -23,7 +23,7 @@
  * docs/templates-followups.md.
  */
 
-import type { Editor, ToolbarButtonProps } from "grapesjs"
+import type { Component, Editor, ToolbarButtonProps } from "grapesjs"
 
 import { TEMPLATE_REF_TYPE } from "./template-ref"
 
@@ -31,6 +31,30 @@ export const CONVERT_OPEN_EVENT = "tc:convert:open-menu"
 export const CONVERT_OPEN_CMD = "tc:convert:open-menu"
 
 const MORE_BUTTON_CLASS = "tc-convert-more"
+
+/**
+ * Whether a selected component may be converted to a template. Shared by
+ * the GrapesJS toolbar injection (this plugin) and the React
+ * FloatingToolbar so both gate identically.
+ *
+ *   - Skips `template-ref` (already a ref).
+ *   - Skips locked components.
+ *   - Skips the root `wrapper` / any parentless node: converting the
+ *     whole page is meaningless, and the synced swap's
+ *     `selected.replaceWith(...)` throws on a node with no parent
+ *     collection (`undefined.indexOf`). It also produced malformed
+ *     `wrapper`-rooted template data. Guard at the source.
+ */
+export function isConvertibleSelection(
+  cmp: Component | null | undefined
+): boolean {
+  if (!cmp) return false
+  if (cmp.get("type") === TEMPLATE_REF_TYPE) return false
+  if (cmp.get("type") === "wrapper") return false
+  if (cmp.get("locked")) return false
+  if (!cmp.parent()) return false
+  return true
+}
 
 export const convertToTemplatePlugin = (editor: Editor): void => {
   // Resolve the button's rendered DOM rect at click time, then hand off
@@ -50,9 +74,7 @@ export const convertToTemplatePlugin = (editor: Editor): void => {
   })
 
   editor.on("component:selected", (cmp) => {
-    if (!cmp) return
-    if (cmp.get("type") === TEMPLATE_REF_TYPE) return
-    if (cmp.get("locked")) return
+    if (!isConvertibleSelection(cmp)) return
 
     const current =
       (cmp.get("toolbar") as ToolbarButtonProps[] | undefined) ?? []

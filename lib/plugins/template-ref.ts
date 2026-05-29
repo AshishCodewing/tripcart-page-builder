@@ -59,6 +59,7 @@ import type { Template } from "@/generated/prisma/client"
 import type { TemplateBody } from "@/lib/cms/templates"
 import type { ComponentDefinition } from "@/lib/plugins/react-renderer/project/types"
 import { applyTemplateStyles } from "@/lib/plugins/template-styles"
+import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
 
 export const TEMPLATE_REF_TYPE = "template-ref"
 export const TEMPLATE_REF_SLUG_ATTR = "data-slug"
@@ -130,7 +131,10 @@ export function rootComponentOf(
   body: TemplateBody | undefined
 ): ComponentDefinition | undefined {
   if (!body) return undefined
-  return body.component ?? body.pages?.[0]?.frames?.[0]?.component
+  const root = body.component ?? body.pages?.[0]?.frames?.[0]?.component
+  // Defang a document-level root (`wrapper`/`body`) so inlining it as a
+  // ref's child doesn't produce invalid nesting — see template-shape.ts.
+  return root ? unwrapTemplateRoot(root) : undefined
 }
 
 /**
@@ -165,17 +169,58 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
 }
 
+/**
+ * Per-editor slug → body map used by `template-ref`'s inline resolver.
+ *
+ * Lifted out of the plugin closure (and keyed by editor, mirroring the
+ * `styleRegistry` WeakMap in template-blocks.ts) so it can be mutated
+ * mid-session: when a synced template is created or registered while the
+ * editor is open, `registerTemplateRefBody` adds its body here and the
+ * very next `template-ref` `init()` resolves it — no page reload needed.
+ * Keyed by editor so a remount starts clean.
+ */
+const refBodyRegistry = new WeakMap<Editor, Map<string, TemplateBody>>()
+
+function getRefBodyMap(editor: Editor): Map<string, TemplateBody> {
+  let map = refBodyRegistry.get(editor)
+  if (!map) {
+    map = new Map<string, TemplateBody>()
+    refBodyRegistry.set(editor, map)
+  }
+  return map
+}
+
+/**
+ * Make a template's body resolvable by `template-ref` for the given
+ * editor. **Set-if-absent**, which preserves the tenant-first / first-wins
+ * shadowing the init loop relies on (a freshly-created template always has
+ * a unique slug, so it sets; an already-registered slug is left intact).
+ */
+export function registerTemplateRefBody(
+  editor: Editor,
+  slug: string,
+  body: TemplateBody
+): void {
+  const map = getRefBodyMap(editor)
+  if (!map.has(slug)) map.set(slug, body)
+}
+
 export const templateRefPlugin =
   (templates: Template[] = []) =>
   (editor: Editor): void => {
     // slug → body, tenant-first (listTemplates returns tenant rows
     // before globals; first-wins keeps a tenant shadow ahead of the
-    // global it overrides).
-    const bodyBySlug = new Map<string, TemplateBody>()
+    // global it overrides). The map is the shared per-editor registry so
+    // mid-session additions (registerTemplateRefBody) resolve live; the
+    // init loop seeds it set-if-absent, keeping template-ref self-
+    // sufficient even if templateBlocksPlugin isn't wired in.
+    const bodyBySlug = getRefBodyMap(editor)
     for (const tpl of templates) {
-      if (!bodyBySlug.has(tpl.slug)) {
-        bodyBySlug.set(tpl.slug, (tpl.data ?? {}) as unknown as TemplateBody)
-      }
+      registerTemplateRefBody(
+        editor,
+        tpl.slug,
+        (tpl.data ?? {}) as unknown as TemplateBody
+      )
     }
 
     // Per-model state kept off the model itself so it never leaks into

@@ -143,7 +143,34 @@ export function ConvertTemplateDialog({
 
       const result = await createTemplateFromSelection(tenantId, form)
 
-      if (synced) {
+      // Surface the new template in the Block Manager immediately so the
+      // user can drag another copy without a page reload — same primitive
+      // the init-time `templateBlocksPlugin` uses, so synced (a ref) and
+      // unsynced (the component subtree + drop-time style seeding) are
+      // handled identically. `plainSubtree` is the exact body just stored,
+      // so the block matches what a reload would register.
+      //
+      // Must run BEFORE the synced `replaceWith` below: for synced
+      // templates `registerTemplateBlock` also registers the body with the
+      // §7 ref resolver, and the new `template-ref`'s `init()` fires
+      // synchronously inside `replaceWith` — so the body has to be
+      // resolvable first, or the canvas shows `missing:<slug>`.
+      if (editor) {
+        registerTemplateBlock(editor, {
+          slug: result.slug,
+          title: result.title,
+          kind: result.kind,
+          area: result.area,
+          synced: result.synced,
+          data: { component: plainSubtree, styles },
+        })
+      }
+
+      // `replaceWith` reads the node's parent collection; on a parentless
+      // node (the root wrapper) it throws `undefined.indexOf`. The convert
+      // entry point already gates the wrapper out (isConvertibleSelection),
+      // so this is belt-and-suspenders — skip the swap rather than crash.
+      if (synced && selected[0].parent()) {
         // Swap the converted selection with a placeholder ref so
         // subsequent edits flow through the template. For unsynced
         // conversions the page is unchanged — the template is just a
@@ -162,22 +189,6 @@ export function ConvertTemplateDialog({
         }
       }
 
-      // Surface the new template in the Block Manager immediately so the
-      // user can drag another copy without a page reload — same primitive
-      // the init-time `templateBlocksPlugin` uses, so synced (a ref) and
-      // unsynced (the component subtree + drop-time style seeding) are
-      // handled identically. `plainSubtree` is the exact body just stored,
-      // so the block matches what a reload would register.
-      if (editor) {
-        registerTemplateBlock(editor, {
-          slug: result.slug,
-          title: result.title,
-          kind: result.kind,
-          area: result.area,
-          synced: result.synced,
-          data: { component: plainSubtree, styles },
-        })
-      }
       handleOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create template.")

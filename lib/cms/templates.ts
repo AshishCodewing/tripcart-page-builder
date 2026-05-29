@@ -16,6 +16,7 @@ import type {
   ProjectDefinition,
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
+import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -200,9 +201,12 @@ async function resolveNode(
     // for rows that predate the §9 migration. Drop the fallback once
     // every environment has run the migration.
     const tplData = tpl.data as TemplateBody | null
-    const tplRoot =
+    const rawRoot =
       tplData?.component ?? tplData?.pages?.[0]?.frames?.[0]?.component
-    if (!tplRoot) return placeholder(`empty:${slug}`)
+    if (!rawRoot) return placeholder(`empty:${slug}`)
+    // Defang a document-level root (`wrapper`/`body`) before splicing it
+    // into the page — see template-shape.ts.
+    const tplRoot = unwrapTemplateRoot(rawRoot)
 
     ctx.visiting.add(slug)
     const resolved = await resolveNode(ctx, tplRoot, depth + 1)

@@ -14,8 +14,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { CONVERT_OPEN_EVENT } from "@/lib/plugins/convert-to-template"
-import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
+import {
+  CONVERT_OPEN_EVENT,
+  isConvertibleSelection,
+} from "@/lib/plugins/convert-to-template"
 import { CanvasFloating } from "./canvas-floating"
 
 export function FloatingToolbar() {
@@ -44,8 +46,7 @@ export function FloatingToolbar() {
 
   if (!selected) return null
 
-  const canConvert =
-    selected.get("type") !== TEMPLATE_REF_TYPE && !selected.get("locked")
+  const canConvert = isConvertibleSelection(selected)
 
   return (
     <CanvasFloating target={selected} placement="top-end">
