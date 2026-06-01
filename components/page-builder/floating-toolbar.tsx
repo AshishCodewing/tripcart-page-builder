@@ -1,7 +1,7 @@
 import { useEditorMaybe } from "@grapesjs/react"
 import { useEffect, useState } from "react"
 import type { Component } from "grapesjs"
-import { Copy, Trash2, ArrowUp, Move, MoreVertical } from "lucide-react"
+import { Copy, Trash2, ArrowUp, Move, MoreVertical, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ButtonGroup,
@@ -18,7 +18,10 @@ import {
   CONVERT_OPEN_EVENT,
   isConvertibleSelection,
 } from "@/lib/plugins/convert-to-template"
-import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
+import {
+  TEMPLATE_REF_SLUG_ATTR,
+  TEMPLATE_REF_TYPE,
+} from "@/lib/plugins/template-ref"
 import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
 
@@ -74,6 +77,27 @@ export function FloatingToolbar() {
           <ButtonGroupText className={labelClass}>
             {selected.getName()}
           </ButtonGroupText>
+          {isTemplateRef && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="outline"
+                    className={btnClass}
+                    onClick={() => {
+                      const slug =
+                        selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
+                      editor?.runCommand("tc:edit-template-ref", { slug })
+                    }}
+                  >
+                    <Pencil />
+                  </Button>
+                }
+              />
+              <TooltipContent>Edit Original</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger
               render={

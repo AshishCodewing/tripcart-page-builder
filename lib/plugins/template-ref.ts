@@ -363,19 +363,6 @@ export const templateRefPlugin =
               attributes: { readonly: "readonly" },
             },
           ],
-          toolbar: [
-            {
-              attributes: { class: "fa fa-pencil", title: "Edit template" },
-              command: (ed: Editor) => {
-                const cmp = ed.getSelected()
-                const slug = cmp?.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
-                ed.runCommand("tc:edit-template-ref", { slug })
-              },
-            },
-            { attributes: { class: "fa fa-arrows" }, command: "tlb-move" },
-            { attributes: { class: "fa fa-clone" }, command: "tlb-clone" },
-            { attributes: { class: "fa fa-trash-o" }, command: "tlb-delete" },
-          ],
         },
 
         init() {
