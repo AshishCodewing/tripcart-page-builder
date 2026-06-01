@@ -65,6 +65,27 @@ export const TEMPLATE_REF_TYPE = "template-ref"
 export const TEMPLATE_REF_SLUG_ATTR = "data-slug"
 
 /**
+ * Marker attribute carried on the rendered `<div>` so the node round-trips
+ * through HTML as a `template-ref`. The GrapesJS component `type` (stored in
+ * the project JSON) stays `template-ref` and is what the server resolver keys
+ * off — this attribute only lets `isComponent` re-identify a ref when the
+ * tree is (re)parsed from HTML rather than from typed JSON. We render a plain
+ * `<div>` instead of a custom `<template-ref>` element so the box model is
+ * predictable without relying on the `display:block` override.
+ */
+export const TEMPLATE_REF_MARKER_ATTR = "data-template-ref"
+
+/**
+ * Accent hue for synced-template refs, used to set them apart from ordinary
+ * components on the canvas. Drives the selection/hover outline color in the
+ * canvas iframe (PLACEHOLDER_CSS below) and is mirrored by the React
+ * FloatingToolbar / FloatingBadge via Tailwind `violet-600` (same hex).
+ * Echoes WordPress's violet "synced pattern" convention. Change here +
+ * the Tailwind classes together to retheme.
+ */
+export const TEMPLATE_REF_ACCENT = "#7c3aed"
+
+/**
  * Transient attribute used to carry the nesting depth down to inlined
  * child `template-ref`s so a cyclic / pathologically deep chain can't
  * freeze the canvas. Never persisted: it only ever lands on inlined
@@ -120,6 +141,26 @@ const PLACEHOLDER_CSS = `
   border-color: color-mix(in oklch, var(--tc--preset--color--destructive, hsl(0 80% 50%)) 50%, transparent);
   background: color-mix(in oklch, var(--tc--preset--color--destructive, hsl(0 80% 50%)) 6%, transparent);
 }
+
+/* Recolor the canvas selection/hover outlines for synced-template refs so
+   they read as distinct from ordinary components. The base GrapesJS rules
+   are \`.gjs-selected { outline: 2px solid #3b97e3 !important }\` and
+   \`.gjs-hovered { outline: 1px solid #3b97e3 }\`; the compound selector here
+   is more specific and \`!important\` wins the override. Keep this color in
+   sync with TEMPLATE_REF_ACCENT (the React toolbar/badge use the same hue
+   via Tailwind \`violet-600\`). */
+.tc-template-ref.gjs-selected {
+  outline: 2px solid ${TEMPLATE_REF_ACCENT} !important;
+  /* GrapesJS draws the selected outline at \`outline-offset: -2px\` (inset),
+     where the ref's inlined preview — full of stacking-context children —
+     paints over it, hiding it. The \`outline\` shorthand doesn't reset offset,
+     so override it: 0 puts the outline just outside the border box (like the
+     hover outline), clear of the preview content. */
+  outline-offset: 0 !important;
+}
+.tc-template-ref.gjs-hovered {
+  outline: 1px solid ${TEMPLATE_REF_ACCENT} !important;
+}
 `
 
 /**
@@ -150,8 +191,9 @@ function stampRefDepth(
   const node: ComponentDefinition = { ...def }
   const isRef =
     node.type === TEMPLATE_REF_TYPE ||
-    (typeof node.tagName === "string" &&
-      node.tagName.toLowerCase() === TEMPLATE_REF_TYPE)
+    // HTML-sourced defs carry no `type`; identify them by the marker
+    // attribute on the rendered <div> instead.
+    node.attributes?.[TEMPLATE_REF_MARKER_ATTR] != null
   if (isRef) {
     node.attributes = { ...(node.attributes ?? {}), [DEPTH_ATTR]: String(depth) }
   }
@@ -205,6 +247,36 @@ export function registerTemplateRefBody(
   if (!map.has(slug)) map.set(slug, body)
 }
 
+/**
+ * slug → human title, used to label a `template-ref` node in the Layer
+ * Manager / floating toolbar with the saved template's title instead of
+ * the generic "Template Reference" default. Kept separate from the body
+ * registry because the title is a `Template` column, not part of the
+ * stored `data` body (`{ component, styles }`). Same editor-keyed,
+ * mutate-mid-session, set-if-absent semantics as `refBodyRegistry`.
+ */
+const refTitleRegistry = new WeakMap<Editor, Map<string, string>>()
+
+function getRefTitleMap(editor: Editor): Map<string, string> {
+  let map = refTitleRegistry.get(editor)
+  if (!map) {
+    map = new Map<string, string>()
+    refTitleRegistry.set(editor, map)
+  }
+  return map
+}
+
+/** Register a template's display title for `template-ref` labeling. */
+export function registerTemplateRefTitle(
+  editor: Editor,
+  slug: string,
+  title: string
+): void {
+  if (!slug || !title) return
+  const map = getRefTitleMap(editor)
+  if (!map.has(slug)) map.set(slug, title)
+}
+
 export const templateRefPlugin =
   (templates: Template[] = []) =>
   (editor: Editor): void => {
@@ -215,12 +287,14 @@ export const templateRefPlugin =
     // init loop seeds it set-if-absent, keeping template-ref self-
     // sufficient even if templateBlocksPlugin isn't wired in.
     const bodyBySlug = getRefBodyMap(editor)
+    const titleBySlug = getRefTitleMap(editor)
     for (const tpl of templates) {
       registerTemplateRefBody(
         editor,
         tpl.slug,
         (tpl.data ?? {}) as unknown as TemplateBody
       )
+      registerTemplateRefTitle(editor, tpl.slug, tpl.title)
     }
 
     // Per-model state kept off the model itself so it never leaks into
@@ -275,16 +349,19 @@ export const templateRefPlugin =
 
     editor.Components.addType(TEMPLATE_REF_TYPE, {
       isComponent: (el) => {
-        if (!el || typeof el !== "object") return false
-        const tag =
-          "tagName" in el && typeof (el as HTMLElement).tagName === "string"
-            ? (el as HTMLElement).tagName.toLowerCase()
-            : ""
-        return tag === TEMPLATE_REF_TYPE
+        // Re-identify a ref parsed from HTML: a <div> carrying the marker
+        // attribute. (Typed JSON round-trips via `type`, not this check.)
+        return (
+          !!el &&
+          typeof el === "object" &&
+          "getAttribute" in el &&
+          typeof (el as HTMLElement).getAttribute === "function" &&
+          (el as HTMLElement).getAttribute(TEMPLATE_REF_MARKER_ATTR) !== null
+        )
       },
       model: {
         defaults: {
-          tagName: TEMPLATE_REF_TYPE,
+          tagName: "div",
           name: "Template Reference",
           draggable: true,
           droppable: false,
@@ -293,7 +370,11 @@ export const templateRefPlugin =
           hoverable: true,
           removable: true,
           copyable: true,
-          attributes: { [TEMPLATE_REF_SLUG_ATTR]: "", class: "tc-template-ref" },
+          attributes: {
+            [TEMPLATE_REF_SLUG_ATTR]: "",
+            [TEMPLATE_REF_MARKER_ATTR]: "",
+            class: "tc-template-ref",
+          },
           // Read-only trait so users can see which template is bound.
           // The convert-to-template flow + Block drops set this on insert;
           // changing it manually is power-user territory and intentionally
@@ -347,6 +428,15 @@ export const templateRefPlugin =
             placeholderReason.set(model, "unbound")
             return
           }
+
+          // Label the node with the saved template's title (Layer
+          // Manager / floating toolbar) instead of the generic
+          // "Template Reference" default. Set before the body/depth
+          // bail-outs so even a missing/max-depth ref still shows its
+          // title when one was registered.
+          const title = titleBySlug.get(slug)
+          if (title) model.set("name", title)
+
           if (depth > MAX_PREVIEW_DEPTH) {
             placeholderReason.set(model, `max-depth:${slug}`)
             return

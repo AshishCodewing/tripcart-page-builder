@@ -2,6 +2,8 @@ import { useEditorMaybe } from "@grapesjs/react"
 import { useEffect, useState } from "react"
 import type { Component } from "grapesjs"
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
+import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
+import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
 
 // Custom hover badge. Mirrors the floating-toolbar pattern but anchored to the
@@ -49,10 +51,24 @@ export function FloatingBadge() {
   if (!hovered || isDragging) return null
   if (hovered.getId() === selectedId) return null
 
+  // Match the violet accent the canvas hover outline uses for synced
+  // template refs (template-ref PLACEHOLDER_CSS) so badge + outline agree.
+  const isTemplateRef = hovered.get("type") === TEMPLATE_REF_TYPE
+
   return (
     <CanvasFloating target={hovered} placement="top-end" pointerEvents="none">
-      <ButtonGroup className="rounded-md bg-primary shadow-lg">
-        <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 h-6 text-xs font-medium text-primary-foreground">
+      <ButtonGroup
+        className={cn(
+          "rounded-md shadow-lg",
+          isTemplateRef ? "bg-violet-600" : "bg-primary"
+        )}
+      >
+        <ButtonGroupText
+          className={cn(
+            "max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 h-6 text-xs font-medium",
+            isTemplateRef ? "text-white" : "text-primary-foreground"
+          )}
+        >
           {hovered.getName()}
         </ButtonGroupText>
       </ButtonGroup>

@@ -45,6 +45,7 @@ import { applyTemplateStyles } from "@/lib/plugins/template-styles"
 
 import {
   registerTemplateRefBody,
+  registerTemplateRefTitle,
   rootComponentOf,
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
@@ -125,6 +126,10 @@ export function registerTemplateBlock(
     // dialog's replaceWith) inlines its content immediately instead of
     // rendering a `missing:<slug>` placeholder until the next reload.
     registerTemplateRefBody(editor, tpl.slug, tpl.data)
+    // Title so a synced ref labels itself with the template name
+    // (Layer Manager / floating toolbar) instead of the generic
+    // "Template Reference" default.
+    registerTemplateRefTitle(editor, tpl.slug, tpl.title)
   } else {
     const root = rootComponentOf(tpl.data)
     if (!root) return null

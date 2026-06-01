@@ -18,6 +18,8 @@ import {
   CONVERT_OPEN_EVENT,
   isConvertibleSelection,
 } from "@/lib/plugins/convert-to-template"
+import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
+import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
 
 export function FloatingToolbar() {
@@ -48,11 +50,28 @@ export function FloatingToolbar() {
 
   const canConvert = isConvertibleSelection(selected)
 
+  // Synced-template refs get a distinct accent (matches the canvas
+  // selection/hover outline set in template-ref's PLACEHOLDER_CSS) so the
+  // toolbar reads as "this is a linked template, not a plain component".
+  const isTemplateRef = selected.get("type") === TEMPLATE_REF_TYPE
+  const btnClass = cn(
+    "border-0 text-white hover:text-white dark:hover:text-white",
+    isTemplateRef
+      ? "bg-violet-600 hover:bg-violet-600/80 dark:bg-violet-600 dark:hover:bg-violet-600/80"
+      : "bg-primary hover:bg-primary/80 dark:bg-primary dark:hover:bg-primary/80"
+  )
+  const labelClass = cn(
+    "max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white border-0",
+    isTemplateRef
+      ? "bg-violet-600 hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-600"
+      : "bg-primary hover:bg-primary dark:bg-primary dark:hover:bg-primary"
+  )
+
   return (
     <CanvasFloating target={selected} placement="top-end">
       <TooltipProvider delay={300}>
         <ButtonGroup className="bg-white rounded-lg">
-          <ButtonGroupText className="max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs bg-primary text-white dark:bg-primary hover:bg-primary dark:hover:bg-primary border-0">
+          <ButtonGroupText className={labelClass}>
             {selected.getName()}
           </ButtonGroupText>
           <Tooltip>
@@ -61,7 +80,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
-                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
+                  className={btnClass}
                   onClick={() => editor?.runCommand("tlb-move")}
                 >
                   <Move />
@@ -76,7 +95,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
-                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
+                  className={btnClass}
                   onClick={() => {
                     const parent = selected.parent()
                     if (parent) editor?.select(parent)
@@ -94,7 +113,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
-                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
+                  className={btnClass}
                   onClick={() => {
                     const parent = selected.parent()
                     const idx = selected.index()
@@ -113,7 +132,7 @@ export function FloatingToolbar() {
                 <Button
                   size="icon-xs"
                   variant="outline"
-                  className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
+                  className={btnClass}
                   onClick={() => selected.remove()}
                 >
                   <Trash2 />
@@ -129,7 +148,7 @@ export function FloatingToolbar() {
                   <Button
                     size="icon-xs"
                     variant="outline"
-                    className="bg-primary text-white dark:bg-primary hover:bg-primary/80 hover:text-white dark:hover:text-white dark:hover:bg-primary/80 border-0"
+                    className={btnClass}
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect()
                       editor?.trigger(CONVERT_OPEN_EVENT, {

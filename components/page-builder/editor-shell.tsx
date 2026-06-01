@@ -14,10 +14,7 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 import { columnsPlugin } from "@/lib/plugins/columns"
-import {
-  CONVERT_OPEN_EVENT,
-  convertToTemplatePlugin,
-} from "@/lib/plugins/convert-to-template"
+import { CONVERT_OPEN_EVENT } from "@/lib/plugins/convert-to-template"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
@@ -370,11 +367,6 @@ const buildGjsOptions = (
     // so the `template-ref` component type is known when the block
     // content `{ type: "template-ref", ... }` resolves.
     templateBlocksPlugin(templates),
-    // convert-to-template registers AFTER template-ref so its skip
-    // check (`cmp.get("type") === TEMPLATE_REF_TYPE`) sees the resolved
-    // type. The subscriber runs on every selection, regardless of how
-    // the component type was declared.
-    convertToTemplatePlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],
