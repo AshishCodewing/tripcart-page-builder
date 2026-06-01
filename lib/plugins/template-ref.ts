@@ -330,6 +330,15 @@ export const templateRefPlugin =
           if (inlined.has(model)) return
           inlined.add(model)
 
+          // A clone of an already-inlined ref copies its locked preview
+          // children; strip them so the resolve+append below yields exactly
+          // one preview (otherwise the clone renders the template twice).
+          // `toJSON` never persists children, so storage-loaded refs have
+          // none — this is a no-op for them and safe in every other path.
+          if (model.components().length > 0) {
+            editor.UndoManager.skip(() => model.components().reset())
+          }
+
           const attrs = model.getAttributes()
           const slug = String(attrs[TEMPLATE_REF_SLUG_ATTR] ?? "")
           const depth = Number(attrs[DEPTH_ATTR] ?? 0)
