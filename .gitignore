@@ -42,3 +42,6 @@ next-env.d.ts
 
 # vendored CSS copied from node_modules by scripts/sync-vendor-css.mjs
 /public/vendor/
+
+# Playwright MCP browser console dumps
+.playwright-mcp/

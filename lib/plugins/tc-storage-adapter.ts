@@ -1,22 +1,20 @@
 /**
- * Registers a `tc-local` GrapesJS storage type.
+ * GrapesJS storage for editor content.
  *
- * Same backend as the built-in `local` adapter (browser localStorage),
- * but filters out CssRules marked `protected` before serializing. The
- * theme system (`designSystemPlugin`) marks every rule it injects
- * (`:root` token vars, body/element/component style rules) as
- * protected, so this prevents the tenant-wide theme CSS from being
- * duplicated into every per-page project blob.
+ * Persistence lives in Postgres: the `tc-remote` storage type (see
+ * `tcRemoteStorage` below) autosaves the project to the record's
+ * `draftData` column via a server action, and the editor seeds its
+ * initial canvas from the server-rendered `draftData ?? data` through
+ * the `projectData` init option. localStorage is no longer used for
+ * per-record content — this replaces the previous `tc-local` adapter.
  *
- * On load, no filtering — the page blob already lacks the theme rules,
- * and `designSystemPlugin.editor.on("load")` re-injects them from
- * `themeStore` after GrapesJS reconstructs the project.
- *
- * Forward-compat: when we replace localStorage with a remote backend
- * for per-page data (the post-MVP storage adapter in the architecture
- * memory), we either swap the delegated `local` to `remote` or
- * introduce a `tc-remote` that delegates the same way. The filtering
- * layer stays orthogonal.
+ * Both the autosave path and the publish path (`augmentedSave` in
+ * EditorShell → save{Page,Post,Template}) drop CssRules marked
+ * `protected` before serializing via `filterProtectedStyles`. The theme
+ * system (`designSystemPlugin`) marks every rule it injects (`:root`
+ * token vars, body/element/component defaults) as protected and
+ * re-injects them on `editor.on("load")`, so keeping them out of saved
+ * blobs leaves the tenant theme as the single source of truth.
  */
 
 import type { Editor, ProjectData } from "grapesjs"
@@ -67,29 +65,38 @@ export const getPageStyles = (editor: Editor): StyleEntry[] => {
     .map((rule) => rule.toJSON() as StyleEntry)
 }
 
-export const tcStorageAdapter = (editor: Editor): void => {
-  const getLocal = () => {
-    const local = editor.Storage.get("local")
-    if (!local) {
-      throw new Error(
-        "tc-local: built-in `local` storage is unavailable. GrapesJS may have changed how storages are registered."
-      )
-    }
-    return local
+/**
+ * Factory for the `tc-remote` GrapesJS storage type — autosaves the
+ * project to Postgres (the `draftData` column) instead of localStorage.
+ *
+ * Closes over a `persistDraft` callback (a bound `saveEditorDraft` server
+ * action) and the server-rendered initial project. EditorShell builds the
+ * callback per record and debounces it, and passes the same project it
+ * feeds to the `projectData` init option.
+ *
+ * On `store` we drop protected theme rules first (`filterProtectedStyles`)
+ * — same discipline as the old `tc-local` adapter — so the tenant theme
+ * stays the single source of truth and isn't baked into every draft blob.
+ *
+ * On `load` we return the server-rendered `initialProject`
+ * (`draftData ?? data`). In practice the `projectData` init option already
+ * seeds the canvas and makes GrapesJS skip the initial storage load, so
+ * this is the safety net for any explicit `editor.load()` / `Storage.load()`
+ * — it returns the real project instead of wiping the canvas to empty.
+ */
+export const tcRemoteStorage =
+  (
+    persistDraft: (data: ProjectData) => Promise<void>,
+    initialProject: ProjectData
+  ) =>
+  (editor: Editor): void => {
+    editor.Storage.add("tc-remote", {
+      async load() {
+        return initialProject
+      },
+
+      async store(data: ProjectData) {
+        await persistDraft(filterProtectedStyles(data))
+      },
+    })
   }
-
-  editor.Storage.add("tc-local", {
-    async store(data: ProjectData, options) {
-      const localOptions = editor.Storage.getStorageOptions("local")
-      return getLocal().store(filterProtectedStyles(data), {
-        ...localOptions,
-        ...options,
-      })
-    },
-
-    async load(options) {
-      const localOptions = editor.Storage.getStorageOptions("local")
-      return getLocal().load({ ...localOptions, ...options })
-    },
-  })
-}

@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
@@ -95,7 +96,11 @@ export async function savePage(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
-      ...(data !== undefined ? { data: data as object } : {}),
+      // Committing the editor state clears any pending autosave draft so
+      // the next load seeds from `data`. Metadata-only saves leave it.
+      ...(data !== undefined
+        ? { data: data as object, draftData: Prisma.DbNull }
+        : {}),
     },
   })
 

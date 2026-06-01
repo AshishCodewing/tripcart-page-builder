@@ -114,6 +114,31 @@ export type TemplateBody = {
   pages?: ProjectDefinition["pages"]
 }
 
+/**
+ * Reduce a full editor `ProjectDefinition` down to the slim Template body
+ * shape `{ component, styles }` (§9). Single source of truth for the
+ * transform — shared by `saveTemplate` (publish) and `saveEditorDraft`
+ * (autosave) so both write templates in the same shape.
+ *
+ * Throws when the project has no root component — callers parse the
+ * editor payload first, so a missing root means a malformed submission.
+ */
+export function slimTemplateProject(project: unknown): {
+  component: ComponentDefinition
+  styles: Rule[]
+} {
+  const p = project as {
+    pages?: Array<{ frames?: Array<{ component?: ComponentDefinition }> }>
+    styles?: Rule[]
+  }
+  const component = p?.pages?.[0]?.frames?.[0]?.component
+  if (!component) throw new Error("Template payload missing a root component.")
+  return {
+    component,
+    styles: Array.isArray(p?.styles) ? p.styles : [],
+  }
+}
+
 type ResolveCtx = {
   tenantId: string
   cache: Map<string, Template | null>

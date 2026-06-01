@@ -1,6 +1,8 @@
+import type { ProjectData } from "grapesjs"
 import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
+import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import { deletePost, savePost } from "@/lib/cms/post-actions"
 import { getPostById } from "@/lib/cms/posts"
 import { listTemplates } from "@/lib/cms/templates"
@@ -21,6 +23,9 @@ export default async function EditPostPage({
   ])
   const saveAction = savePost.bind(null, id)
   const deleteAction = deletePost.bind(null, id)
+  const initialProjectData = (post.draftData ??
+    post.data) as unknown as ProjectData
+  const persistDraft = saveEditorDraft.bind(null, "post", id)
 
   return (
     <EditorShell
@@ -37,6 +42,8 @@ export default async function EditPostPage({
         },
       }}
       tenantTheme={tenantTheme}
+      initialProjectData={initialProjectData}
+      persistDraft={persistDraft}
       saveAction={saveAction}
       deleteAction={deleteAction}
       templates={templates}
