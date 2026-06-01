@@ -76,16 +76,6 @@ export const TEMPLATE_REF_SLUG_ATTR = "data-slug"
 export const TEMPLATE_REF_MARKER_ATTR = "data-template-ref"
 
 /**
- * Accent hue for synced-template refs, used to set them apart from ordinary
- * components on the canvas. Drives the selection/hover outline color in the
- * canvas iframe (PLACEHOLDER_CSS below) and is mirrored by the React
- * FloatingToolbar / FloatingBadge via Tailwind `violet-600` (same hex).
- * Echoes WordPress's violet "synced pattern" convention. Change here +
- * the Tailwind classes together to retheme.
- */
-export const TEMPLATE_REF_ACCENT = "#7c3aed"
-
-/**
  * Transient attribute used to carry the nesting depth down to inlined
  * child `template-ref`s so a cyclic / pathologically deep chain can't
  * freeze the canvas. Never persisted: it only ever lands on inlined
@@ -140,26 +130,6 @@ const PLACEHOLDER_CSS = `
 .tc-template-ref:has(> .tc-template-ref__label--error) {
   border-color: color-mix(in oklch, var(--tc--preset--color--destructive, hsl(0 80% 50%)) 50%, transparent);
   background: color-mix(in oklch, var(--tc--preset--color--destructive, hsl(0 80% 50%)) 6%, transparent);
-}
-
-/* Recolor the canvas selection/hover outlines for synced-template refs so
-   they read as distinct from ordinary components. The base GrapesJS rules
-   are \`.gjs-selected { outline: 2px solid #3b97e3 !important }\` and
-   \`.gjs-hovered { outline: 1px solid #3b97e3 }\`; the compound selector here
-   is more specific and \`!important\` wins the override. Keep this color in
-   sync with TEMPLATE_REF_ACCENT (the React toolbar/badge use the same hue
-   via Tailwind \`violet-600\`). */
-.tc-template-ref.gjs-selected {
-  outline: 2px solid ${TEMPLATE_REF_ACCENT} !important;
-  /* GrapesJS draws the selected outline at \`outline-offset: -2px\` (inset),
-     where the ref's inlined preview — full of stacking-context children —
-     paints over it, hiding it. The \`outline\` shorthand doesn't reset offset,
-     so override it: 0 puts the outline just outside the border box (like the
-     hover outline), clear of the preview content. */
-  outline-offset: 0 !important;
-}
-.tc-template-ref.gjs-hovered {
-  outline: 1px solid ${TEMPLATE_REF_ACCENT} !important;
 }
 `
 
@@ -366,6 +336,11 @@ export const templateRefPlugin =
           draggable: true,
           droppable: false,
           editable: false,
+          // A ref's styles belong to the original template, not the page —
+          // disable per-component styling so the Style Manager shows no CSS
+          // fields. The custom React Style Manager branches on this type to
+          // render an "Edit original" panel instead (see managers/style-manager.tsx).
+          stylable: false,
           selectable: true,
           hoverable: true,
           removable: true,
