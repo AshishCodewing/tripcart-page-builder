@@ -270,7 +270,8 @@ export const registerCardBlocks = (editor: Editor): void => {
           (c: string) => !c.startsWith("tc-card--tc--preset--color--")
         )
         this.setClass(cleaned)
-        if (theme !== "light") this.addClass(`tc-card--tc--preset--color--${theme}`)
+        if (theme !== "light")
+          this.addClass(`tc-card--tc--preset--color--${theme}`)
       },
     },
   })

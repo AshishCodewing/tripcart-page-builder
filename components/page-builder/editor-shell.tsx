@@ -57,6 +57,7 @@ import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
+import { saveStatusStore } from "@/lib/page-builder/save-status-store"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
 // are framework-agnostic and stable. We don't use `import "...?url"` because
@@ -549,9 +550,14 @@ function EditorShellInner({
         const payload = pendingDraftRef.current
         pendingDraftRef.current = null
         if (payload) {
+          saveStatusStore.set("saving")
           void persistDraftRef
             .current(payload)
-            .catch((err) => console.error("[gjs] draft autosave failed", err))
+            .then(() => saveStatusStore.set("saved"))
+            .catch((err) => {
+              saveStatusStore.set("error")
+              console.error("[gjs] draft autosave failed", err)
+            })
         }
       }, 1000)
       return Promise.resolve()
@@ -615,6 +621,8 @@ function EditorShellInner({
       },
     })
     attachTracking(editor)
+
+    editor.on("update", () => saveStatusStore.set("dirty"))
 
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
     // The plugin emits this event with the ref's slug; we resolve the

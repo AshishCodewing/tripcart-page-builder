@@ -165,7 +165,10 @@ function stampRefDepth(
     // attribute on the rendered <div> instead.
     node.attributes?.[TEMPLATE_REF_MARKER_ATTR] != null
   if (isRef) {
-    node.attributes = { ...(node.attributes ?? {}), [DEPTH_ATTR]: String(depth) }
+    node.attributes = {
+      ...(node.attributes ?? {}),
+      [DEPTH_ATTR]: String(depth),
+    }
   }
   if (Array.isArray(node.components)) {
     node.components = node.components.map((c) => stampRefDepth(c, depth))
@@ -465,7 +468,9 @@ export const templateRefPlugin =
           // labelled placeholder. `placeholderReason` distinguishes a
           // plain unbound ref from an error so the chrome can go red.
           const reason = placeholderReason.get(model as unknown as object) ?? ""
-          const slug = String(model.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? "")
+          const slug = String(
+            model.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
+          )
           const isError = reason !== "" && reason !== "unbound"
           const labelClass = isError
             ? "tc-template-ref__label tc-template-ref__label--error"

@@ -64,7 +64,7 @@ export function FloatingToolbar() {
       : "bg-primary hover:bg-primary/80 dark:bg-primary dark:hover:bg-primary/80"
   )
   const labelClass = cn(
-    "max-w-36 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white border-0",
+    "max-w-36 overflow-hidden border-0 text-xs text-ellipsis whitespace-nowrap text-white",
     isTemplateRef
       ? "bg-violet-600 hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-600"
       : "bg-primary hover:bg-primary dark:bg-primary dark:hover:bg-primary"
@@ -73,7 +73,7 @@ export function FloatingToolbar() {
   return (
     <CanvasFloating target={selected} placement="top-end">
       <TooltipProvider delay={300}>
-        <ButtonGroup className="bg-white rounded-lg">
+        <ButtonGroup className="rounded-lg bg-white">
           <ButtonGroupText className={labelClass}>
             {selected.getName()}
           </ButtonGroupText>

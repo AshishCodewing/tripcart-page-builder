@@ -11,7 +11,10 @@ import { registerTemplateBlock } from "@/lib/plugins/template-blocks"
 import { getPageStyles } from "@/lib/plugins/tc-storage-adapter"
 import { extractStylesForSubtree } from "@/lib/cms/style-extract"
 import { createTemplateFromSelection } from "@/lib/cms/template-actions"
-import type { ComponentDefinition, Rule } from "@/lib/plugins/react-renderer/project/types"
+import type {
+  ComponentDefinition,
+  Rule,
+} from "@/lib/plugins/react-renderer/project/types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -102,7 +105,7 @@ export function ConvertTemplateDialog({
       // `data-template-fragment` marker is there for future renderer
       // treatment (e.g. emitting `display: contents` so the wrapper
       // doesn't break parent flex/grid layouts).
-      console.log(selected, 'selected')
+      console.log(selected, "selected")
       const subtree =
         selected.length === 1
           ? selected[0].toJSON()
@@ -117,7 +120,7 @@ export function ConvertTemplateDialog({
       // payload and the style extractor (which walks the subtree for its
       // ids/classes and would otherwise only see the root).
       const subtreeJson = JSON.stringify(subtree)
-      console.log(subtree, subtreeJson, 'hello')
+      console.log(subtree, subtreeJson, "hello")
       form.set("subtree", subtreeJson)
       const plainSubtree = JSON.parse(subtreeJson) as ComponentDefinition
 
@@ -193,7 +196,9 @@ export function ConvertTemplateDialog({
 
       handleOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create template.")
+      setError(
+        err instanceof Error ? err.message : "Failed to create template."
+      )
     } finally {
       setSubmitting(false)
     }
@@ -205,8 +210,8 @@ export function ConvertTemplateDialog({
         <DialogHeader>
           <DialogTitle>Create template</DialogTitle>
           <DialogDescription>
-            Save this selection as a reusable template. Synced templates
-            stay linked — edits propagate everywhere they&apos;re used.
+            Save this selection as a reusable template. Synced templates stay
+            linked — edits propagate everywhere they&apos;re used.
           </DialogDescription>
         </DialogHeader>
 
@@ -263,8 +268,8 @@ export function ConvertTemplateDialog({
                 Synced
               </Label>
               <p className="text-xs text-muted-foreground">
-                Replace this selection with a link to the template so
-                future edits propagate.
+                Replace this selection with a link to the template so future
+                edits propagate.
               </p>
             </div>
             <Switch

@@ -65,7 +65,7 @@ export function FloatingBadge() {
       >
         <ButtonGroupText
           className={cn(
-            "max-w-36 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 h-6 text-xs font-medium",
+            "h-6 max-w-36 overflow-hidden border-0 bg-transparent px-2 text-xs font-medium text-ellipsis whitespace-nowrap",
             isTemplateRef ? "text-white" : "text-primary-foreground"
           )}
         >

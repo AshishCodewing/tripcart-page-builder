@@ -65,7 +65,9 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
 
   if (isUnstylable) {
     if (selected.get("type") === TEMPLATE_REF_TYPE) {
-      const slug = String(selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? "")
+      const slug = String(
+        selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
+      )
       const title = String(selected.get("name") ?? "Template")
       return (
         <div className="flex flex-col gap-3 border-t px-3 py-4">

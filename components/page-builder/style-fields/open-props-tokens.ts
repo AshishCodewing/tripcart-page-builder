@@ -34,39 +34,67 @@ const SIZE_KEEP = /^--size-(px-)?\d+$|^--size-fluid-\d+$/
 const FONT_NUM = /^--font-(size|weight|lineheight|letterspacing)-(\d+|0{1,2})$/
 
 const THEME_COLOR_TOKENS: Token[] = [
-  { name: "background", value: "--tc--preset--color--background", category: "theme-color" },
-  { name: "foreground", value: "--tc--preset--color--foreground", category: "theme-color" },
+  {
+    name: "background",
+    value: "--tc--preset--color--background",
+    category: "theme-color",
+  },
+  {
+    name: "foreground",
+    value: "--tc--preset--color--foreground",
+    category: "theme-color",
+  },
   { name: "card", value: "--tc--preset--color--card", category: "theme-color" },
   {
     name: "card-foreground",
     value: "--tc--preset--color--card-foreground",
     category: "theme-color",
   },
-  { name: "popover", value: "--tc--preset--color--popover", category: "theme-color" },
+  {
+    name: "popover",
+    value: "--tc--preset--color--popover",
+    category: "theme-color",
+  },
   {
     name: "popover-foreground",
     value: "--tc--preset--color--popover-foreground",
     category: "theme-color",
   },
-  { name: "primary", value: "--tc--preset--color--primary", category: "theme-color" },
+  {
+    name: "primary",
+    value: "--tc--preset--color--primary",
+    category: "theme-color",
+  },
   {
     name: "primary-foreground",
     value: "--tc--preset--color--primary-foreground",
     category: "theme-color",
   },
-  { name: "secondary", value: "--tc--preset--color--secondary", category: "theme-color" },
+  {
+    name: "secondary",
+    value: "--tc--preset--color--secondary",
+    category: "theme-color",
+  },
   {
     name: "secondary-foreground",
     value: "--tc--preset--color--secondary-foreground",
     category: "theme-color",
   },
-  { name: "muted", value: "--tc--preset--color--muted", category: "theme-color" },
+  {
+    name: "muted",
+    value: "--tc--preset--color--muted",
+    category: "theme-color",
+  },
   {
     name: "muted-foreground",
     value: "--tc--preset--color--muted-foreground",
     category: "theme-color",
   },
-  { name: "accent", value: "--tc--preset--color--accent", category: "theme-color" },
+  {
+    name: "accent",
+    value: "--tc--preset--color--accent",
+    category: "theme-color",
+  },
   {
     name: "accent-foreground",
     value: "--tc--preset--color--accent-foreground",
@@ -77,20 +105,36 @@ const THEME_COLOR_TOKENS: Token[] = [
     value: "--tc--preset--color--destructive",
     category: "theme-color",
   },
-  { name: "warning", value: "--tc--preset--color--warning", category: "theme-color" },
+  {
+    name: "warning",
+    value: "--tc--preset--color--warning",
+    category: "theme-color",
+  },
   {
     name: "warning-foreground",
     value: "--tc--preset--color--warning-foreground",
     category: "theme-color",
   },
-  { name: "success", value: "--tc--preset--color--success", category: "theme-color" },
+  {
+    name: "success",
+    value: "--tc--preset--color--success",
+    category: "theme-color",
+  },
   {
     name: "success-foreground",
     value: "--tc--preset--color--success-foreground",
     category: "theme-color",
   },
-  { name: "border", value: "--tc--preset--color--border", category: "theme-color" },
-  { name: "input", value: "--tc--preset--color--input", category: "theme-color" },
+  {
+    name: "border",
+    value: "--tc--preset--color--border",
+    category: "theme-color",
+  },
+  {
+    name: "input",
+    value: "--tc--preset--color--input",
+    category: "theme-color",
+  },
   { name: "ring", value: "--tc--preset--color--ring", category: "theme-color" },
 ]
 

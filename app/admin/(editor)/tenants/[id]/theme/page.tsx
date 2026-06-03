@@ -24,7 +24,7 @@ export default async function TenantThemePage({
         >
           ← {tenant.name}
         </Link>
-        <h1 className="text-lg font-semibold leading-none">Theme</h1>
+        <h1 className="text-lg leading-none font-semibold">Theme</h1>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">

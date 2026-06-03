@@ -31,6 +31,7 @@ import {
   previewPath,
   type EditorContent,
 } from "@/components/page-builder/types"
+import { SaveStatus, useSaveStatus } from "@/lib/page-builder/save-status-store"
 
 type Props = {
   content: EditorContent
@@ -42,6 +43,29 @@ function getDeviceIcon(id: string): LucideIcon {
   if (v.includes("mobile") || v.includes("phone")) return Smartphone
   if (v.includes("tablet")) return Tablet
   return Monitor
+}
+
+const LABEL: Record<SaveStatus, string> = {
+  idle: "",
+  dirty: "Unsaved changes",
+  error: "Save failed",
+  saving: "Saving...",
+  saved: "Saved",
+}
+
+function SaveIndicator() {
+  const status = useSaveStatus()
+  if (status === "idle") return null
+  return (
+    <span
+      className={cn(
+        "text-xs",
+        status === "error" ? "text-destructive" : "text-muted-foreground"
+      )}
+    >
+      {LABEL[status]}
+    </span>
+  )
 }
 
 export default function TopBarRight({ content, className }: Props) {
@@ -115,7 +139,7 @@ export default function TopBarRight({ content, className }: Props) {
       </Button>
 
       <ThemeToggle />
-
+      <SaveIndicator />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={

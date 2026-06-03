@@ -54,7 +54,10 @@ export function applyTemplateStyles(
   )
 
   const fresh = styles.filter(
-    (r) => !existing.has(ruleKey(composer.selectorsToString(r), composer.getAtRule(r)))
+    (r) =>
+      !existing.has(
+        ruleKey(composer.selectorsToString(r), composer.getAtRule(r))
+      )
   )
   if (fresh.length === 0) return
 
