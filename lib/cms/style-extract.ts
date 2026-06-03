@@ -38,6 +38,33 @@ type SelectorEntry =
   | string
   | { name?: string; type?: number; label?: string; [k: string]: unknown }
 
+/** Add this node's ids (top-level `id` + `attributes.id`) to the accumulator. */
+function addNodeIds(node: ComponentDefinition, ids: Set<string>): void {
+  if (typeof node.id === "string") ids.add(node.id)
+  const attrId = node.attributes?.id
+  if (typeof attrId === "string") ids.add(attrId)
+}
+
+/**
+ * Add this node's classes to the accumulator: the `classes[]` array (string
+ * or `{ name }` entries) plus a space-separated `attributes.class` string.
+ */
+function addNodeClasses(node: ComponentDefinition, classes: Set<string>): void {
+  if (Array.isArray(node.classes)) {
+    for (const c of node.classes) {
+      if (typeof c === "string") classes.add(c)
+      else if (c && typeof c === "object" && typeof c.name === "string")
+        classes.add(c.name)
+    }
+  }
+  const attrClass = node.attributes?.class
+  if (typeof attrClass === "string") {
+    for (const token of attrClass.split(/\s+/)) {
+      if (token) classes.add(token)
+    }
+  }
+}
+
 /**
  * Recursively collect every id and class name that appears anywhere in a
  * component subtree. Handles ids from both the top-level `id` field and
@@ -50,23 +77,8 @@ export function collectComponentIdentity(
 ): SubtreeIdentity {
   if (!node || typeof node !== "object") return acc
 
-  if (typeof node.id === "string") acc.ids.add(node.id)
-  const attrId = node.attributes?.id
-  if (typeof attrId === "string") acc.ids.add(attrId)
-
-  if (Array.isArray(node.classes)) {
-    for (const c of node.classes) {
-      if (typeof c === "string") acc.classes.add(c)
-      else if (c && typeof c === "object" && typeof c.name === "string")
-        acc.classes.add(c.name)
-    }
-  }
-  const attrClass = node.attributes?.class
-  if (typeof attrClass === "string") {
-    for (const token of attrClass.split(/\s+/)) {
-      if (token) acc.classes.add(token)
-    }
-  }
+  addNodeIds(node, acc.ids)
+  addNodeClasses(node, acc.classes)
 
   if (Array.isArray(node.components)) {
     for (const child of node.components) collectComponentIdentity(child, acc)
@@ -87,34 +99,54 @@ function rawSelectorMentions(raw: string, identity: SubtreeIdentity): boolean {
   return false
 }
 
+/**
+ * Match a bare string selector. These come in two shapes: component
+ * selectors serialize as bare class names ("gjs-grid-row"), while rules
+ * added via raw `setRule`/`addRules` keep the prefix ("#secA" / ".a-box").
+ */
+function stringSelectorMatches(
+  sel: string,
+  identity: SubtreeIdentity
+): boolean {
+  if (sel.startsWith("#")) return identity.ids.has(sel.slice(1))
+  if (sel.startsWith(".")) return identity.classes.has(sel.slice(1))
+  return identity.classes.has(sel)
+}
+
+/** Match a `{ name, type }` selector object (component id/class selectors). */
+function objectSelectorMatches(
+  sel: { name?: string; type?: number },
+  identity: SubtreeIdentity
+): boolean {
+  if (typeof sel.name !== "string") return false
+  return sel.type === SELECTOR_TYPE_ID
+    ? identity.ids.has(sel.name)
+    : identity.classes.has(sel.name)
+}
+
+/** Dispatch a single selector entry to the matcher for its shape. */
+function selectorMatches(
+  sel: SelectorEntry,
+  identity: SubtreeIdentity
+): boolean {
+  if (typeof sel === "string") return stringSelectorMatches(sel, identity)
+  if (sel && typeof sel === "object") {
+    return objectSelectorMatches(sel, identity)
+  }
+  return false
+}
+
 function ruleMatchesSubtree(rule: Rule, identity: SubtreeIdentity): boolean {
   const selectors = (rule as { selectors?: unknown }).selectors
   if (Array.isArray(selectors)) {
     for (const sel of selectors as SelectorEntry[]) {
-      if (typeof sel === "string") {
-        // String selectors come in two shapes: component selectors
-        // serialize as bare class names ("gjs-grid-row"), while rules
-        // added via raw `setRule`/`addRules` keep the prefix ("#secA" /
-        // ".a-box"). Component id/class selectors instead arrive as
-        // `{ name, type }` objects (handled below).
-        if (sel.startsWith("#")) {
-          if (identity.ids.has(sel.slice(1))) return true
-        } else if (sel.startsWith(".")) {
-          if (identity.classes.has(sel.slice(1))) return true
-        } else if (identity.classes.has(sel)) {
-          return true
-        }
-      } else if (sel && typeof sel === "object" && typeof sel.name === "string") {
-        if (sel.type === SELECTOR_TYPE_ID) {
-          if (identity.ids.has(sel.name)) return true
-        } else if (identity.classes.has(sel.name)) return true
-      }
+      if (selectorMatches(sel, identity)) return true
     }
   }
 
   const add = (rule as { selectorsAdd?: unknown }).selectorsAdd
   if (typeof add === "string" && add.length > 0) {
-    if (rawSelectorMentions(add, identity)) return true
+    return rawSelectorMentions(add, identity)
   }
   return false
 }
