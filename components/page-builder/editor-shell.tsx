@@ -57,7 +57,8 @@ import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
-import { saveStatusStore } from "@/lib/page-builder/save-status-store"
+import { editorSaveStore } from "@/lib/page-builder/save-status-store"
+import { useToastManager } from "@/components/ui/toast"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
 // are framework-agnostic and stable. We don't use `import "...?url"` because
@@ -529,6 +530,14 @@ function EditorShellInner({
     persistDraftRef.current = persistDraft
   }, [persistDraft])
 
+  // Toast manager kept in a ref so the stable-identity debounce/commit
+  // callbacks below can fire toasts without re-binding on every render.
+  const toast = useToastManager()
+  const toastRef = React.useRef(toast)
+  React.useEffect(() => {
+    toastRef.current = toast
+  }, [toast])
+
   // Trailing debounce around the autosave: GrapesJS' `store` may fire
   // several times during a burst of edits (every `stepsBeforeSave`
   // changes); we collapse them into one DB write ~1s after the last
@@ -550,14 +559,19 @@ function EditorShellInner({
         const payload = pendingDraftRef.current
         pendingDraftRef.current = null
         if (payload) {
-          saveStatusStore.set("saving")
-          void persistDraftRef
-            .current(payload)
-            .then(() => saveStatusStore.set("saved"))
-            .catch((err) => {
-              saveStatusStore.set("error")
-              console.error("[gjs] draft autosave failed", err)
+          // Background draft autosave stays silent on success — it's a
+          // crash-recovery net, not a user action. A failure is the only
+          // thing worth interrupting for: the latest edits may be lost on
+          // reload, so surface it as a toast.
+          void persistDraftRef.current(payload).catch((err) => {
+            console.error("[gjs] draft autosave failed", err)
+            toastRef.current.add({
+              type: "destructive",
+              title: "Autosave failed",
+              description:
+                "We couldn't save your draft. Recent edits may be lost if you reload — try Save draft.",
             })
+          })
         }
       }, 1000)
       return Promise.resolve()
@@ -589,6 +603,16 @@ function EditorShellInner({
   // (server-rendered draft/published content); the GjsEditor remount is
   // forced via `key={storageKey}` below when the record changes.
   const storageKey = storageKeyFor(content)
+
+  // editorSaveStore is module-global; reset it when the edited record
+  // changes so a previous record's `dirty`/autosave state can't bleed into
+  // a freshly-opened one. The canvas seeds from `data` (draft cleared on
+  // last commit) or an in-progress `draftData`, but either way the editor
+  // starts in sync with what's persisted.
+  React.useEffect(() => {
+    editorSaveStore.committed()
+  }, [storageKey])
+
   const gjsOptions = React.useMemo(
     // buildGjsOptions only stashes `debouncedPersist` in the storage
     // config; it never invokes it during render, so reading the refs it
@@ -622,7 +646,7 @@ function EditorShellInner({
     })
     attachTracking(editor)
 
-    editor.on("update", () => saveStatusStore.set("dirty"))
+    editor.on("update", () => editorSaveStore.markDirty())
 
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
     // The plugin emits this event with the ref's slug; we resolve the
@@ -673,6 +697,19 @@ function EditorShellInner({
         formData.set("data", JSON.stringify(filtered))
       }
       await saveAction(formData)
+      // Commit succeeded: `data` now matches the canvas and the server
+      // cleared any pending draft, so the editor is no longer ahead.
+      // (If saveAction throws, this is skipped and `dirty` stays true.)
+      editorSaveStore.committed()
+      // Only publishing is worth confirming — it changes what visitors
+      // see. Saving a draft is low-stakes and stays quiet.
+      if (formData.get("status") === "PUBLISHED") {
+        toastRef.current.add({
+          type: "success",
+          title: "Published",
+          description: "Your changes are now live.",
+        })
+      }
     },
     [saveAction]
   )

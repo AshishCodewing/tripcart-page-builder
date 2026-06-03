@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import { useFormStatus } from "react-dom"
 import { DevicesProvider } from "@grapesjs/react"
 import {
   Monitor,
@@ -26,12 +26,14 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import {
   contentIndexHref,
   contentIndexLabel,
+  contentStatus,
   contentTenantId,
   hasPreview,
   previewPath,
+  type ContentStatus,
   type EditorContent,
 } from "@/components/page-builder/types"
-import { SaveStatus, useSaveStatus } from "@/lib/page-builder/save-status-store"
+import { useIsDirty } from "@/lib/page-builder/save-status-store"
 
 type Props = {
   content: EditorContent
@@ -45,26 +47,66 @@ function getDeviceIcon(id: string): LucideIcon {
   return Monitor
 }
 
-const LABEL: Record<SaveStatus, string> = {
-  idle: "",
-  dirty: "Unsaved changes",
-  error: "Save failed",
-  saving: "Saving...",
-  saved: "Saved",
+// The two commit buttons read pending state from the enclosing <form> via
+// useFormStatus. `data.get("status")` tells us *which* button is in flight
+// (each submit button contributes its own name=status value), so we can
+// label only the active one. The DRAFT button doubles as "Switch to draft"
+// once published; the PUBLISHED button reads "Publish" → "Update".
+
+function SaveDraftButton({ status }: { status: ContentStatus }) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "DRAFT"
+  const isPublished = status === "PUBLISHED"
+  return (
+    <Button
+      type="submit"
+      name="status"
+      value="DRAFT"
+      variant="ghost"
+      size="sm"
+      className="text-primary"
+      disabled={pending}
+    >
+      {inFlight
+        ? isPublished
+          ? "Switching..."
+          : "Saving..."
+        : isPublished
+          ? "Switch to draft"
+          : "Save draft"}
+    </Button>
+  )
 }
 
-function SaveIndicator() {
-  const status = useSaveStatus()
-  if (status === "idle") return null
+function PublishButton({
+  status,
+  dirty,
+}: {
+  status: ContentStatus
+  dirty: boolean
+}) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "PUBLISHED"
+  const isPublished = status === "PUBLISHED"
+  // Once published with no new edits there's nothing to push, so the
+  // primary action is inert — matching WP's greyed-out "Update".
+  const nothingToPush = isPublished && !dirty
   return (
-    <span
-      className={cn(
-        "text-xs",
-        status === "error" ? "text-destructive" : "text-muted-foreground"
-      )}
+    <Button
+      type="submit"
+      name="status"
+      value="PUBLISHED"
+      size="sm"
+      disabled={pending || nothingToPush}
     >
-      {LABEL[status]}
-    </span>
+      {inFlight
+        ? isPublished
+          ? "Updating..."
+          : "Publishing..."
+        : isPublished
+          ? "Update"
+          : "Publish"}
+    </Button>
   )
 }
 
@@ -82,18 +124,11 @@ export default function TopBarRight({ content, className }: Props) {
     : ""
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
+  const status = contentStatus(content)
+  const dirty = useIsDirty()
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      <Button
-        type="submit"
-        name="status"
-        value="DRAFT"
-        variant="ghost"
-        size="sm"
-        className="text-primary"
-      >
-        Save draft
-      </Button>
+      <SaveDraftButton status={status} />
 
       <DevicesProvider>
         {({ selected, select, devices }) => (
@@ -134,12 +169,9 @@ export default function TopBarRight({ content, className }: Props) {
 
       <SidebarTrigger type="button" aria-label="Toggle settings sidebar" />
 
-      <Button type="submit" name="status" value="PUBLISHED" size="sm">
-        Publish
-      </Button>
+      <PublishButton status={status} dirty={dirty} />
 
       <ThemeToggle />
-      <SaveIndicator />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
