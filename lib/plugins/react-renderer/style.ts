@@ -59,45 +59,49 @@ const parseStyleString = (str: string): CSSProperties | undefined => {
   return Object.keys(out).length ? (out as CSSProperties) : undefined
 }
 
-// Coerce whatever GrapesJS hands us into a React style object.
+// Parse a string value: first as a "a:b;c:d" declaration list, then (if that
+// yields nothing) as a JSON-encoded style object from a stored attribute.
+const parseStringStyle = (value: string): CSSProperties | undefined => {
+  const parsed = parseStyleString(value)
+  if (parsed) return parsed
+  try {
+    const json = JSON.parse(value)
+    if (json && typeof json === "object" && !Array.isArray(json)) {
+      return kebabKeysToCamelStyle(json as Record<string, unknown>)
+    }
+  } catch (err) {
+    console.error("Failed to parse style string as JSON", err)
+  }
+  return undefined
+}
+
+// Parse a `[{ name|property, value }]` array into a React style object,
+// keeping only string/number values under non-empty keys.
+const parseStyleArray = (entries: unknown[]): CSSProperties | undefined => {
+  const out: Record<string, string | number> = {}
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue
+    const e = entry as { name?: string; property?: string; value?: unknown }
+    const name = e.name || e.property
+    const v = e.value
+    if (typeof name !== "string" || !name) continue
+    if (v === undefined || v === "") continue
+    if (typeof v !== "string" && typeof v !== "number") continue
+    out[kebabToCamel(name)] = v
+  }
+  return Object.keys(out).length ? (out as CSSProperties) : undefined
+}
+
+// Coerce whatever GrapesJS hands us into a React style object, dispatching on
+// the input shape (object / string / array).
 export const normalizeStyleObject = (
   value: unknown
 ): CSSProperties | undefined => {
   if (!value) return undefined
-
-  if (typeof value === "object" && !Array.isArray(value)) {
+  if (Array.isArray(value)) return parseStyleArray(value)
+  if (typeof value === "string") return parseStringStyle(value)
+  if (typeof value === "object") {
     return kebabKeysToCamelStyle(value as Record<string, unknown>)
   }
-
-  if (typeof value === "string") {
-    let parsed = parseStyleString(value)
-    if (!parsed) {
-      try {
-        const json = JSON.parse(value)
-        if (json && typeof json === "object" && !Array.isArray(json)) {
-          parsed = kebabKeysToCamelStyle(json as Record<string, unknown>)
-        }
-      } catch (err) {
-        console.error("Failed to parse style string as JSON", err)
-      }
-    }
-    return parsed
-  }
-
-  if (Array.isArray(value)) {
-    const out: Record<string, string | number> = {}
-    for (const entry of value) {
-      if (!entry || typeof entry !== "object") continue
-      const e = entry as { name?: string; property?: string; value?: unknown }
-      const name = e.name || e.property
-      const v = e.value
-      if (typeof name !== "string" || !name) continue
-      if (v === undefined || v === "") continue
-      if (typeof v !== "string" && typeof v !== "number") continue
-      out[kebabToCamel(name)] = v
-    }
-    return Object.keys(out).length ? (out as CSSProperties) : undefined
-  }
-
   return undefined
 }

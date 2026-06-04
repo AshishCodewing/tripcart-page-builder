@@ -26,12 +26,7 @@ type Props = {
   children: React.ReactNode
 }
 
-const DEFAULT_FALLBACKS: Placement[] = [
-  "bottom-start",
-  "top-start",
-  "bottom-end",
-  "left",
-]
+const DEFAULT_FALLBACKS: Placement[] = ["bottom-end", "right"]
 
 // Shared floating-ui + portal wrapper used by FloatingToolbar (anchored to the
 // selected component) and FloatingBadge (anchored to the hovered component).

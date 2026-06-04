@@ -1,8 +1,14 @@
+import type { ProjectData } from "grapesjs"
 import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
 import type { TemplateRecord } from "@/components/page-builder/types"
-import { getTemplateById, listTemplates } from "@/lib/cms/templates"
+import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
+import {
+  getTemplateById,
+  listTemplates,
+  type TemplateBody,
+} from "@/lib/cms/templates"
 import { saveTemplate } from "@/lib/cms/template-actions"
 import { getTenantTheme } from "@/lib/cms/tenants"
 import { defaultTheme } from "@/lib/tokens"
@@ -52,10 +58,27 @@ export default async function EditTemplatePage({
     "use server"
   }
 
+  // Wrap the slim Template body (`{ component, styles }`, §9) back into
+  // the full project shape GrapesJS expects — the editor IO boundary.
+  // Prefer the in-progress draft over the published body. A brand-new
+  // template (`data === {}`) yields an empty project → blank canvas.
+  const body = (tpl.draftData ?? tpl.data) as TemplateBody
+  const initialProjectData = (body.component !== undefined
+    ? {
+        pages: [{ frames: [{ component: body.component }] }],
+        styles: body.styles ?? [],
+      }
+    : body.pages
+      ? { pages: body.pages, styles: body.styles ?? [] }
+      : {}) as unknown as ProjectData
+  const persistDraft = saveEditorDraft.bind(null, "template", id)
+
   return (
     <EditorShell
       content={{ kind: "template", template: record }}
       tenantTheme={tenantTheme}
+      initialProjectData={initialProjectData}
+      persistDraft={persistDraft}
       saveAction={saveAction}
       deleteAction={deleteAction}
       templates={templates}

@@ -65,6 +65,10 @@ model Page {
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   data        Json          @default("{}")
+  // In-progress editor autosave (full ProjectDefinition). null = no
+  // draft ahead of `data`; the editor seeds from `draftData ?? data` and
+  // the public render reads `data` only. Cleared on explicit Save/Publish.
+  draftData   Json?
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
@@ -89,6 +93,8 @@ model Post {
   title       String
   excerpt     String?
   data        Json          @default("{}")
+  // In-progress editor autosave (full ProjectDefinition). See Page.draftData.
+  draftData   Json?
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
@@ -158,6 +164,9 @@ model Template {
   // GrapesJS subtree (styles + components) — same shape as a slice of
   // `Page.data.pages[].frames[].component`.
   data        Json          @default("{}")
+  // In-progress editor autosave, stored in the slim `{ component, styles }`
+  // shape (same as `data`). null = no draft ahead of `data`. See Page.draftData.
+  draftData   Json?
   // Optional thumbnail URL for inserter UIs.
   preview     String?
   status      ContentStatus @default(DRAFT)

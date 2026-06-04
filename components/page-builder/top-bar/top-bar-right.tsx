@@ -1,6 +1,8 @@
 "use client"
 
-import * as React from "react"
+import { useCallback } from "react"
+import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
 import { DevicesProvider } from "@grapesjs/react"
 import {
   Monitor,
@@ -26,11 +28,16 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import {
   contentIndexHref,
   contentIndexLabel,
+  contentStatus,
   contentTenantId,
   hasPreview,
   previewPath,
+  type ContentStatus,
   type EditorContent,
 } from "@/components/page-builder/types"
+import { useIsDirty } from "@/lib/page-builder/save-status-store"
+import { useFormGuard } from "@/hooks/use-form-guard"
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 
 type Props = {
   content: EditorContent
@@ -42,6 +49,69 @@ function getDeviceIcon(id: string): LucideIcon {
   if (v.includes("mobile") || v.includes("phone")) return Smartphone
   if (v.includes("tablet")) return Tablet
   return Monitor
+}
+
+// The two commit buttons read pending state from the enclosing <form> via
+// useFormStatus. `data.get("status")` tells us *which* button is in flight
+// (each submit button contributes its own name=status value), so we can
+// label only the active one. The DRAFT button doubles as "Switch to draft"
+// once published; the PUBLISHED button reads "Publish" → "Update".
+
+function SaveDraftButton({ status }: { status: ContentStatus }) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "DRAFT"
+  const isPublished = status === "PUBLISHED"
+  return (
+    <Button
+      type="submit"
+      name="status"
+      value="DRAFT"
+      variant="ghost"
+      size="sm"
+      className="text-primary"
+      disabled={pending}
+    >
+      {inFlight
+        ? isPublished
+          ? "Switching..."
+          : "Saving..."
+        : isPublished
+          ? "Switch to draft"
+          : "Save draft"}
+    </Button>
+  )
+}
+
+function PublishButton({
+  status,
+  dirty,
+}: {
+  status: ContentStatus
+  dirty: boolean
+}) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "PUBLISHED"
+  const isPublished = status === "PUBLISHED"
+  // Once published with no new edits there's nothing to push, so the
+  // primary action is inert — matching WP's greyed-out "Update".
+  const nothingToPush = isPublished && !dirty
+  return (
+    <Button
+      type="submit"
+      name="status"
+      value="PUBLISHED"
+      size="sm"
+      disabled={pending || nothingToPush}
+    >
+      {inFlight
+        ? isPublished
+          ? "Updating..."
+          : "Publishing..."
+        : isPublished
+          ? "Update"
+          : "Publish"}
+    </Button>
+  )
 }
 
 export default function TopBarRight({ content, className }: Props) {
@@ -58,18 +128,44 @@ export default function TopBarRight({ content, className }: Props) {
     : ""
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
+  const status = contentStatus(content)
+  const dirty = useIsDirty()
+  const router = useRouter()
+
+  // Branded confirmation shared by every exit path we control, so they all
+  // look the same. (Tab close / refresh is the one exception — that's the
+  // browser's own un-styleable `beforeunload` dialog, owned by GrapesJS's
+  // `noticeOnUnload`, which is why `guardUnload: false` here.)
+  const { confirm, dialog } = useConfirmDialog({
+    title: "Leave with unsaved changes?",
+    description:
+      "Your latest edits haven't been saved yet and will be lost if you leave this page.",
+    confirmText: "Leave",
+    cancelText: "Stay",
+    destructive: true,
+  })
+
+  // Back / forward buttons (popstate) — handled inside the hook, which awaits
+  // this modal via `onBlock`.
+  useFormGuard({ isDirty: dirty, guardUnload: false, onBlock: confirm })
+
+  // In-app soft navigation (Next 15.3+ <Link onNavigate>). onNavigate is
+  // synchronous, so we cancel the click up front, ask via the same modal, then
+  // resume the navigation imperatively when the user confirms.
+  const guardIndexNav = useCallback(
+    (event: { preventDefault: () => void }) => {
+      if (!dirty) return
+      event.preventDefault()
+      void confirm().then((leave) => {
+        if (leave) router.push(indexHref)
+      })
+    },
+    [dirty, confirm, router, indexHref]
+  )
+
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      <Button
-        type="submit"
-        name="status"
-        value="DRAFT"
-        variant="ghost"
-        size="sm"
-        className="text-primary"
-      >
-        Save draft
-      </Button>
+      <SaveDraftButton status={status} />
 
       <DevicesProvider>
         {({ selected, select, devices }) => (
@@ -110,12 +206,9 @@ export default function TopBarRight({ content, className }: Props) {
 
       <SidebarTrigger type="button" aria-label="Toggle settings sidebar" />
 
-      <Button type="submit" name="status" value="PUBLISHED" size="sm">
-        Publish
-      </Button>
+      <PublishButton status={status} dirty={dirty} />
 
       <ThemeToggle />
-
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -139,7 +232,9 @@ export default function TopBarRight({ content, className }: Props) {
               }
             />
           ) : null}
-          <DropdownMenuItem render={<Link href={indexHref} />}>
+          <DropdownMenuItem
+            render={<Link href={indexHref} onNavigate={guardIndexNav} />}
+          >
             {indexLabel}
           </DropdownMenuItem>
           {showPreview ? (
@@ -152,6 +247,8 @@ export default function TopBarRight({ content, className }: Props) {
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {dialog}
     </div>
   )
 }

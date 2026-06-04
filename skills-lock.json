@@ -7,6 +7,12 @@
       "skillPath": "skills/emil-design-eng/SKILL.md",
       "computedHash": "8bdf9e4e6de7a4969147bf4828a4ad2c5aacd9fba4b690b250a85e0467ca387d"
     },
+    "fallow": {
+      "source": "fallow-rs/fallow-skills",
+      "sourceType": "github",
+      "skillPath": "fallow/skills/fallow/SKILL.md",
+      "computedHash": "b09fbb8bab8ef0aa43f71e1a8920a62f33642cdfdbb97a604ad5fca8a12d6b67"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",

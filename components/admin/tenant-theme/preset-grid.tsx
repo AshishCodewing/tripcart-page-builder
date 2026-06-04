@@ -110,9 +110,7 @@ export default function PresetGrid() {
             const headingFont = t.tokens.find(
               (tok) => tok.slug === "heading"
             )?.value
-            const bodyFont = t.tokens.find(
-              (tok) => tok.slug === "body"
-            )?.value
+            const bodyFont = t.tokens.find((tok) => tok.slug === "body")?.value
             return (
               <FieldLabel
                 key={t.id}

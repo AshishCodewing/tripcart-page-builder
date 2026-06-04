@@ -2,10 +2,12 @@
 
 import { updateTag } from "next/cache"
 
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
 import { titleToSlug, validateSlug } from "./path"
+import { slimTemplateProject } from "./templates"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -31,26 +33,17 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
   // `editor.getProjectData()` shape (`{ pages: [{ frames: [{ component }] }], styles, ... }`).
   // Non-editor callers omit it, in which case we preserve the existing
   // tree. We slim the project shape down to the §9 `{ component, styles }`
-  // form before persisting — see `TemplateBody` in lib/cms/templates.ts.
+  // form before persisting — see `slimTemplateProject` in lib/cms/templates.ts.
   const dataField = form.get("data")
-  let body: { component: unknown; styles: unknown[] } | undefined
+  let body: ReturnType<typeof slimTemplateProject> | undefined
   if (typeof dataField === "string" && dataField.length) {
-    let project: {
-      pages?: Array<{ frames?: Array<{ component?: unknown }> }>
-      styles?: unknown[]
-    }
+    let project: unknown
     try {
       project = JSON.parse(dataField)
     } catch {
       throw new Error("Invalid template payload — could not parse JSON.")
     }
-    const component = project?.pages?.[0]?.frames?.[0]?.component
-    if (!component)
-      throw new Error("Template payload missing a root component.")
-    body = {
-      component,
-      styles: Array.isArray(project?.styles) ? project.styles : [],
-    }
+    body = slimTemplateProject(project)
   }
 
   const wasPublished = existing.status === "PUBLISHED"
@@ -62,7 +55,12 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
-      ...(body !== undefined ? { data: body as object } : {}),
+      // Committing the editor state clears any pending autosave draft so
+      // the next load seeds from `data`. Metadata-only saves (no `data`
+      // field) leave the draft untouched.
+      ...(body !== undefined
+        ? { data: body as object, draftData: Prisma.DbNull }
+        : {}),
     },
   })
 
@@ -179,7 +177,14 @@ export async function createTemplateFromSelection(
       status: "DRAFT",
       data: body as object,
     },
-    select: { id: true, slug: true, title: true, kind: true, area: true, synced: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      kind: true,
+      area: true,
+      synced: true,
+    },
   })
 
   updateTag(cacheTags.template(slug))

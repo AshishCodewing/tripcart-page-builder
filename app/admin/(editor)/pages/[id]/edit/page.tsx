@@ -1,6 +1,8 @@
+import type { ProjectData } from "grapesjs"
 import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
+import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import { deletePage, savePage } from "@/lib/cms/page-actions"
 import { getPageById, listPageParents } from "@/lib/cms/pages"
 import { listTemplates } from "@/lib/cms/templates"
@@ -24,11 +26,18 @@ export default async function EditPagePage({
   ])
   const saveAction = savePage.bind(null, id)
   const deleteAction = deletePage.bind(null, id)
+  // Seed the editor from the in-progress draft when present, else the
+  // published content. Both are full ProjectDefinitions for pages.
+  const initialProjectData = (page.draftData ??
+    page.data) as unknown as ProjectData
+  const persistDraft = saveEditorDraft.bind(null, "page", id)
 
   return (
     <EditorShell
       content={{ kind: "page", page, parentOptions }}
       tenantTheme={tenantTheme}
+      initialProjectData={initialProjectData}
+      persistDraft={persistDraft}
       saveAction={saveAction}
       deleteAction={deleteAction}
       templates={templates}

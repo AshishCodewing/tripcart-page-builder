@@ -6,6 +6,7 @@ import {
   grapesjs,
   type Editor,
   type EditorConfig,
+  type ProjectData,
   type PropertyStack,
 } from "grapesjs"
 import gjsBlocksBasic from "grapesjs-blocks-basic"
@@ -14,16 +15,13 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 import { columnsPlugin } from "@/lib/plugins/columns"
-import {
-  CONVERT_OPEN_EVENT,
-  convertToTemplatePlugin,
-} from "@/lib/plugins/convert-to-template"
+import { CONVERT_OPEN_EVENT } from "@/lib/plugins/convert-to-template"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
 import {
   filterProtectedStyles,
-  tcStorageAdapter,
+  tcRemoteStorage,
 } from "@/lib/plugins/tc-storage-adapter"
 import {
   TEMPLATE_REF_EDIT_EVENT,
@@ -59,6 +57,9 @@ import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
+import { editorSaveStore } from "@/lib/page-builder/save-status-store"
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
+import { useToastManager } from "@/components/ui/toast"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
 // are framework-agnostic and stable. We don't use `import "...?url"` because
@@ -107,25 +108,26 @@ function composedLayerLabel(
 }
 
 const buildGjsOptions = (
-  storageKey: string,
+  initialProjectData: ProjectData,
+  persistDraft: (data: ProjectData) => Promise<void>,
   templates: Template[]
 ): EditorConfig => ({
   height: "100%",
+  // Seed the canvas from server-rendered data (`draftData ?? data`). With
+  // `projectData` set, GrapesJS skips the initial storage load entirely
+  // (see grapesjs Storage docs "Skip initial load").
+  projectData: initialProjectData,
   storageManager: {
-    // `tc-local` is our custom storage type registered by tcStorageAdapter
-    // — same localStorage backend as the built-in `local`, but filters
-    // out CssRules marked `protected` (the tenant-wide theme rules) so
-    // they don't get duplicated into every per-page project blob.
-    type: "tc-local",
+    // `tc-remote` autosaves the project to Postgres (`draftData`) via a
+    // bound server action — see tcRemoteStorage. Protected theme rules are
+    // filtered out on store so the tenant theme isn't baked into drafts.
+    type: "tc-remote",
     autosave: true,
-    autoload: true,
-    stepsBeforeSave: 1,
-    options: {
-      // The inner `local` adapter still owns the actual write, so we
-      // keep configuring it under the `local` key. tc-local delegates
-      // and forwards these options through.
-      local: { key: storageKey },
-    },
+    // Initial load comes from `projectData` above, not the storage layer.
+    autoload: false,
+    // Coalesce a few canvas changes per store; persistDraft also debounces
+    // by time so a burst collapses into one DB write.
+    stepsBeforeSave: 3,
   },
   undoManager: {
     trackSelection: true,
@@ -343,8 +345,10 @@ const buildGjsOptions = (
   plugins: [
     parserPostCSS,
     // Storage adapter registers BEFORE designSystemPlugin so the
-    // `tc-local` type is known by the time autoload fires.
-    tcStorageAdapter,
+    // `tc-remote` type is known by the time GrapesJS wires storage.
+    // `initialProjectData` doubles as the `load()` fallback (same project
+    // fed to `projectData`), so a manual reload returns real content.
+    tcRemoteStorage(persistDraft, initialProjectData),
     designSystemPlugin,
     reactRendererPlugin.init({ components: patternComponents }),
     // gjsBlocksBasic ships its own column blocks (table-based by default,
@@ -361,25 +365,21 @@ const buildGjsOptions = (
     patternsPlugin,
     // template-ref must register AFTER designSystemPlugin so the
     // placeholder CSS can reference --tc--preset--* vars without
-    // racing the theme injection.
-    templateRefPlugin,
+    // racing the theme injection. Closes over `templates` so refs can
+    // inline the referenced template's content as a locked on-canvas
+    // preview (§7) without a per-ref fetch.
+    templateRefPlugin(templates),
     // Register tenant templates as Block-Manager entries so they
     // become draggable from the sidebar (§8). Runs after template-ref
     // so the `template-ref` component type is known when the block
     // content `{ type: "template-ref", ... }` resolves.
     templateBlocksPlugin(templates),
-    // convert-to-template registers AFTER template-ref so its skip
-    // check (`cmp.get("type") === TEMPLATE_REF_TYPE`) sees the resolved
-    // type. The subscriber runs on every selection, regardless of how
-    // the component type was declared.
-    convertToTemplatePlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
-    customSpots: {
-    }
+    customSpots: {},
   },
 })
 
@@ -417,6 +417,20 @@ type Props = {
    * brand instead of the bundled `defaultTheme`.
    */
   tenantTheme: Theme
+  /**
+   * Initial canvas content, server-rendered from the record's
+   * `draftData ?? data`. Seeds the editor via the `projectData` init
+   * option (skips the initial storage load). Pages/posts pass the full
+   * `ProjectDefinition`; templates pass the slim shape wrapped back into
+   * a one-page project at the editor IO boundary.
+   */
+  initialProjectData: ProjectData
+  /**
+   * Autosave sink — a `saveEditorDraft` server action bound to
+   * `(kind, id)`. The `tc-remote` storage adapter calls this (debounced)
+   * on every canvas change to persist the in-progress draft to Postgres.
+   */
+  persistDraft: (data: ProjectData) => Promise<void>
   /** Server action — already bound to (id). Receives form data on submit. */
   saveAction: (form: FormData) => Promise<void>
   /** Server action — already bound to (id). No-arg. */
@@ -451,6 +465,8 @@ export default function EditorShell(props: Props) {
 function EditorShellInner({
   content,
   tenantTheme,
+  initialProjectData,
+  persistDraft,
   saveAction,
   deleteAction,
   templates,
@@ -495,6 +511,26 @@ function EditorShellInner({
     routerRef.current = router
   }, [router])
 
+  // Branded unsaved-changes prompt for the "Edit original" jump to the
+  // template editor. That navigation is a programmatic router.push fired
+  // from the editor.on handler below (not a <Link>), so neither the top-bar
+  // onNavigate guard nor the back/forward guard covers it — we gate the push
+  // here. Reuses the same dialog as the top bar for a consistent look.
+  const { confirm: confirmLeave, dialog: leaveDialog } = useConfirmDialog({
+    title: "Leave with unsaved changes?",
+    description:
+      "Your latest edits haven't been saved yet and will be lost if you leave this page.",
+    confirmText: "Leave",
+    cancelText: "Stay",
+    destructive: true,
+  })
+  // `confirmLeave` is stable, but mirror it through a ref so the stable
+  // editor.on callback (registered once) always calls the live instance.
+  const confirmLeaveRef = React.useRef(confirmLeave)
+  React.useEffect(() => {
+    confirmLeaveRef.current = confirmLeave
+  }, [confirmLeave])
+
   // Bootstrap themeStore from the tenant's persisted theme before the
   // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
   // to the store, so this single setTheme call cascades into the canvas
@@ -508,13 +544,103 @@ function EditorShellInner({
   // swatches, popovers, etc.), not just inside the canvas iframe.
   useApplyThemeVars()
 
-  // Build options once per record so each page/post has its own local-storage
-  // bucket and the autoload doesn't pull a previous record's draft. The
-  // GjsEditor remount is forced via `key` below when the storage key changes.
+  // Keep the latest bound `persistDraft` in a ref so the debouncer's
+  // identity stays stable while always calling the current action.
+  const persistDraftRef = React.useRef(persistDraft)
+  React.useEffect(() => {
+    persistDraftRef.current = persistDraft
+  }, [persistDraft])
+
+  // Toast manager kept in a ref so the stable-identity debounce/commit
+  // callbacks below can fire toasts without re-binding on every render.
+  const toast = useToastManager()
+  const toastRef = React.useRef(toast)
+  React.useEffect(() => {
+    toastRef.current = toast
+  }, [toast])
+
+  // Trailing debounce around the autosave: GrapesJS' `store` may fire
+  // several times during a burst of edits (every `stepsBeforeSave`
+  // changes); we collapse them into one DB write ~1s after the last
+  // change. Resolves the storage `store` promise immediately so GrapesJS
+  // isn't blocked on the network; the actual write is fire-and-forget
+  // with errors logged (a lost <1s draft is recoverable — Publish writes
+  // `data` directly). Debounce state lives in refs so the callback keeps
+  // a stable identity across renders.
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+  const pendingDraftRef = React.useRef<ProjectData | null>(null)
+  const debouncedPersist = React.useCallback(
+    (data: ProjectData): Promise<void> => {
+      pendingDraftRef.current = data
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null
+        const payload = pendingDraftRef.current
+        pendingDraftRef.current = null
+        if (payload) {
+          // Background draft autosave stays silent on success — it's a
+          // crash-recovery net, not a user action. A failure is the only
+          // thing worth interrupting for: the latest edits may be lost on
+          // reload, so surface it as a toast.
+          void persistDraftRef.current(payload).catch((err) => {
+            console.error("[gjs] draft autosave failed", err)
+            toastRef.current.add({
+              type: "destructive",
+              title: "Autosave failed",
+              description:
+                "We couldn't save your draft. Recent edits may be lost if you reload — try Save draft.",
+            })
+          })
+        }
+      }, 1000)
+      return Promise.resolve()
+    },
+    []
+  )
+
+  // Flush a pending debounced draft on unmount / record switch so the
+  // last <1s of edits isn't silently dropped when navigating away before
+  // the timer fires. (Publish is unaffected — it posts fresh
+  // getProjectData() directly.)
+  React.useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
+      }
+      const payload = pendingDraftRef.current
+      pendingDraftRef.current = null
+      if (payload) {
+        void persistDraftRef
+          .current(payload)
+          .catch((err) => console.error("[gjs] draft flush failed", err))
+      }
+    }
+  }, [])
+
+  // Build options once per record. Seeded from `initialProjectData`
+  // (server-rendered draft/published content); the GjsEditor remount is
+  // forced via `key={storageKey}` below when the record changes.
   const storageKey = storageKeyFor(content)
+
+  // editorSaveStore is module-global; reset it when the edited record
+  // changes so a previous record's `dirty`/autosave state can't bleed into
+  // a freshly-opened one. The canvas seeds from `data` (draft cleared on
+  // last commit) or an in-progress `draftData`, but either way the editor
+  // starts in sync with what's persisted.
+  React.useEffect(() => {
+    editorSaveStore.committed()
+  }, [storageKey])
+
   const gjsOptions = React.useMemo(
-    () => buildGjsOptions(storageKey, templates),
-    [storageKey, templates]
+    // buildGjsOptions only stashes `debouncedPersist` in the storage
+    // config; it never invokes it during render, so reading the refs it
+    // closes over here is safe.
+    // eslint-disable-next-line react-hooks/refs
+    () => buildGjsOptions(initialProjectData, debouncedPersist, templates),
+    [initialProjectData, debouncedPersist, templates]
   )
 
   const onEditor = React.useCallback((editor: Editor) => {
@@ -541,6 +667,8 @@ function EditorShellInner({
     })
     attachTracking(editor)
 
+    editor.on("update", () => editorSaveStore.markDirty())
+
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
     // The plugin emits this event with the ref's slug; we resolve the
     // tenant via the current content, then route to a slug→id redirect
@@ -550,11 +678,21 @@ function EditorShellInner({
     // content change.
     editor.on(TEMPLATE_REF_EDIT_EVENT, ({ slug }: { slug: string }) => {
       if (!slug) return
-      const tenantId = contentTenantId(contentRef.current)
-      const seg = tenantId ?? "global"
-      routerRef.current.push(
-        `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
-      )
+      const go = () => {
+        const tenantId = contentTenantId(contentRef.current)
+        const seg = tenantId ?? "global"
+        routerRef.current.push(
+          `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
+        )
+      }
+      // Guard the jump: with unsaved canvas edits, confirm before leaving.
+      if (!editorSaveStore.get()) {
+        go()
+        return
+      }
+      void confirmLeaveRef.current().then((leave) => {
+        if (leave) go()
+      })
     })
 
     // Open the convert-to-template dropdown next to the More toolbar
@@ -590,6 +728,19 @@ function EditorShellInner({
         formData.set("data", JSON.stringify(filtered))
       }
       await saveAction(formData)
+      // Commit succeeded: `data` now matches the canvas and the server
+      // cleared any pending draft, so the editor is no longer ahead.
+      // (If saveAction throws, this is skipped and `dirty` stays true.)
+      editorSaveStore.committed()
+      // Only publishing is worth confirming — it changes what visitors
+      // see. Saving a draft is low-stakes and stays quiet.
+      if (formData.get("status") === "PUBLISHED") {
+        toastRef.current.add({
+          type: "success",
+          title: "Published",
+          description: "Your changes are now live.",
+        })
+      }
     },
     [saveAction]
   )
@@ -696,6 +847,9 @@ function EditorShellInner({
             tenantId={contentTenantId(content)}
             editor={editorReady}
           />
+
+          {/* Unsaved-changes prompt for the "Edit original" navigation. */}
+          {leaveDialog}
         </GjsEditor>
       </SidebarProvider>
     </form>

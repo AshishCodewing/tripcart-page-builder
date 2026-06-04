@@ -16,6 +16,7 @@ import type {
   ProjectDefinition,
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
+import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -113,6 +114,31 @@ export type TemplateBody = {
   pages?: ProjectDefinition["pages"]
 }
 
+/**
+ * Reduce a full editor `ProjectDefinition` down to the slim Template body
+ * shape `{ component, styles }` (§9). Single source of truth for the
+ * transform — shared by `saveTemplate` (publish) and `saveEditorDraft`
+ * (autosave) so both write templates in the same shape.
+ *
+ * Throws when the project has no root component — callers parse the
+ * editor payload first, so a missing root means a malformed submission.
+ */
+export function slimTemplateProject(project: unknown): {
+  component: ComponentDefinition
+  styles: Rule[]
+} {
+  const p = project as {
+    pages?: Array<{ frames?: Array<{ component?: ComponentDefinition }> }>
+    styles?: Rule[]
+  }
+  const component = p?.pages?.[0]?.frames?.[0]?.component
+  if (!component) throw new Error("Template payload missing a root component.")
+  return {
+    component,
+    styles: Array.isArray(p?.styles) ? p.styles : [],
+  }
+}
+
 type ResolveCtx = {
   tenantId: string
   cache: Map<string, Template | null>
@@ -200,9 +226,12 @@ async function resolveNode(
     // for rows that predate the §9 migration. Drop the fallback once
     // every environment has run the migration.
     const tplData = tpl.data as TemplateBody | null
-    const tplRoot =
+    const rawRoot =
       tplData?.component ?? tplData?.pages?.[0]?.frames?.[0]?.component
-    if (!tplRoot) return placeholder(`empty:${slug}`)
+    if (!rawRoot) return placeholder(`empty:${slug}`)
+    // Defang a document-level root (`wrapper`/`body`) before splicing it
+    // into the page — see template-shape.ts.
+    const tplRoot = unwrapTemplateRoot(rawRoot)
 
     ctx.visiting.add(slug)
     const resolved = await resolveNode(ctx, tplRoot, depth + 1)

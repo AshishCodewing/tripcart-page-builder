@@ -57,10 +57,8 @@ export type CompiledTheme = {
   rules: CompiledRule[]
 }
 
-export const presetVarName = (
-  category: PresetCategory,
-  slug: string
-): string => `--tc--preset--${category}--${toKebab(slug)}`
+export const presetVarName = (category: PresetCategory, slug: string): string =>
+  `--tc--preset--${category}--${toKebab(slug)}`
 
 export const customVarName = (path: readonly string[]): string =>
   `--tc--custom--${path.map(toKebab).join("--")}`
@@ -209,8 +207,13 @@ const emitWithPseudos = (
   block: PseudoStyleBlock,
   out: CompiledRule[]
 ): void => {
-  const { ":hover": h, ":focus": f, ":active": a, ":visited": v, ...base } =
-    block
+  const {
+    ":hover": h,
+    ":focus": f,
+    ":active": a,
+    ":visited": v,
+    ...base
+  } = block
   const baseDecls = compileBlock(base)
   if (Object.keys(baseDecls).length > 0) {
     out.push({ selector, style: baseDecls })

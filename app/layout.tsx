@@ -8,6 +8,8 @@ import "open-props/open-props.min.css"
 import "open-props/colors-hsl.min.css"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ToastProvider } from "@/components/ui/toast"
+import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -34,7 +36,12 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            {children}
+            <Toaster />
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

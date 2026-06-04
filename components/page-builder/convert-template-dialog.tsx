@@ -7,8 +7,14 @@ import {
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
+import { registerTemplateBlock } from "@/lib/plugins/template-blocks"
 import { getPageStyles } from "@/lib/plugins/tc-storage-adapter"
+import { extractStylesForSubtree } from "@/lib/cms/style-extract"
 import { createTemplateFromSelection } from "@/lib/cms/template-actions"
+import type {
+  ComponentDefinition,
+  Rule,
+} from "@/lib/plugins/react-renderer/project/types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -99,6 +105,7 @@ export function ConvertTemplateDialog({
       // `data-template-fragment` marker is there for future renderer
       // treatment (e.g. emitting `display: contents` so the wrapper
       // doesn't break parent flex/grid layouts).
+      console.log(selected, "selected")
       const subtree =
         selected.length === 1
           ? selected[0].toJSON()
@@ -107,22 +114,68 @@ export function ConvertTemplateDialog({
               attributes: { "data-template-fragment": "true" },
               components: selected.map((c) => c.toJSON()),
             }
-      form.set("subtree", JSON.stringify(subtree))
+      // Component `toJSON()` is shallow — nested `components`/`classes`
+      // can still be live Backbone collections/models, not plain data.
+      // Serialize once to a fully-plain tree we use for BOTH the form
+      // payload and the style extractor (which walks the subtree for its
+      // ids/classes and would otherwise only see the root).
+      const subtreeJson = JSON.stringify(subtree)
+      console.log(subtree, subtreeJson, "hello")
+      form.set("subtree", subtreeJson)
+      const plainSubtree = JSON.parse(subtreeJson) as ComponentDefinition
 
-      // Snapshot the page's CSS rules into the new template so any
-      // Style-Manager edits targeting the subtree (`#i_abc { ... }`)
+      // Snapshot the CSS rules that target the converted subtree into
+      // the new template so any Style-Manager edits (`#i_abc { ... }`)
       // survive the selection removal. `getPageStyles` reads the
       // CssRules collection directly and drops protected (theme) rules
-      // — those are served via the tenant theme stylesheet and must
-      // not be baked into a template. MVP over-includes (entire
-      // styles[] array); precise per-subtree extraction is a follow-up
-      // — see docs/templates-followups.md.
-      const styles = editor ? getPageStyles(editor) : []
+      // — those are served via the tenant theme stylesheet and must not
+      // be baked into a template. `extractStylesForSubtree` then narrows
+      // the snapshot to only the rules whose selectors reference an
+      // id/class inside the subtree (§6), instead of dragging the whole
+      // page's styles[] along. Tailwind/class-based styling rides through
+      // untouched — it lives on the components, not in styles[].
+      //
+      // `getPageStyles` returns `rule.toJSON()` whose `selectors` are
+      // still live GrapesJS Selector model instances (their `name`/`type`
+      // live behind `.get()`). Normalize to plain JSON first — that's the
+      // exact shape that ends up posted/stored — so the pure-data
+      // extractor can read selectors as strings / `{ name, type }`.
+      const pageStyles: Rule[] = editor
+        ? JSON.parse(JSON.stringify(getPageStyles(editor)))
+        : []
+      const styles = extractStylesForSubtree(pageStyles, plainSubtree)
       form.set("styles", JSON.stringify(styles))
 
       const result = await createTemplateFromSelection(tenantId, form)
 
-      if (synced) {
+      // Surface the new template in the Block Manager immediately so the
+      // user can drag another copy without a page reload — same primitive
+      // the init-time `templateBlocksPlugin` uses, so synced (a ref) and
+      // unsynced (the component subtree + drop-time style seeding) are
+      // handled identically. `plainSubtree` is the exact body just stored,
+      // so the block matches what a reload would register.
+      //
+      // Must run BEFORE the synced `replaceWith` below: for synced
+      // templates `registerTemplateBlock` also registers the body with the
+      // §7 ref resolver, and the new `template-ref`'s `init()` fires
+      // synchronously inside `replaceWith` — so the body has to be
+      // resolvable first, or the canvas shows `missing:<slug>`.
+      if (editor) {
+        registerTemplateBlock(editor, {
+          slug: result.slug,
+          title: result.title,
+          kind: result.kind,
+          area: result.area,
+          synced: result.synced,
+          data: { component: plainSubtree, styles },
+        })
+      }
+
+      // `replaceWith` reads the node's parent collection; on a parentless
+      // node (the root wrapper) it throws `undefined.indexOf`. The convert
+      // entry point already gates the wrapper out (isConvertibleSelection),
+      // so this is belt-and-suspenders — skip the swap rather than crash.
+      if (synced && selected[0].parent()) {
         // Swap the converted selection with a placeholder ref so
         // subsequent edits flow through the template. For unsynced
         // conversions the page is unchanged — the template is just a
@@ -139,38 +192,13 @@ export function ConvertTemplateDialog({
         for (let i = selected.length - 1; i >= 1; i--) {
           selected[i].remove()
         }
-        // Surface the new template in the Block Manager immediately,
-        // mirroring `templateBlocksPlugin` so the user can drag a
-        // second copy without a page reload. We only register synced
-        // templates here for the same reason the plugin does — the
-        // unsynced drop path (component + styles) isn't wired yet.
-        if (editor) {
-          editor.Blocks.add(`tpl-${result.slug}`, {
-            label:
-              result.title +
-              (result.kind === "PART" && result.area
-                ? ` · ${result.area}`
-                : ""),
-            category:
-              result.kind === "LAYOUT"
-                ? "Layouts"
-                : result.kind === "PATTERN"
-                  ? "Patterns"
-                  : "Parts",
-            content: {
-              type: TEMPLATE_REF_TYPE,
-              attributes: { [TEMPLATE_REF_SLUG_ATTR]: result.slug },
-            },
-            attributes: {
-              "data-template": "true",
-              "data-template-slug": result.slug,
-            },
-          })
-        }
       }
+
       handleOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create template.")
+      setError(
+        err instanceof Error ? err.message : "Failed to create template."
+      )
     } finally {
       setSubmitting(false)
     }
@@ -182,8 +210,8 @@ export function ConvertTemplateDialog({
         <DialogHeader>
           <DialogTitle>Create template</DialogTitle>
           <DialogDescription>
-            Save this selection as a reusable template. Synced templates
-            stay linked — edits propagate everywhere they&apos;re used.
+            Save this selection as a reusable template. Synced templates stay
+            linked — edits propagate everywhere they&apos;re used.
           </DialogDescription>
         </DialogHeader>
 
@@ -240,8 +268,8 @@ export function ConvertTemplateDialog({
                 Synced
               </Label>
               <p className="text-xs text-muted-foreground">
-                Replace this selection with a link to the template so
-                future edits propagate.
+                Replace this selection with a link to the template so future
+                edits propagate.
               </p>
             </div>
             <Switch

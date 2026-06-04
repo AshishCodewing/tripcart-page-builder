@@ -60,6 +60,23 @@ export type TemplateContent = {
 
 export type EditorContent = PageContent | PostContent | TemplateContent
 
+export type ContentStatus = "DRAFT" | "PUBLISHED"
+
+// Persisted publish status of the edited record. Drives the top-bar
+// primary-action label (Publish vs Update) and the "unpublished changes"
+// hint — see TopBarRight. Refreshes as a prop after a commit revalidates
+// the editor route, so the button flips without a manual store write.
+export const contentStatus = (content: EditorContent): ContentStatus => {
+  switch (content.kind) {
+    case "page":
+      return content.page.status
+    case "post":
+      return content.post.status
+    case "template":
+      return content.template.status
+  }
+}
+
 // Canonical preview paths the chrome surfaces in the top-bar dropdown +
 // preview button. Pages live at the root, posts under /blog/<slug>.
 // Templates have no public render path — the top-bar hides the preview

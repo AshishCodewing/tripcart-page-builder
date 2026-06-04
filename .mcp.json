@@ -3,6 +3,10 @@
     "grapesjs-docs": {
       "command": "pnpm",
       "args": ["run", "--silent", "mcp:rag"]
+    },
+    "playwright": {
+      "command": "pnpm",
+      "args": ["dlx", "@playwright/mcp@latest"]
     }
   }
 }
