@@ -70,7 +70,14 @@ export function FloatingToolbar() {
   )
 
   return (
-    <CanvasFloating target={selected} placement="top-end">
+    // Fallback to the opposite *start* corner (bottom-start), never bottom-end —
+    // that's where InsertBlockOverlay's "+" lives, so disjoint placement sets
+    // keep the two from ever overlapping.
+    <CanvasFloating
+      target={selected}
+      placement="top-end"
+      fallbacks={["bottom-start", "left-start"]}
+    >
       <TooltipProvider delay={300}>
         <ButtonGroup className="rounded-lg bg-white">
           <ButtonGroupText className={labelClass}>
