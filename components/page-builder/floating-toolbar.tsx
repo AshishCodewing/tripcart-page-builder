@@ -50,6 +50,15 @@ export function FloatingToolbar() {
 
   const canConvert = isConvertibleSelection(selected)
 
+  // Mirror GrapesJS' default toolbar gating (Component.getToolbar): each action
+  // is shown only when the component declares the matching capability. The
+  // wrapper (Body) is non-draggable/-copyable/-removable and has no parent, so
+  // all four drop out — exactly like the built-in toolbar.
+  const canSelectParent = !!selected.parent()
+  const canMove = !!selected.get("draggable")
+  const canDuplicate = !!selected.get("copyable")
+  const canDelete = !!selected.get("removable")
+
   // Synced-template refs get a distinct accent (matches the canvas
   // selection/hover outline set in template-ref's PLACEHOLDER_CSS) so the
   // toolbar reads as "this is a linked template, not a plain component".
@@ -61,7 +70,7 @@ export function FloatingToolbar() {
       : "bg-primary hover:bg-primary/80 dark:bg-primary dark:hover:bg-primary/80"
   )
   const labelClass = cn(
-    "max-w-36 overflow-hidden border-0 text-xs text-ellipsis whitespace-nowrap text-white",
+    "h-6 max-w-36 overflow-hidden border-0 text-xs text-ellipsis whitespace-nowrap text-white",
     isTemplateRef
       ? "bg-violet-600 hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-600"
       : "bg-primary hover:bg-primary dark:bg-primary dark:hover:bg-primary"
@@ -103,73 +112,81 @@ export function FloatingToolbar() {
                 <TooltipContent>Edit Original</TooltipContent>
               </Tooltip>
             )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-xs"
-                    variant="outline"
-                    className={btnClass}
-                    onClick={() => editor?.runCommand("tlb-move")}
-                  >
-                    <Move />
-                  </Button>
-                }
-              />
-              <TooltipContent>Move</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-xs"
-                    variant="outline"
-                    className={btnClass}
-                    onClick={() => {
-                      const parent = selected.parent()
-                      if (parent) editor?.select(parent)
-                    }}
-                  >
-                    <ArrowUp />
-                  </Button>
-                }
-              />
-              <TooltipContent>Select parent</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-xs"
-                    variant="outline"
-                    className={btnClass}
-                    onClick={() => {
-                      const parent = selected.parent()
-                      const idx = selected.index()
-                      parent?.append(selected.clone(), { at: idx + 1 })
-                    }}
-                  >
-                    <Copy />
-                  </Button>
-                }
-              />
-              <TooltipContent>Duplicate</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-xs"
-                    variant="outline"
-                    className={btnClass}
-                    onClick={() => selected.remove()}
-                  >
-                    <Trash2 />
-                  </Button>
-                }
-              />
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
+            {canMove && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={() => editor?.runCommand("tlb-move")}
+                    >
+                      <Move />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Move</TooltipContent>
+              </Tooltip>
+            )}
+            {canSelectParent && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={() => {
+                        const parent = selected.parent()
+                        if (parent) editor?.select(parent)
+                      }}
+                    >
+                      <ArrowUp />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Select parent</TooltipContent>
+              </Tooltip>
+            )}
+            {canDuplicate && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={() => {
+                        const parent = selected.parent()
+                        const idx = selected.index()
+                        parent?.append(selected.clone(), { at: idx + 1 })
+                      }}
+                    >
+                      <Copy />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Duplicate</TooltipContent>
+              </Tooltip>
+            )}
+            {canDelete && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={() => selected.remove()}
+                    >
+                      <Trash2 />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            )}
             {canConvert && (
               <Tooltip>
                 <TooltipTrigger

@@ -32,31 +32,44 @@ type Props = {
 }
 
 // Where a chosen block lands relative to the selected component. GrapesJS has
-// no dedicated "insert relative to" API — every position is expressed through
+// no dedicated "insert relative to" API — each position is expressed through
 // `append(content, { at })` on either the parent (siblings) or the selected
 // component itself (children).
 type Position = "before" | "inside-first" | "inside-last" | "after"
 
+// `kind` decides when an option is offered: `sibling` positions need a parent
+// to sit next to (the wrapper/Body has none), `nesting` positions need a
+// component that can hold children (a leaf like text can't).
 const POSITIONS: {
   value: Position
   label: string
   icon: typeof Plus
-  nesting?: boolean
+  kind: "sibling" | "nesting"
 }[] = [
-  { value: "before", label: "Insert before", icon: ArrowUpToLine },
+  {
+    value: "before",
+    label: "Insert before",
+    icon: ArrowUpToLine,
+    kind: "sibling",
+  },
   {
     value: "inside-first",
     label: "Insert as first child",
     icon: BetweenHorizontalStart,
-    nesting: true,
+    kind: "nesting",
   },
   {
     value: "inside-last",
     label: "Insert as last child",
     icon: BetweenHorizontalEnd,
-    nesting: true,
+    kind: "nesting",
   },
-  { value: "after", label: "Insert after", icon: ArrowDownToLine },
+  {
+    value: "after",
+    label: "Insert after",
+    icon: ArrowDownToLine,
+    kind: "sibling",
+  },
 ]
 
 // Cap the grid so the picker stays compact; search narrows the full set down.
@@ -65,21 +78,28 @@ const MAX_BLOCKS = 6
 // The "+" button shown at the corner of the selected component. Opens a block
 // picker with a position toggle (before / inside / after) and a search box.
 export function InsertBlockPicker({ editor, selected }: Props) {
-  const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState<Position>("after")
-  const [query, setQuery] = useState("")
-
   // `droppable === false` marks a leaf (text, image, …) that can't hold
-  // children, so the inside-* positions don't apply.
+  // children; a component with no parent (the wrapper/Body) has no siblings.
   const canNest = selected.get("droppable") !== false
+  const canSibling = !!selected.parent()
+  const available = POSITIONS.filter((p) =>
+    p.kind === "nesting" ? canNest : canSibling
+  )
+
+  const [open, setOpen] = useState(false)
+  // Default to the last available option ("after" for siblings-capable
+  // components, otherwise "insert as last child" for the Body).
+  const [position, setPosition] = useState<Position>(
+    available.at(-1)?.value ?? "inside-last"
+  )
+  const [query, setQuery] = useState("")
 
   const insert = (block: Block) => {
     const content = block.get("content") as Parameters<Component["append"]>[0]
-    const pos = canNest ? position : sanitizeSibling(position)
 
     editor.UndoManager.start()
     let added: ReturnType<Component["append"]>
-    switch (pos) {
+    switch (position) {
       case "inside-first":
         added = selected.append(content, { at: 0 })
         break
@@ -93,7 +113,7 @@ export function InsertBlockPicker({ editor, selected }: Props) {
           editor.UndoManager.stop()
           return
         }
-        const at = selected.index() + (pos === "after" ? 1 : 0)
+        const at = selected.index() + (position === "after" ? 1 : 0)
         added = parent.append(content, { at })
         break
       }
@@ -130,34 +150,35 @@ export function InsertBlockPicker({ editor, selected }: Props) {
       <PopoverContent align="end" side="bottom" className="w-72 gap-0 p-0">
         <TooltipProvider delay={300}>
           <div className="flex flex-col gap-2 border-b p-2">
-            <ToggleGroup
-              variant="outline"
-              value={[canNest ? position : sanitizeSibling(position)]}
-              onValueChange={(values: string[]) => {
-                const next = values[0] as Position | undefined
-                if (next) setPosition(next)
-              }}
-              aria-label="Insertion position"
-              className="w-full"
-            >
-              {POSITIONS.map(({ value, label, icon: Icon, nesting }) => (
-                <Tooltip key={value}>
-                  <TooltipTrigger
-                    render={
-                      <ToggleGroupItem
-                        value={value}
-                        aria-label={label}
-                        disabled={nesting && !canNest}
-                        className="h-8 flex-1 px-0"
-                      >
-                        <Icon className="size-3.5" aria-hidden="true" />
-                      </ToggleGroupItem>
-                    }
-                  />
-                  <TooltipContent>{label}</TooltipContent>
-                </Tooltip>
-              ))}
-            </ToggleGroup>
+            {available.length > 1 && (
+              <ToggleGroup
+                variant="outline"
+                value={[position]}
+                onValueChange={(values: string[]) => {
+                  const next = values[0] as Position | undefined
+                  if (next) setPosition(next)
+                }}
+                aria-label="Insertion position"
+                className="w-full"
+              >
+                {available.map(({ value, label, icon: Icon }) => (
+                  <Tooltip key={value}>
+                    <TooltipTrigger
+                      render={
+                        <ToggleGroupItem
+                          value={value}
+                          aria-label={label}
+                          className="h-8 flex-1 px-0"
+                        >
+                          <Icon className="size-3.5" aria-hidden="true" />
+                        </ToggleGroupItem>
+                      }
+                    />
+                    <TooltipContent>{label}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </ToggleGroup>
+            )}
             <Input
               inputSize="sm"
               placeholder="Search..."
@@ -216,8 +237,3 @@ const filterBlocks = (blocks: Block[], query: string): Block[] => {
     : blocks
   return matched.slice(0, MAX_BLOCKS)
 }
-
-// When the selected component can't nest, collapse the inside-* positions to
-// the nearest sibling position so insertion still works.
-const sanitizeSibling = (position: Position): Position =>
-  position === "inside-first" || position === "inside-last" ? "after" : position
