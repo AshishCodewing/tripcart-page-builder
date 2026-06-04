@@ -5,7 +5,6 @@ import { Copy, Trash2, ArrowUp, Move, MoreVertical, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ButtonGroup,
-  ButtonGroupSeparator,
   ButtonGroupText,
 } from "@/components/ui/button-group"
 import {

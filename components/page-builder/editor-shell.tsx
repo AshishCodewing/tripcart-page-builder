@@ -58,6 +58,7 @@ import type { EditorContent } from "./types"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
 import { editorSaveStore } from "@/lib/page-builder/save-status-store"
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 import { useToastManager } from "@/components/ui/toast"
 // Stylesheets the GrapesJS canvas iframe loads — produced by
 // scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
@@ -510,6 +511,26 @@ function EditorShellInner({
     routerRef.current = router
   }, [router])
 
+  // Branded unsaved-changes prompt for the "Edit original" jump to the
+  // template editor. That navigation is a programmatic router.push fired
+  // from the editor.on handler below (not a <Link>), so neither the top-bar
+  // onNavigate guard nor the back/forward guard covers it — we gate the push
+  // here. Reuses the same dialog as the top bar for a consistent look.
+  const { confirm: confirmLeave, dialog: leaveDialog } = useConfirmDialog({
+    title: "Leave with unsaved changes?",
+    description:
+      "Your latest edits haven't been saved yet and will be lost if you leave this page.",
+    confirmText: "Leave",
+    cancelText: "Stay",
+    destructive: true,
+  })
+  // `confirmLeave` is stable, but mirror it through a ref so the stable
+  // editor.on callback (registered once) always calls the live instance.
+  const confirmLeaveRef = React.useRef(confirmLeave)
+  React.useEffect(() => {
+    confirmLeaveRef.current = confirmLeave
+  }, [confirmLeave])
+
   // Bootstrap themeStore from the tenant's persisted theme before the
   // canvas hydrates. designSystemPlugin and useApplyThemeVars subscribe
   // to the store, so this single setTheme call cascades into the canvas
@@ -657,11 +678,21 @@ function EditorShellInner({
     // content change.
     editor.on(TEMPLATE_REF_EDIT_EVENT, ({ slug }: { slug: string }) => {
       if (!slug) return
-      const tenantId = contentTenantId(contentRef.current)
-      const seg = tenantId ?? "global"
-      routerRef.current.push(
-        `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
-      )
+      const go = () => {
+        const tenantId = contentTenantId(contentRef.current)
+        const seg = tenantId ?? "global"
+        routerRef.current.push(
+          `/admin/templates/by-slug/${seg}/${encodeURIComponent(slug)}`
+        )
+      }
+      // Guard the jump: with unsaved canvas edits, confirm before leaving.
+      if (!editorSaveStore.get()) {
+        go()
+        return
+      }
+      void confirmLeaveRef.current().then((leave) => {
+        if (leave) go()
+      })
     })
 
     // Open the convert-to-template dropdown next to the More toolbar
@@ -816,6 +847,9 @@ function EditorShellInner({
             tenantId={contentTenantId(content)}
             editor={editorReady}
           />
+
+          {/* Unsaved-changes prompt for the "Edit original" navigation. */}
+          {leaveDialog}
         </GjsEditor>
       </SidebarProvider>
     </form>

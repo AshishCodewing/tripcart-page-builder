@@ -1,6 +1,8 @@
 "use client"
 
+import { useCallback } from "react"
 import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
 import { DevicesProvider } from "@grapesjs/react"
 import {
   Monitor,
@@ -34,6 +36,8 @@ import {
   type EditorContent,
 } from "@/components/page-builder/types"
 import { useIsDirty } from "@/lib/page-builder/save-status-store"
+import { useFormGuard } from "@/hooks/use-form-guard"
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 
 type Props = {
   content: EditorContent
@@ -126,6 +130,39 @@ export default function TopBarRight({ content, className }: Props) {
   const indexLabel = contentIndexLabel(content)
   const status = contentStatus(content)
   const dirty = useIsDirty()
+  const router = useRouter()
+
+  // Branded confirmation shared by every exit path we control, so they all
+  // look the same. (Tab close / refresh is the one exception — that's the
+  // browser's own un-styleable `beforeunload` dialog, owned by GrapesJS's
+  // `noticeOnUnload`, which is why `guardUnload: false` here.)
+  const { confirm, dialog } = useConfirmDialog({
+    title: "Leave with unsaved changes?",
+    description:
+      "Your latest edits haven't been saved yet and will be lost if you leave this page.",
+    confirmText: "Leave",
+    cancelText: "Stay",
+    destructive: true,
+  })
+
+  // Back / forward buttons (popstate) — handled inside the hook, which awaits
+  // this modal via `onBlock`.
+  useFormGuard({ isDirty: dirty, guardUnload: false, onBlock: confirm })
+
+  // In-app soft navigation (Next 15.3+ <Link onNavigate>). onNavigate is
+  // synchronous, so we cancel the click up front, ask via the same modal, then
+  // resume the navigation imperatively when the user confirms.
+  const guardIndexNav = useCallback(
+    (event: { preventDefault: () => void }) => {
+      if (!dirty) return
+      event.preventDefault()
+      void confirm().then((leave) => {
+        if (leave) router.push(indexHref)
+      })
+    },
+    [dirty, confirm, router, indexHref]
+  )
+
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
       <SaveDraftButton status={status} />
@@ -195,7 +232,9 @@ export default function TopBarRight({ content, className }: Props) {
               }
             />
           ) : null}
-          <DropdownMenuItem render={<Link href={indexHref} />}>
+          <DropdownMenuItem
+            render={<Link href={indexHref} onNavigate={guardIndexNav} />}
+          >
             {indexLabel}
           </DropdownMenuItem>
           {showPreview ? (
@@ -208,6 +247,8 @@ export default function TopBarRight({ content, className }: Props) {
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {dialog}
     </div>
   )
 }
