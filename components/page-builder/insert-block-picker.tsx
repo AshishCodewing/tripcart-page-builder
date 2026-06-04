@@ -74,9 +74,7 @@ export function InsertBlockPicker({ editor, selected }: Props) {
   const canNest = selected.get("droppable") !== false
 
   const insert = (block: Block) => {
-    const content = block.get("content") as Parameters<
-      Component["append"]
-    >[0]
+    const content = block.get("content") as Parameters<Component["append"]>[0]
     const pos = canNest ? position : sanitizeSibling(position)
 
     editor.UndoManager.start()
@@ -222,6 +220,4 @@ const filterBlocks = (blocks: Block[], query: string): Block[] => {
 // When the selected component can't nest, collapse the inside-* positions to
 // the nearest sibling position so insertion still works.
 const sanitizeSibling = (position: Position): Position =>
-  position === "inside-first" || position === "inside-last"
-    ? "after"
-    : position
+  position === "inside-first" || position === "inside-last" ? "after" : position

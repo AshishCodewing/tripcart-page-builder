@@ -3,10 +3,7 @@ import { useEffect, useState } from "react"
 import type { Component } from "grapesjs"
 import { Copy, Trash2, ArrowUp, Move, MoreVertical, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  ButtonGroup,
-  ButtonGroupText,
-} from "@/components/ui/button-group"
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
 import {
   Tooltip,
   TooltipContent,
@@ -23,6 +20,7 @@ import {
 } from "@/lib/plugins/template-ref"
 import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
+import { InsertBlockPicker } from "./insert-block-picker"
 
 export function FloatingToolbar() {
   const editor = useEditorMaybe()
@@ -70,20 +68,56 @@ export function FloatingToolbar() {
   )
 
   return (
-    // Fallback to the opposite *start* corner (bottom-start), never bottom-end —
-    // that's where InsertBlockOverlay's "+" lives, so disjoint placement sets
-    // keep the two from ever overlapping.
     <CanvasFloating
       target={selected}
       placement="top-end"
-      fallbacks={["bottom-start", "left-start"]}
+      fallbacks={["bottom-end", "left-start"]}
     >
-      <TooltipProvider delay={300}>
-        <ButtonGroup className="rounded-lg bg-white">
-          <ButtonGroupText className={labelClass}>
-            {selected.getName()}
-          </ButtonGroupText>
-          {isTemplateRef && (
+      {/* Toolbar and the "Add block" picker share one floating row (gap-1 = 4px)
+          so floating-ui only positions a single element — no disjoint-placement
+          dance to keep the two from overlapping. */}
+      <div className="flex items-center gap-1">
+        <TooltipProvider delay={300}>
+          <ButtonGroup className="rounded-lg bg-white">
+            <ButtonGroupText className={labelClass}>
+              {selected.getName()}
+            </ButtonGroupText>
+            {isTemplateRef && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={() => {
+                        const slug =
+                          selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
+                        editor?.runCommand("tc:edit-template-ref", { slug })
+                      }}
+                    >
+                      <Pencil />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Edit Original</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="outline"
+                    className={btnClass}
+                    onClick={() => editor?.runCommand("tlb-move")}
+                  >
+                    <Move />
+                  </Button>
+                }
+              />
+              <TooltipContent>Move</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -92,86 +126,16 @@ export function FloatingToolbar() {
                     variant="outline"
                     className={btnClass}
                     onClick={() => {
-                      const slug =
-                        selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
-                      editor?.runCommand("tc:edit-template-ref", { slug })
+                      const parent = selected.parent()
+                      if (parent) editor?.select(parent)
                     }}
                   >
-                    <Pencil />
+                    <ArrowUp />
                   </Button>
                 }
               />
-              <TooltipContent>Edit Original</TooltipContent>
+              <TooltipContent>Select parent</TooltipContent>
             </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-xs"
-                  variant="outline"
-                  className={btnClass}
-                  onClick={() => editor?.runCommand("tlb-move")}
-                >
-                  <Move />
-                </Button>
-              }
-            />
-            <TooltipContent>Move</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-xs"
-                  variant="outline"
-                  className={btnClass}
-                  onClick={() => {
-                    const parent = selected.parent()
-                    if (parent) editor?.select(parent)
-                  }}
-                >
-                  <ArrowUp />
-                </Button>
-              }
-            />
-            <TooltipContent>Select parent</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-xs"
-                  variant="outline"
-                  className={btnClass}
-                  onClick={() => {
-                    const parent = selected.parent()
-                    const idx = selected.index()
-                    parent?.append(selected.clone(), { at: idx + 1 })
-                  }}
-                >
-                  <Copy />
-                </Button>
-              }
-            />
-            <TooltipContent>Duplicate</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-xs"
-                  variant="outline"
-                  className={btnClass}
-                  onClick={() => selected.remove()}
-                >
-                  <Trash2 />
-                </Button>
-              }
-            />
-            <TooltipContent>Delete</TooltipContent>
-          </Tooltip>
-          {canConvert && (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -179,26 +143,69 @@ export function FloatingToolbar() {
                     size="icon-xs"
                     variant="outline"
                     className={btnClass}
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      editor?.trigger(CONVERT_OPEN_EVENT, {
-                        rect: {
-                          x: rect.left,
-                          y: rect.bottom,
-                          width: rect.width,
-                        },
-                      })
+                    onClick={() => {
+                      const parent = selected.parent()
+                      const idx = selected.index()
+                      parent?.append(selected.clone(), { at: idx + 1 })
                     }}
                   >
-                    <MoreVertical />
+                    <Copy />
                   </Button>
                 }
               />
-              <TooltipContent>More</TooltipContent>
+              <TooltipContent>Duplicate</TooltipContent>
             </Tooltip>
-          )}
-        </ButtonGroup>
-      </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="outline"
+                    className={btnClass}
+                    onClick={() => selected.remove()}
+                  >
+                    <Trash2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+            {canConvert && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        editor?.trigger(CONVERT_OPEN_EVENT, {
+                          rect: {
+                            x: rect.left,
+                            y: rect.bottom,
+                            width: rect.width,
+                          },
+                        })
+                      }}
+                    >
+                      <MoreVertical />
+                    </Button>
+                  }
+                />
+                <TooltipContent>More</TooltipContent>
+              </Tooltip>
+            )}
+          </ButtonGroup>
+        </TooltipProvider>
+        {editor && (
+          <InsertBlockPicker
+            key={selected.getId()}
+            editor={editor}
+            selected={selected}
+          />
+        )}
+      </div>
     </CanvasFloating>
   )
 }
