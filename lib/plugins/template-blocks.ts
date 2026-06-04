@@ -34,7 +34,7 @@
  * `block:drag:stop` listener are installed lazily on first call.
  */
 
-import type { Editor } from "grapesjs"
+import type { Component, Editor } from "grapesjs"
 import type { Template } from "@/generated/prisma/client"
 import type {
   ComponentDefinition,
@@ -42,6 +42,7 @@ import type {
 } from "@/lib/plugins/react-renderer/project/types"
 import type { TemplateBody } from "@/lib/cms/templates"
 import { applyTemplateStyles } from "@/lib/plugins/template-styles"
+import { collectStyledIds, remapStyleIds } from "@/lib/cms/style-extract"
 
 import {
   registerTemplateRefBody,
@@ -92,12 +93,67 @@ function getStyleRegistry(editor: Editor): Map<string, Rule[]> {
     editor.on("block:drag:stop", (component, block) => {
       if (!component || !block) return
       const styles = registry!.get(block.getId())
+      if (!styles) return
+      // Re-key the dropped copy's ids so a second drop of the same
+      // unsynced template doesn't share one CSS rule with the first
+      // (component-first styling targets ids — see style-extract.ts).
+      // The registry keeps the pristine rules; we remap a fresh copy.
+      const idMap = regenerateInstanceIds(editor, component, styles)
+      const seeded = remapStyleIds(styles, idMap)
       // protect:false — the dropped copy owns these styles, so they
       // persist into page.data (unlike the §7 synced-ref preview).
-      if (styles) applyTemplateStyles(editor, styles, { protect: false })
+      applyTemplateStyles(editor, seeded, { protect: false })
     })
   }
   return registry
+}
+
+/** Append `-N` to `base` until the result isn't in `taken`, then claim it. */
+function makeUniqueId(base: string, taken: Set<string>): string {
+  let n = 1
+  let candidate = `${base}-${n}`
+  while (taken.has(candidate)) {
+    n++
+    candidate = `${base}-${n}`
+  }
+  taken.add(candidate)
+  return candidate
+}
+
+/**
+ * Give a freshly-dropped unsynced template copy its own component ids so it
+ * can't share a CSS rule with an earlier copy of the same template. Walks
+ * the dropped subtree, regenerates every id that the seeded `styles` target
+ * (`collectStyledIds`), and returns the oldId → newId map so the caller can
+ * re-key the rules via `remapStyleIds`. Ids not referenced by any rule are
+ * left alone (changing them would only churn the markup). Collision-safe
+ * against ids already present elsewhere on the page.
+ */
+function regenerateInstanceIds(
+  editor: Editor,
+  root: Component,
+  styles: Rule[]
+): Map<string, string> {
+  const idMap = new Map<string, string>()
+  const styledIds = collectStyledIds(styles)
+  if (styledIds.size === 0) return idMap
+
+  // Seed the "taken" set with ids already on the page (the dropped subtree's
+  // own ids are in here too, so we always pick a genuinely new name).
+  const taken = new Set<string>()
+  editor.getWrapper()?.onAll((c) => {
+    const id = c.getAttributes?.().id
+    if (typeof id === "string" && id) taken.add(id)
+  })
+
+  root.onAll((c) => {
+    const id = c.getAttributes?.().id
+    if (typeof id !== "string" || !styledIds.has(id)) return
+    const newId = idMap.get(id) ?? makeUniqueId(id, taken)
+    idMap.set(id, newId)
+    c.setId(newId)
+  })
+  return idMap
 }
 
 /**

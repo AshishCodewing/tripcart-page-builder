@@ -170,3 +170,105 @@ export function extractStylesForSubtree(
   if (identity.ids.size === 0 && identity.classes.size === 0) return []
   return allStyles.filter((rule) => ruleMatchesSubtree(rule, identity))
 }
+
+/* -------------------------------------------------------------------------- *
+ *  Id re-keying for repeated unsynced drops (§8 caveat).                      *
+ *                                                                            *
+ *  An unsynced template block's `content` is a fixed snapshot of the         *
+ *  template subtree, so dropping it twice instantiates two copies sharing    *
+ *  the same component ids — and therefore the same seeded `#id` CSS rule.    *
+ *  With the editor in component-first mode a Style-Manager edit targets an   *
+ *  ID rule, so editing one copy would silently restyle the other. The fix    *
+ *  (`lib/plugins/template-blocks.ts`) regenerates the dropped copy's ids and *
+ *  re-keys the seeded rules through `remapStyleIds` so each instance owns    *
+ *  its own rules. Classes are intentionally left untouched: shared classes   *
+ *  stay the common base, and component-first per-instance edits land on ids. *
+ * -------------------------------------------------------------------------- */
+
+/** Read the id name a selector entry targets, or null if it isn't an id. */
+function selectorIdName(sel: SelectorEntry): string | null {
+  if (typeof sel === "string") return sel.startsWith("#") ? sel.slice(1) : null
+  if (sel && typeof sel === "object" && sel.type === SELECTOR_TYPE_ID) {
+    return typeof sel.name === "string" ? sel.name : null
+  }
+  return null
+}
+
+/**
+ * Collect every id *name* that the given rules target — across `selectors`
+ * (string `#id` or `{ name, type: 2 }` objects) and the raw `selectorsAdd`
+ * string. This is the set of ids that must be regenerated on the dropped
+ * copy so its rules don't collide with an earlier copy's.
+ */
+export function collectStyledIds(styles: Rule[]): Set<string> {
+  const ids = new Set<string>()
+  if (!Array.isArray(styles)) return ids
+  for (const rule of styles) {
+    const selectors = (rule as { selectors?: SelectorEntry[] }).selectors
+    if (Array.isArray(selectors)) {
+      for (const sel of selectors) {
+        const name = selectorIdName(sel)
+        if (name) ids.add(name)
+      }
+    }
+    const add = (rule as { selectorsAdd?: unknown }).selectorsAdd
+    if (typeof add === "string") {
+      for (const m of add.matchAll(/#([\w-]+)/g)) ids.add(m[1])
+    }
+  }
+  return ids
+}
+
+/** Rewrite one selector entry's id name through `idMap` (no-op for classes). */
+function remapSelectorEntry(
+  sel: SelectorEntry,
+  idMap: Map<string, string>
+): SelectorEntry {
+  if (typeof sel === "string") {
+    if (!sel.startsWith("#")) return sel
+    const mapped = idMap.get(sel.slice(1))
+    return mapped ? `#${mapped}` : sel
+  }
+  if (sel && typeof sel === "object" && sel.type === SELECTOR_TYPE_ID) {
+    if (typeof sel.name !== "string") return sel
+    const mapped = idMap.get(sel.name)
+    return mapped ? { ...sel, name: mapped } : sel
+  }
+  return sel
+}
+
+/** Rewrite `#id` tokens inside a raw selector string (`selectorsAdd`). */
+function remapRawSelector(raw: string, idMap: Map<string, string>): string {
+  return raw.replace(/#([\w-]+)/g, (token, name: string) => {
+    const mapped = idMap.get(name)
+    return mapped ? `#${mapped}` : token
+  })
+}
+
+/**
+ * Return copies of `styles` with id references rewritten through `idMap`
+ * (oldId → newId). Inputs are never mutated — the block registry re-reads
+ * the originals on the next drop, which must remap from the pristine ids.
+ * Classes pass through unchanged (see the section comment above).
+ */
+export function remapStyleIds(
+  styles: Rule[],
+  idMap: Map<string, string>
+): Rule[] {
+  if (!Array.isArray(styles) || idMap.size === 0) return styles
+  return styles.map((rule) => {
+    const next = { ...rule } as Rule & {
+      selectors?: SelectorEntry[]
+      selectorsAdd?: unknown
+    }
+    if (Array.isArray(next.selectors)) {
+      next.selectors = next.selectors.map((sel) =>
+        remapSelectorEntry(sel, idMap)
+      ) as Rule["selectors"]
+    }
+    if (typeof next.selectorsAdd === "string") {
+      next.selectorsAdd = remapRawSelector(next.selectorsAdd, idMap)
+    }
+    return next
+  })
+}
