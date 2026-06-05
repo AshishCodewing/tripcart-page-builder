@@ -319,3 +319,64 @@ export async function deleteTemplate(id: string): Promise<void> {
   const section = tpl.kind === "PATTERN" ? "patterns" : "templates"
   redirect(`/admin/tenants/${tpl.tenantId}/library/${section}`)
 }
+
+/**
+ * Delete one or more Templates without navigating — backs the Library
+ * data-table's row + bulk delete. Same unconditional reference policy as
+ * `deleteTemplate` (refs degrade to `missing:<slug>` placeholders). The
+ * caller refreshes the route (`router.refresh()`) after this resolves;
+ * we bump each affected `template:<slug>` tag so resolver caches drop.
+ */
+export async function bulkDeleteTemplates(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const rows = await prisma.template.findMany({
+    where: { id: { in: ids } },
+    select: { slug: true },
+  })
+  await prisma.template.deleteMany({ where: { id: { in: ids } } })
+  for (const row of rows) updateTag(cacheTags.template(row.slug))
+}
+
+/**
+ * Clone a Template in place — backs the Library data-table's "Duplicate"
+ * row action. Copies every authored field (kind, area, synced, preview,
+ * description, data) into a new row in the same tenant scope, with a
+ * `"<slug>-copy"` slug (deduped `-copy-2`, `-copy-3`, …) and a
+ * `"<title> (copy)"` title. Stays on the listing — the caller refreshes
+ * the route so the new row appears; no redirect into the editor.
+ */
+export async function duplicateTemplate(id: string): Promise<void> {
+  const tpl = await prisma.template.findUnique({ where: { id } })
+  if (!tpl) throw new Error("Template not found.")
+
+  const baseSlug = `${tpl.slug}-copy`
+  let slug = baseSlug
+  let suffix = 2
+  // findFirst (not findUnique on the compound key) so globals — where
+  // tenantId is null — dedupe correctly; SQL nulls aren't unique-comparable.
+  while (
+    await prisma.template.findFirst({
+      where: { tenantId: tpl.tenantId, slug },
+      select: { id: true },
+    })
+  ) {
+    slug = `${baseSlug}-${suffix}`
+    suffix++
+  }
+
+  await prisma.template.create({
+    data: {
+      tenantId: tpl.tenantId,
+      slug,
+      title: `${tpl.title} (copy)`,
+      kind: tpl.kind,
+      area: tpl.area,
+      synced: tpl.synced,
+      description: tpl.description,
+      preview: tpl.preview,
+      data: tpl.data as Prisma.InputJsonValue,
+    },
+  })
+
+  updateTag(cacheTags.template(slug))
+}
