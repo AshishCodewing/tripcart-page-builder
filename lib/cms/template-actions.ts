@@ -8,27 +8,74 @@ import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
 import { titleToSlug, validateSlug } from "./path"
-import { slimTemplateProject } from "./templates"
+import { slimTemplateProject, templateRefExists } from "./templates"
 
 /**
  * Persist edits to a Template from the editor shell.
  *
- * MVP scope: only the canvas content (`data`) and `status` are updated
- * here. Metadata edits (renaming slug, switching kind, toggling synced,
- * changing area) will land alongside the templates admin index page —
- * the editor right-panel currently doesn't surface those fields for
- * templates.
+ * Saves both the canvas content (`data`) and the editable metadata (§4):
+ * title, slug, kind, area, synced. Missing fields fall back to the
+ * existing values so partial/non-editor callers don't wipe data. Area is
+ * only meaningful for PART and is cleared for LAYOUT/PATTERN.
  *
- * Cache invalidation: bumps the `template:<slug>` tag so any future
- * resolver caching keyed on the slug picks up the new content on the
- * next render.
+ * Slug rename is guarded: it must stay unique within the template's
+ * tenant scope, and is forbidden while any `template-ref` points at the
+ * current slug (renaming would silently break those refs — §4 option 1).
+ *
+ * Cache invalidation: bumps the `template:<slug>` tag (old and new on a
+ * rename) so any resolver caching keyed on the slug picks up the change
+ * on the next render.
  */
 export async function saveTemplate(id: string, form: FormData): Promise<void> {
   const existing = await prisma.template.findUnique({ where: { id } })
   if (!existing) throw new Error("Template not found.")
 
-  const status =
-    (form.get("status") as "DRAFT" | "PUBLISHED" | null) ?? existing.status
+  // --- Metadata (§4) -----------------------------------------------------
+  const titleField = form.get("title")
+  const title =
+    typeof titleField === "string" && titleField.trim()
+      ? titleField.trim()
+      : existing.title
+
+  const kindField = form.get("kind")
+  const kind =
+    kindField === "LAYOUT" || kindField === "PATTERN" || kindField === "PART"
+      ? kindField
+      : existing.kind
+
+  // Area only applies to PART; cleared otherwise.
+  const areaField = form.get("area")
+  const area =
+    kind === "PART" && typeof areaField === "string" && areaField.trim()
+      ? areaField.trim()
+      : null
+
+  // Base UI Switch posts "on" when checked, nothing when unchecked.
+  const synced = form.get("synced") === "on"
+
+  const slugField = form.get("slug")
+  const slug =
+    typeof slugField === "string" && slugField.trim()
+      ? slugField.trim()
+      : existing.slug
+  const slugChanged = slug !== existing.slug
+  if (slugChanged) {
+    validateSlug(slug)
+    // Per-tenant slug uniqueness (globals share the null-tenant space).
+    const clash = await prisma.template.findFirst({
+      where: { tenantId: existing.tenantId, slug, id: { not: id } },
+      select: { id: true },
+    })
+    if (clash) {
+      throw new Error(`A template with slug "${slug}" already exists.`)
+    }
+    if (await templateRefExists(existing.slug)) {
+      throw new Error(
+        `Cannot rename "${existing.slug}" — it is referenced by existing ` +
+          `content. Remove those references before renaming.`
+      )
+    }
+  }
 
   // The editor shell injects this on submit as the full
   // `editor.getProjectData()` shape (`{ pages: [{ frames: [{ component }] }], styles, ... }`).
@@ -47,15 +94,14 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
     body = slimTemplateProject(project)
   }
 
-  const wasPublished = existing.status === "PUBLISHED"
-  const willBePublished = status === "PUBLISHED"
-
   await prisma.template.update({
     where: { id },
     data: {
-      status,
-      publishedAt:
-        willBePublished && !wasPublished ? new Date() : existing.publishedAt,
+      title,
+      slug,
+      kind,
+      area,
+      synced,
       // Committing the editor state clears any pending autosave draft so
       // the next load seeds from `data`. Metadata-only saves (no `data`
       // field) leave the draft untouched.
@@ -66,6 +112,7 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
   })
 
   updateTag(cacheTags.template(existing.slug))
+  if (slugChanged) updateTag(cacheTags.template(slug))
 }
 
 /**
@@ -135,7 +182,7 @@ export async function createTemplate(
   }
 
   const created = await prisma.template.create({
-    data: { tenantId, slug, title, kind, status: "DRAFT" },
+    data: { tenantId, slug, title, kind },
     select: { id: true },
   })
 
@@ -226,7 +273,6 @@ export async function createTemplateFromSelection(
       kind,
       area: kind === "PART" ? areaField : null,
       synced,
-      status: "DRAFT",
       data: body as object,
     },
     select: {
@@ -241,4 +287,35 @@ export async function createTemplateFromSelection(
 
   updateTag(cacheTags.template(slug))
   return created
+}
+
+/**
+ * Delete a Template and return to the Library index.
+ *
+ * Reference impact (§5, resolved decision): deletion is *not* blocked
+ * when `template-ref` nodes still point at the slug. Refs live inside
+ * JSON columns with no FK link, so they're left in place — the resolver
+ * already renders them as `missing:<slug>` placeholders once the row is
+ * gone (see `resolvePageTree`). A pre-delete "reference inventory" view
+ * (powered by `templateRefExists` / a future count) is the deferred
+ * enhancement; for now delete is unconditional.
+ *
+ * Bumps the `template:<slug>` tag so any resolver caching keyed on the
+ * slug drops the stale body. Redirects to the kind's Library route
+ * (PATTERN → patterns, LAYOUT/PART → templates); globals (no tenant)
+ * fall back to the all-tenants listing.
+ */
+export async function deleteTemplate(id: string): Promise<void> {
+  const tpl = await prisma.template.findUnique({
+    where: { id },
+    select: { slug: true, kind: true, tenantId: true },
+  })
+  if (!tpl) return
+
+  await prisma.template.delete({ where: { id } })
+  updateTag(cacheTags.template(tpl.slug))
+
+  if (!tpl.tenantId) redirect("/admin/tenants")
+  const section = tpl.kind === "PATTERN" ? "patterns" : "templates"
+  redirect(`/admin/tenants/${tpl.tenantId}/library/${section}`)
 }

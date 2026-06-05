@@ -98,6 +98,42 @@ export async function loadTemplate(
   return rows[0] ?? null
 }
 
+/**
+ * Does any persisted content reference `slug` via a `template-ref`?
+ *
+ * Backs the §4 slug-rename guard: renaming a template's slug silently
+ * breaks every `{ type: "template-ref", attributes: { "data-slug": slug } }`
+ * node pointing at it (refs live inside JSON columns, not FK-linked), so
+ * we forbid the rename while any exist.
+ *
+ * Scans `pages`, `posts`, and `templates` (a LAYOUT can reference a PART
+ * via the same node) with a single recursive JSONPath probe per table.
+ * `$.** ? (@."data-slug" == $s)` matches any object at any depth carrying
+ * the slug, so it's robust to arbitrary nesting; lax mode (the default)
+ * swallows the structural mismatch on scalar members. Not tenant-scoped:
+ * a global template's slug can be referenced from any tenant's content.
+ */
+export async function templateRefExists(slug: string): Promise<boolean> {
+  const vars = JSON.stringify({ s: slug })
+  const rows = await prisma.$queryRaw<{ found: boolean }[]>`
+    SELECT (
+      EXISTS (
+        SELECT 1 FROM "pages"
+        WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)
+      )
+      OR EXISTS (
+        SELECT 1 FROM "posts"
+        WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)
+      )
+      OR EXISTS (
+        SELECT 1 FROM "templates"
+        WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)
+      )
+    ) AS "found"
+  `
+  return rows[0]?.found ?? false
+}
+
 // --- Resolver ----------------------------------------------------------
 
 const TEMPLATE_REF_TYPE = "template-ref"

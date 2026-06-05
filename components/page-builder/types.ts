@@ -32,7 +32,7 @@ export type TemplateRecord = {
   kind: "LAYOUT" | "PATTERN" | "PART"
   area: string | null
   synced: boolean
-  status: "DRAFT" | "PUBLISHED"
+  // No status: templates have no publish lifecycle (see TopBarRight).
   updatedAt: Date
 }
 
@@ -66,14 +66,16 @@ export type ContentStatus = "DRAFT" | "PUBLISHED"
 // primary-action label (Publish vs Update) and the "unpublished changes"
 // hint — see TopBarRight. Refreshes as a prop after a commit revalidates
 // the editor route, so the button flips without a manual store write.
-export const contentStatus = (content: EditorContent): ContentStatus => {
+// Templates have no publish lifecycle, so this is page/post-only — the
+// top-bar renders a plain Save for templates and never calls this.
+export const contentStatus = (
+  content: PageContent | PostContent
+): ContentStatus => {
   switch (content.kind) {
     case "page":
       return content.page.status
     case "post":
       return content.post.status
-    case "template":
-      return content.template.status
   }
 }
 

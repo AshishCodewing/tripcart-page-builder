@@ -169,8 +169,8 @@ model Template {
   draftData   Json?
   // Optional thumbnail URL for inserter UIs.
   preview     String?
-  status      ContentStatus @default(DRAFT)
-  publishedAt DateTime?
+  // No publish lifecycle: a template reaches the public site only by
+  // being inserted into a Page/Post, whose own status gates publication.
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

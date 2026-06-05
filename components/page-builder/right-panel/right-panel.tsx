@@ -29,9 +29,11 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import {
   contentKindLabel,
+  contentStatus,
   type EditorContent,
   type PageContent,
   type PostContent,
@@ -94,7 +96,9 @@ function recordOf(content: EditorContent) {
 export default function RightPanel({ content, deleteAction }: Props) {
   const editor = useEditorMaybe()
   const record = recordOf(content)
-  const isPublished = record.status === "PUBLISHED"
+  // Templates have no publish lifecycle; status is page/post-only.
+  const status = content.kind === "template" ? null : contentStatus(content)
+  const isPublished = status === "PUBLISHED"
   const kindLabel = contentKindLabel(content)
   const tabValue = content.kind
 
@@ -140,14 +144,16 @@ export default function RightPanel({ content, deleteAction }: Props) {
 
           <SidebarGroup className="p-0">
             <SidebarGroupContent className="flex flex-col gap-3">
-              <FieldRow label="Status">
-                <Badge
-                  variant={isPublished ? "default" : "secondary"}
-                  className="capitalize"
-                >
-                  {record.status.toLowerCase()}
-                </Badge>
-              </FieldRow>
+              {status !== null && (
+                <FieldRow label="Status">
+                  <Badge
+                    variant={isPublished ? "default" : "secondary"}
+                    className="capitalize"
+                  >
+                    {status.toLowerCase()}
+                  </Badge>
+                </FieldRow>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="title" className="text-xs">
@@ -267,32 +273,60 @@ function PostOnlyFields({ content }: { content: PostContent }) {
   )
 }
 
-// MVP placeholder: surfaces template metadata as read-only badges. The
-// title/slug inputs above are still rendered (shared with page/post)
-// but `saveTemplate` currently ignores them — see template-actions.ts.
-// A full metadata form (rename slug, change kind/area, toggle synced)
-// lands with the templates admin index.
+// Editable template metadata (§4). These inputs ride the same enclosing
+// editor <form> as the shared title/slug fields, so the template Save
+// button posts them all; `saveTemplate` reads + validates them. Kind is
+// controlled so the Area field can show only for PART templates.
 function TemplateOnlyFields({ content }: { content: TemplateContent }) {
   const { kind, area, synced } = content.template
+  const [selectedKind, setSelectedKind] =
+    React.useState<TemplateContent["template"]["kind"]>(kind)
+
   return (
-    <div className="flex flex-col gap-3">
-      <FieldRow label="Kind">
-        <Badge variant="secondary" className="capitalize">
-          {kind.toLowerCase()}
-        </Badge>
-      </FieldRow>
-      {area ? (
-        <FieldRow label="Area">
-          <Badge variant="secondary" className="capitalize">
-            {area}
-          </Badge>
-        </FieldRow>
-      ) : null}
-      <FieldRow label="Synced">
-        <Badge variant={synced ? "default" : "secondary"}>
-          {synced ? "On" : "Off"}
-        </Badge>
-      </FieldRow>
-    </div>
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="kind" className="text-xs">
+          Kind
+        </Label>
+        <Select
+          name="kind"
+          value={selectedKind}
+          onValueChange={(value) =>
+            setSelectedKind(value as TemplateContent["template"]["kind"])
+          }
+        >
+          <SelectTrigger id="kind" size="sm" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="LAYOUT">Layout</SelectItem>
+            <SelectItem value="PATTERN">Pattern</SelectItem>
+            <SelectItem value="PART">Part</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedKind === "PART" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="area" className="text-xs">
+            Area
+          </Label>
+          <Input
+            id="area"
+            name="area"
+            defaultValue={area ?? ""}
+            placeholder="header, footer, sidebar…"
+            inputSize="sm"
+          />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor="synced" className="text-xs">
+          Synced
+        </Label>
+        <Switch id="synced" name="synced" defaultChecked={synced} size="sm" />
+      </div>
+    </>
   )
 }

@@ -9,7 +9,7 @@ import {
   listTemplates,
   type TemplateBody,
 } from "@/lib/cms/templates"
-import { saveTemplate } from "@/lib/cms/template-actions"
+import { deleteTemplate, saveTemplate } from "@/lib/cms/template-actions"
 import { getTenantTheme } from "@/lib/cms/tenants"
 import { defaultTheme } from "@/lib/tokens"
 
@@ -46,17 +46,11 @@ export default async function EditTemplatePage({
     kind: tpl.kind,
     area: tpl.area,
     synced: tpl.synced,
-    status: tpl.status,
     updatedAt: tpl.updatedAt,
   }
 
   const saveAction = saveTemplate.bind(null, id)
-  // Delete isn't wired yet — pass a no-op so the right panel's delete
-  // button doesn't fire arbitrary actions. A proper template delete
-  // lands with the templates admin index.
-  const deleteAction = async () => {
-    "use server"
-  }
+  const deleteAction = deleteTemplate.bind(null, id)
 
   // Wrap the slim Template body (`{ component, styles }`, §9) back into
   // the full project shape GrapesJS expects — the editor IO boundary.

@@ -143,7 +143,9 @@ export default function TopBarRight({ content, className }: Props) {
     : ""
   const indexHref = contentIndexHref(content)
   const indexLabel = contentIndexLabel(content)
-  const status = contentStatus(content)
+  // Templates have no publish lifecycle — status drives only the
+  // page/post Save-draft / Publish buttons, which aren't rendered here.
+  const status = isTemplate ? null : contentStatus(content)
   const dirty = useIsDirty()
   const router = useRouter()
 
@@ -180,7 +182,7 @@ export default function TopBarRight({ content, className }: Props) {
 
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      {!isTemplate && <SaveDraftButton status={status} />}
+      {!isTemplate && status && <SaveDraftButton status={status} />}
 
       <DevicesProvider>
         {({ selected, select, devices }) => (
@@ -221,7 +223,7 @@ export default function TopBarRight({ content, className }: Props) {
 
       <SidebarTrigger type="button" aria-label="Toggle settings sidebar" />
 
-      {isTemplate ? (
+      {isTemplate || !status ? (
         <SaveButton />
       ) : (
         <PublishButton status={status} dirty={dirty} />

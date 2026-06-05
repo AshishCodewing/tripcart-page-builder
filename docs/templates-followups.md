@@ -27,11 +27,15 @@ Tracks what still needs to land before the templates story is "complete." See `d
 - **§6 precise per-subtree style extraction** — `lib/cms/style-extract.ts` (`collectComponentIdentity` + `extractStylesForSubtree`); the convert dialog now snapshots only the rules targeting the converted subtree (normalizing GrapesJS' shallow `toJSON` output to plain data first). See §6.
 - **§7 on-canvas inline preview (incl. styles)** — `templateRefPlugin` is now a factory closing over `templates`; a `template-ref` inlines its referenced template's `data.component` as **locked, non-layerable** children so converted headers/heroes/footers show real content instead of a one-line label. Depth-guarded (`MAX_PREVIEW_DEPTH=8`) against cycles; `model.toJSON` strips the preview so nothing extra persists to `page.data`. The template's `data.styles` (the §6 subtree slice) are injected into the **CSS model as protected rules** (shared `applyTemplateStyles`) and re-applied on `editor.on("load")` — the `designSystemPlugin` pattern. Going through the model (not a detached iframe `<style>`) is what makes them survive reload/navigation, since GrapesJS re-renders its model into the canvas; `protected` keeps them out of saved data, and the dedupe never flips a page-owned rule to protected. Serialized with the same `CssComposer` the preview/publish path uses, so canvas matches the published render. See §7.
 
-### Pending
+### Shipped (2026-06-05 — §3 listing + create-from-scratch)
 
-- A way to create templates from scratch (no UI today). See §3.
-- Editable template metadata (slug rename, kind change, area, synced toggle). See §4.
-- Template delete action + reference-impact handling. See §5.
+- **§3 Library admin pages + create-from-scratch** — `/admin/(shell)/tenants/[id]/library/templates` (LAYOUT) and `…/library/patterns` (PATTERN) server-render via a new `listTemplatesByKind(tenantId, kind)` read (hits `@@index([tenantId, kind])`, same tenant-first/global-fallback visibility as `listTemplates`). Both routes share `template-grid.tsx` (card grid: title, kind, area, preview, updatedAt) and `add-template-dialog.tsx`. New `createTemplate(tenantId, form)` server action seeds a blank DRAFT row (`data = {}`) with a title-derived, per-tenant-deduped slug and redirects into `/admin/templates/[id]/edit`. See §3. **Carry-overs:** the index is split into two per-kind routes rather than one combined table; `createTemplate` constrains `kind` to LAYOUT|PATTERN (no PART authoring path yet); the admin-only "Global library" route (`tenantId IS NULL`) is not built.
+
+- **§4 editable template metadata** — `TemplateOnlyFields` (right-panel.tsx) now renders real inputs: a controlled Kind `Select` (LAYOUT/PATTERN/PART) that reveals an Area input only for PART, plus a Synced `Switch`. They ride the shared editor `<form>` alongside the existing title/slug inputs, so the template Save button posts them all. `saveTemplate` reads + persists title/slug/kind/area/synced (area cleared for non-PART; synced from the Base UI checkbox's `"on"`). Slug rename is guarded: per-tenant uniqueness + **forbidden while any `template-ref` points at the old slug** (§4 option 1) via the new `templateRefExists(slug)` read (one recursive `jsonb_path_exists($.** ? (@."data-slug" == $s))` probe across `pages`/`posts`/`templates`). Cache tag bumped for old + new slug on rename. See §4.
+- **Template publish lifecycle removed** — `status`/`publishedAt` dropped from the `Template` model (migration `20260605075151_drop_template_status`); `ContentStatus` enum stays for Page/Post. Templates have no publish state (they reach the site only via a consuming Page/Post). `contentStatus` is now page/post-only; the right-panel Status badge and slug-disable-when-published chrome are gated off for templates; the top-bar already showed a plain Save for templates.
+- **§5 template delete + reference impact** — `deleteTemplate(id)` server action deletes the row, bumps `template:<slug>`, and redirects to the kind's Library route (PATTERN → patterns, LAYOUT/PART → templates; globals → `/admin/tenants`). Wired into the template editor's right-panel "Move to trash" (was a no-op). Per the resolved decision, delete is **unconditional** — refs aren't blocked; the resolver already renders a `missing:<slug>` placeholder for the now-deleted row, so refs degrade gracefully. **Deferred:** a pre-delete "reference inventory" view / ref-count warning (would build on `templateRefExists`). See §5.
+
+### Pending
 - **Pattern categories** on Templates so the block inserter can filter by category beyond just kind — matches WP's pattern-category UX. See §10.
 - **Overrides on synced templates** — mark specific child components as per-instance-editable so a synced card layout can have a fixed structure with variable title/image. WP 6.6+ feature; closes a real gap in our synced model. See §11.
 - **Headless thumbnail generation for `Template.preview`** — replace the per-kind placeholder SVGs with real renders. See §12.
@@ -92,6 +96,8 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ## 3. Create-template-from-scratch UI
 
+**Status: shipped (2026-06-05).** Landed as two per-kind Library routes — `app/admin/(shell)/tenants/[id]/library/templates/page.tsx` (LAYOUT) and `…/library/patterns/page.tsx` (PATTERN) — instead of one combined `…/templates` index. Both call `listTemplatesByKind(id, kind)` (`lib/cms/templates.ts`) and render the shared `template-grid.tsx`; `add-template-dialog.tsx` collects the title + kind and posts to `createTemplate(tenantId, form)` (`lib/cms/template-actions.ts`), which seeds a blank DRAFT (`data = {}`), dedupes the slug per tenant, and `redirect`s into the editor. **Deviations from the plan below:** (a) split per-kind rather than one table; (b) `createTemplate` restricts `kind` to LAYOUT|PATTERN — no PART path; (c) the global-library route + the app-admin permission gate for `tenantId IS NULL` writes are NOT built. The original plan follows.
+
 **What:** An admin index at `/admin/tenants/[id]/templates` showing the tenant's templates + a "Create template" button that opens a blank template editor.
 
 **Why:** Convert-from-selection covers the common case, but you also need to be able to author a template starting from nothing — typically headers/footers built from `template-part` material.
@@ -115,6 +121,8 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 ---
 
 ## 4. Editable template metadata in the right panel
+
+**Status: shipped (2026-06-05).** `TemplateOnlyFields` (right-panel.tsx) now renders a controlled Kind `Select` (LAYOUT/PATTERN/PART — Area input appears only for PART) and a Synced `Switch`; title/slug stay the shared inputs at the top of the panel. `saveTemplate(id, form)` reads title/slug/kind/area/synced, falls back to existing values for missing fields, clears `area` for non-PART, and reads `synced` from the Base UI checkbox (`"on"` when checked). Slug rename policy = §4 option 1 (forbid): `validateSlug` + per-tenant uniqueness check + `templateRefExists(slug)` (a single recursive `jsonb_path_exists` probe across `pages`/`posts`/`templates`) — rename throws if any `template-ref` still points at the old slug. Cache tag bumped for old + new slug. **Not done (deferred):** bulk-rename (§4 option 2) that updates all referencing nodes instead of forbidding; surfacing the ref count in the error so the user knows *where* the refs are (the §5 "reference inventory" view would cover this). The original plan follows.
 
 **What:** Replace the read-only badges in `TemplateOnlyFields` (right-panel.tsx) with real inputs for slug, kind, area, synced. Save through an expanded `saveTemplate` that accepts these fields.
 
@@ -146,6 +154,8 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 ---
 
 ## 5. Template delete + reference impact
+
+**Status: shipped (2026-06-05).** `deleteTemplate(id)` (`lib/cms/template-actions.ts`) deletes the row, bumps `cacheTags.template(slug)`, and `redirect`s to the kind's Library route — PATTERN → `…/library/patterns`, LAYOUT/PART → `…/library/templates`, globals (no tenant) → `/admin/tenants`. It's wired into the template editor right-panel's existing "Move to trash" button (the edit page now binds `deleteTemplate.bind(null, id)` instead of the old no-op). **Reference impact = resolved decision (allow):** delete is unconditional; refs in `pages`/`posts`/other templates are left in place and the resolver renders them as `missing:<slug>` placeholders (`resolvePageTree` returns `placeholder("missing:" + slug)` when `loadTemplate` finds nothing), so nothing crashes. **Not done (deferred):** a pre-delete reference-inventory / count warning built on `templateRefExists`, a distinct "deleted-ref" placeholder variant, and a delete confirmation dialog (page/post deletes have none either — matched that). The original plan follows.
 
 **What:** Implement the "Move to trash" button for templates in the right panel. Decide what happens to `template-ref` nodes pointing at the deleted slug.
 
@@ -488,8 +498,8 @@ Captured for when we resume each task:
 |---|---|
 | Where does the convert-to-template modal live? | shadcn Dialog in the React shell (preferred) vs. GrapesJS Modal API. Leaning shadcn for consistency. |
 | Default `kind` and `synced` when converting any selection? | Leaning `kind: PATTERN, synced: false` — matches WP's default and keeps reuse-on-by-default off until the user opts in. |
-| Slug rename policy when refs exist? | Forbid for MVP (option 1 in §4). Add bulk-rename later if needed. |
-| Delete behavior when refs exist? | Allow delete, render placeholders. Add an inventory view later. |
+| Slug rename policy when refs exist? | **Resolved + shipped (2026-06-05):** forbid (option 1) via `templateRefExists`. Bulk-rename (option 2) deferred. |
+| Delete behavior when refs exist? | **Resolved + shipped (2026-06-05):** allow delete; refs render `missing:<slug>` placeholders. Inventory view deferred. |
 | `Template.version: Int` for cache keys? | Add when we wire render-path caching. Mirror the theme system's `themeVersion` pattern. |
 | Special slugs (`home` / `404` / etc.) renderer mapping? | Spec'd in `docs/templates.md`; build alongside the render-path integration. |
 | Cross-tenant publish ("install this from tenant A to tenant B")? | Out of scope for MVP. Would need many-to-many or copy-on-install. |
