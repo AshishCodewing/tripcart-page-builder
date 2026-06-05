@@ -114,7 +114,22 @@ function PublishButton({
   )
 }
 
+// Templates have no publish lifecycle — a template/pattern reaches the
+// public site only by being inserted into a Page/Post, whose own status
+// gates publication. So the template editor shows a single plain Save
+// (no Publish / Switch-to-draft). It posts no `status` field, so
+// `saveTemplate` leaves the row's status untouched.
+function SaveButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" size="sm" disabled={pending}>
+      {pending ? "Saving..." : "Save"}
+    </Button>
+  )
+}
+
 export default function TopBarRight({ content, className }: Props) {
+  const isTemplate = content.kind === "template"
   // Tenant rides on the preview URL — `/api/preview` validates it and
   // redirects into `/preview/<tenantId><path>`, where the preview routes
   // read the tenant from the URL segment. Without it those routes can't
@@ -165,7 +180,7 @@ export default function TopBarRight({ content, className }: Props) {
 
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      <SaveDraftButton status={status} />
+      {!isTemplate && <SaveDraftButton status={status} />}
 
       <DevicesProvider>
         {({ selected, select, devices }) => (
@@ -206,7 +221,11 @@ export default function TopBarRight({ content, className }: Props) {
 
       <SidebarTrigger type="button" aria-label="Toggle settings sidebar" />
 
-      <PublishButton status={status} dirty={dirty} />
+      {isTemplate ? (
+        <SaveButton />
+      ) : (
+        <PublishButton status={status} dirty={dirty} />
+      )}
 
       <ThemeToggle />
       <DropdownMenu>
