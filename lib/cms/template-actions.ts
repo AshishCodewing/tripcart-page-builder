@@ -1,6 +1,7 @@
 "use server"
 
 import { updateTag } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
@@ -89,6 +90,57 @@ export type CreatedTemplate = {
   kind: "LAYOUT" | "PATTERN" | "PART"
   area: string | null
   synced: boolean
+}
+
+/**
+ * Create a blank tenant-scoped Template from the Library admin pages and
+ * jump straight into the editor. Unlike `createTemplateFromSelection`
+ * (which captures an existing GrapesJS subtree), this seeds no content —
+ * the row keeps the schema-default `data = {}`, which the editor opens as
+ * an empty canvas (see the template edit page's `data === {}` handling).
+ *
+ * `kind` is constrained to LAYOUT | PATTERN here — the only two surfaced
+ * by the Library (PART chrome is authored elsewhere). Slug is derived
+ * from the title and de-duplicated per tenant, mirroring
+ * `createTemplateFromSelection`. Redirects to the editor on success.
+ */
+export async function createTemplate(
+  tenantId: string,
+  form: FormData
+): Promise<void> {
+  if (!tenantId) throw new Error("Tenant is required.")
+
+  const title = String(form.get("title") ?? "").trim()
+  const kindField = String(form.get("kind") ?? "").trim()
+
+  if (!title) throw new Error("Title is required.")
+  if (kindField !== "LAYOUT" && kindField !== "PATTERN")
+    throw new Error("Kind must be LAYOUT or PATTERN.")
+  const kind = kindField as "LAYOUT" | "PATTERN"
+
+  const baseSlug = titleToSlug(title)
+  if (!baseSlug)
+    throw new Error("Title must contain at least one letter or number.")
+  validateSlug(baseSlug)
+  let slug = baseSlug
+  let suffix = 2
+  while (
+    await prisma.template.findUnique({
+      where: { tenantId_slug: { tenantId, slug } },
+      select: { id: true },
+    })
+  ) {
+    slug = `${baseSlug}-${suffix}`
+    suffix++
+  }
+
+  const created = await prisma.template.create({
+    data: { tenantId, slug, title, kind, status: "DRAFT" },
+    select: { id: true },
+  })
+
+  updateTag(cacheTags.template(slug))
+  redirect(`/admin/templates/${created.id}/edit`)
 }
 
 export async function createTemplateFromSelection(

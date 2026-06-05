@@ -9,7 +9,7 @@
  * See `docs/templates.md` for the design.
  */
 
-import type { Template } from "@/generated/prisma/client"
+import type { Template, TemplateKind } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import type {
   ComponentDefinition,
@@ -58,6 +58,22 @@ export async function getTemplateIdBySlug(
 export async function listTemplates(tenantId: string) {
   return prisma.template.findMany({
     where: { OR: [{ tenantId }, { tenantId: null }] },
+    orderBy: [{ tenantId: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+  })
+}
+
+/**
+ * Same visibility rule as `listTemplates` (tenant rows + globals,
+ * tenant-first) but narrowed to a single `kind` — backs the Library
+ * admin pages (Templates = LAYOUT, Patterns = PATTERN). Hits the
+ * `@@index([tenantId, kind])`.
+ */
+export async function listTemplatesByKind(
+  tenantId: string,
+  kind: TemplateKind
+) {
+  return prisma.template.findMany({
+    where: { kind, OR: [{ tenantId }, { tenantId: null }] },
     orderBy: [{ tenantId: { sort: "asc", nulls: "last" } }, { title: "asc" }],
   })
 }

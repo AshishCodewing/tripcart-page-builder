@@ -6,17 +6,14 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
 import { updateTenantTheme } from "@/lib/cms/tenant-actions"
-import { COLOR_PRESETS, TYPOGRAPHY_PRESETS } from "@/lib/theme/presets"
+import { ALL_PRESETS } from "@/lib/theme/presets"
 import { themeStore } from "@/lib/theme/theme-store"
 import type { Theme } from "@/lib/theme/schema"
-
-import PresetGrid from "./preset-grid"
-
-const ALL_PRESETS = [...COLOR_PRESETS, ...TYPOGRAPHY_PRESETS]
 
 type Props = {
   tenantId: string
   initialTheme: Theme
+  children: React.ReactNode
 }
 
 /**
@@ -25,7 +22,7 @@ type Props = {
  * `themeStore` is the runtime source of truth and the draft holder:
  * we hydrate it from `initialTheme` on mount and whenever the prop
  * changes (e.g., after a successful save triggers `router.refresh()`),
- * then let `PresetGrid` mutate it freely. `Save` reads the current
+ * then let the rendered grids mutate it freely. `Save` reads the current
  * store snapshot and commits via the server action. `Discard` snaps
  * it back to the loaded `initialTheme` without a server round-trip.
  *
@@ -34,7 +31,11 @@ type Props = {
  * route mounts with its own `themeStore.setTheme(tenantTheme)` call,
  * so an unsaved draft never leaks into a page-builder session.
  */
-export default function TenantThemeEditor({ tenantId, initialTheme }: Props) {
+export default function TenantThemeEditor({
+  tenantId,
+  initialTheme,
+  children,
+}: Props) {
   useEffect(() => {
     themeStore.setTheme(initialTheme)
     themeStore.detectActivePresets(ALL_PRESETS)
@@ -67,7 +68,7 @@ export default function TenantThemeEditor({ tenantId, initialTheme }: Props) {
 
   return (
     <div className="space-y-6">
-      <PresetGrid />
+      {children}
 
       <div className="flex items-center gap-3 border-t pt-4">
         <Button onClick={onSave} disabled={pending}>
