@@ -1,20 +1,13 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { createPage } from "@/lib/cms/page-actions"
 import { listPages } from "@/lib/cms/pages"
 import { getTenantById } from "@/lib/cms/tenants"
+
+import { PagesDataTable } from "./pages-data-table"
 
 export default async function TenantPagesPage({
   params,
@@ -55,37 +48,7 @@ export default async function TenantPagesPage({
       {pages.length === 0 ? (
         <p className="text-sm text-muted-foreground">No pages yet.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Path</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pages.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.title}</TableCell>
-                <TableCell className="font-mono text-xs">/{p.path}</TableCell>
-                <TableCell>{p.status}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {p.updatedAt.toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link
-                    href={`/admin/pages/${p.id}/edit`}
-                    className="text-primary hover:underline"
-                  >
-                    Edit
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PagesDataTable tenantId={tenant.id} items={pages} />
       )}
     </section>
   )

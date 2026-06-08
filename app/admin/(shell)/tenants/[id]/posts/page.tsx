@@ -1,20 +1,13 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { createPost } from "@/lib/cms/post-actions"
 import { listAllPosts } from "@/lib/cms/posts"
 import { getTenantById } from "@/lib/cms/tenants"
+
+import { PostsDataTable } from "./posts-data-table"
 
 export default async function TenantPostsPage({
   params,
@@ -55,39 +48,7 @@ export default async function TenantPostsPage({
       {posts.length === 0 ? (
         <p className="text-sm text-muted-foreground">No posts yet.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {posts.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.title}</TableCell>
-                <TableCell className="font-mono text-xs">
-                  /blog/{p.slug}
-                </TableCell>
-                <TableCell>{p.status}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {p.updatedAt.toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link
-                    href={`/admin/posts/${p.id}/edit`}
-                    className="text-primary hover:underline"
-                  >
-                    Edit
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PostsDataTable tenantId={tenant.id} items={posts} />
       )}
     </section>
   )
