@@ -23,6 +23,8 @@ import {
 import { registerCardBlocks } from "./cards/cards"
 import { registerTestimonialBlock } from "./testimonial-block/testimonial-block"
 import { registerTripsBlock } from "./trips-block/trips-block"
+import { registerDestinationPage } from "./page-destination/page-destination"
+import { registerPricingPage } from "./page-pricing/page-pricing"
 
 export const patternsPlugin = (editor: Editor): void => {
   registerHeroBlock(editor)
@@ -31,6 +33,8 @@ export const patternsPlugin = (editor: Editor): void => {
   registerCardBlocks(editor)
   registerTestimonialBlock(editor)
   registerTripsBlock(editor)
+  registerDestinationPage(editor)
+  registerPricingPage(editor)
 }
 
 export const patternComponents: Record<string, ComponentConfig> = {
