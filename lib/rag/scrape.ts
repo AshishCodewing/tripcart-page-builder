@@ -10,6 +10,11 @@ export type RawPage = {
 type CrawlOptions = {
   rootUrl: string
   pathPrefix: string
+  /**
+   * Pathname prefixes to skip (e.g. ["/themes/getting-started"]). A URL is
+   * skipped if its pathname equals one of these or starts with `${ex}/`.
+   */
+  excludePathPrefixes?: string[]
   concurrency?: number
   delayMs?: number
   maxPages?: number
@@ -51,6 +56,7 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
   const {
     rootUrl,
     pathPrefix,
+    excludePathPrefixes = [],
     concurrency = 4,
     delayMs = 600,
     maxPages = 500,
@@ -69,6 +75,10 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
   const matchesPrefix = (path: string): boolean =>
     path === prefixNoSlash || path.startsWith(`${prefixNoSlash}/`)
 
+  const excludesNoSlash = excludePathPrefixes.map((p) => p.replace(/\/$/, ""))
+  const isExcluded = (path: string): boolean =>
+    excludesNoSlash.some((ex) => path === ex || path.startsWith(`${ex}/`))
+
   const visited = new Set<string>()
   const queued = new Set<string>()
   const pages: RawPage[] = []
@@ -80,6 +90,7 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
     const u = new URL(url)
     if (u.origin !== origin) return
     if (!matchesPrefix(u.pathname)) return
+    if (isExcluded(u.pathname)) return
     queued.add(url)
     void queue.add(() => visit(url))
   }

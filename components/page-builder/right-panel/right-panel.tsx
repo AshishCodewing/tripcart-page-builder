@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useEditorMaybe } from "@grapesjs/react"
 import { Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -28,27 +29,20 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-
-type PageSummary = {
-  id: string
-  title: string
-  slug: string
-  parentId: string | null
-  path: string
-  status: "DRAFT" | "PUBLISHED"
-  updatedAt: Date
-}
-
-type ParentOption = {
-  id: string
-  title: string
-  path: string
-}
-
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  contentKindLabel,
+  contentStatus,
+  type EditorContent,
+  type PageContent,
+  type PostContent,
+  type TemplateContent,
+} from "@/components/page-builder/types"
+import BlockSettings from "../managers/block-settings"
 type Props = {
-  page: PageSummary
-  parentOptions: ParentOption[]
-  /** Server action bound to the page id. */
+  content: EditorContent
+  /** Server action bound to the record id. */
   deleteAction: () => Promise<void>
 }
 
@@ -61,6 +55,16 @@ function formatRelative(date: Date): string {
   if (absSec < 3600) return RTF.format(Math.round(diffMs / 60_000), "minute")
   if (absSec < 86_400) return RTF.format(Math.round(diffMs / 3_600_000), "hour")
   return RTF.format(Math.round(diffMs / 86_400_000), "day")
+}
+
+function RelativeTime({ date }: { date: Date }) {
+  const [label, setLabel] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    setLabel(formatRelative(date))
+    const id = setInterval(() => setLabel(formatRelative(date)), 30_000)
+    return () => clearInterval(id)
+  }, [date])
+  return <>{label ?? ""}</>
 }
 
 function FieldRow({
@@ -78,27 +82,61 @@ function FieldRow({
   )
 }
 
-export default function RightPanel({
-  page,
-  parentOptions,
-  deleteAction,
-}: Props) {
-  const isPublished = page.status === "PUBLISHED"
+function recordOf(content: EditorContent) {
+  switch (content.kind) {
+    case "page":
+      return content.page
+    case "post":
+      return content.post
+    case "template":
+      return content.template
+  }
+}
+
+export default function RightPanel({ content, deleteAction }: Props) {
+  const editor = useEditorMaybe()
+  const record = recordOf(content)
+  // Templates have no publish lifecycle; status is page/post-only.
+  const status = content.kind === "template" ? null : contentStatus(content)
+  const isPublished = status === "PUBLISHED"
+  const kindLabel = contentKindLabel(content)
+  const tabValue = content.kind
+
+  const [activeTab, setActiveTab] = React.useState<string>(tabValue)
+
+  React.useEffect(() => {
+    if (!editor) return
+    const showBlock = () => setActiveTab("block")
+    const showRecord = () => setActiveTab(tabValue)
+    editor.on("component:selected", showBlock)
+    editor.on("component:deselected", showRecord)
+    return () => {
+      editor.off("component:selected", showBlock)
+      editor.off("component:deselected", showRecord)
+    }
+  }, [editor, tabValue])
 
   return (
-    <Tabs defaultValue="page" className="h-full">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="h-full gap-0"
+    >
       <TabsList variant="line" className="w-full justify-start">
-        <TabsTrigger value="page">Page</TabsTrigger>
+        <TabsTrigger value={tabValue}>{kindLabel}</TabsTrigger>
         <TabsTrigger value="block">Block</TabsTrigger>
         <TabsIndicator />
       </TabsList>
 
-      <TabsContent value="page" className="flex min-h-0 flex-col">
+      <TabsContent
+        value={tabValue}
+        className="@apply flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
+      >
         <SidebarContent className="px-3 py-4">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">{page.title}</p>
+            <p className="text-sm font-medium">{record.title}</p>
             <p className="text-xs text-muted-foreground">
-              Last edited {formatRelative(page.updatedAt)}
+              Last edited <RelativeTime date={record.updatedAt} />
             </p>
           </div>
 
@@ -106,14 +144,16 @@ export default function RightPanel({
 
           <SidebarGroup className="p-0">
             <SidebarGroupContent className="flex flex-col gap-3">
-              <FieldRow label="Status">
-                <Badge
-                  variant={isPublished ? "default" : "secondary"}
-                  className="capitalize"
-                >
-                  {page.status.toLowerCase()}
-                </Badge>
-              </FieldRow>
+              {status !== null && (
+                <FieldRow label="Status">
+                  <Badge
+                    variant={isPublished ? "default" : "secondary"}
+                    className="capitalize"
+                  >
+                    {status.toLowerCase()}
+                  </Badge>
+                </FieldRow>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="title" className="text-xs">
@@ -122,7 +162,7 @@ export default function RightPanel({
                 <Input
                   id="title"
                   name="title"
-                  defaultValue={page.title}
+                  defaultValue={record.title}
                   inputSize="sm"
                   required
                 />
@@ -135,8 +175,8 @@ export default function RightPanel({
                 <Input
                   id="slug"
                   name="slug"
-                  defaultValue={page.slug}
-                  pattern="[a-z0-9-]+"
+                  defaultValue={record.slug}
+                  pattern="[a-z0-9\-]+"
                   required
                   inputSize="sm"
                   disabled={isPublished}
@@ -148,28 +188,13 @@ export default function RightPanel({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="parentId" className="text-xs">
-                  Parent
-                </Label>
-                <Select
-                  name="parentId"
-                  defaultValue={page.parentId ?? ""}
-                  disabled={isPublished}
-                >
-                  <SelectTrigger id="parentId" size="sm" className="w-full">
-                    <SelectValue placeholder="— Top level —" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">— Top level —</SelectItem>
-                    {parentOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.title} (/{opt.path})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {content.kind === "page" ? (
+                <PageOnlyFields content={content} isPublished={isPublished} />
+              ) : content.kind === "post" ? (
+                <PostOnlyFields content={content} />
+              ) : (
+                <TemplateOnlyFields content={content} />
+              )}
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
@@ -189,11 +214,119 @@ export default function RightPanel({
         </SidebarFooter>
       </TabsContent>
 
-      <TabsContent value="block" className="flex min-h-0 flex-col">
-        <div className="px-3 py-4 text-sm text-muted-foreground">
-          Select a component to edit its block settings.
-        </div>
+      <TabsContent
+        value="block"
+        className="@apply flex min-h-0 flex-col opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none starting:opacity-0"
+      >
+        <BlockSettings />
       </TabsContent>
     </Tabs>
+  )
+}
+
+function PageOnlyFields({
+  content,
+  isPublished,
+}: {
+  content: PageContent
+  isPublished: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="parentId" className="text-xs">
+        Parent
+      </Label>
+      <Select
+        name="parentId"
+        defaultValue={content.page.parentId ?? ""}
+        disabled={isPublished}
+      >
+        <SelectTrigger id="parentId" size="sm" className="w-full">
+          <SelectValue placeholder="— Top level —" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">— Top level —</SelectItem>
+          {content.parentOptions.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>
+              {opt.title} (/{opt.path})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function PostOnlyFields({ content }: { content: PostContent }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="excerpt" className="text-xs">
+        Excerpt
+      </Label>
+      <Textarea
+        id="excerpt"
+        name="excerpt"
+        defaultValue={content.post.excerpt ?? ""}
+        rows={3}
+      />
+    </div>
+  )
+}
+
+// Editable template metadata (§4). These inputs ride the same enclosing
+// editor <form> as the shared title/slug fields, so the template Save
+// button posts them all; `saveTemplate` reads + validates them. Kind is
+// controlled so the Area field can show only for PART templates.
+function TemplateOnlyFields({ content }: { content: TemplateContent }) {
+  const { kind, area, synced } = content.template
+  const [selectedKind, setSelectedKind] =
+    React.useState<TemplateContent["template"]["kind"]>(kind)
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="kind" className="text-xs">
+          Kind
+        </Label>
+        <Select
+          name="kind"
+          value={selectedKind}
+          onValueChange={(value) =>
+            setSelectedKind(value as TemplateContent["template"]["kind"])
+          }
+        >
+          <SelectTrigger id="kind" size="sm" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="LAYOUT">Layout</SelectItem>
+            <SelectItem value="PATTERN">Pattern</SelectItem>
+            <SelectItem value="PART">Part</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedKind === "PART" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="area" className="text-xs">
+            Area
+          </Label>
+          <Input
+            id="area"
+            name="area"
+            defaultValue={area ?? ""}
+            placeholder="header, footer, sidebar…"
+            inputSize="sm"
+          />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor="synced" className="text-xs">
+          Synced
+        </Label>
+        <Switch id="synced" name="synced" defaultChecked={synced} size="sm" />
+      </div>
+    </>
   )
 }

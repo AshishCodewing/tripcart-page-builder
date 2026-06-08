@@ -1,0 +1,143 @@
+import {
+  AlignCenter,
+  AlignHorizontalDistributeCenter,
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
+  AlignHorizontalSpaceAround,
+  AlignHorizontalSpaceBetween,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  AlignVerticalSpaceAround,
+  AlignVerticalSpaceBetween,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Ban,
+  Baseline,
+  Blend,
+  CaseLower,
+  CaseSensitive,
+  CaseUpper,
+  Image as ImageIcon,
+  Italic,
+  Palette,
+  Strikethrough,
+  StretchHorizontal,
+  StretchVertical,
+  Underline,
+  type LucideIcon,
+} from "lucide-react"
+
+import { OverlineIcon } from "./overline-icon"
+
+// Map of CSS property → option value → icon. RadioField swaps labels for
+// icons only when ALL options of a given property have a mapping (otherwise
+// you get a row of mixed icons + text, which reads worse than plain labels).
+export const OPTION_ICONS: Record<string, Record<string, LucideIcon>> = {
+  "text-align": {
+    left: AlignLeft,
+    center: AlignCenter,
+    right: AlignRight,
+    justify: AlignJustify,
+  },
+  float: {
+    none: Ban,
+    left: AlignLeft,
+    right: AlignRight,
+  },
+  "font-style": {
+    normal: Ban,
+    italic: Italic,
+  },
+  "text-decoration": {
+    none: Ban,
+    underline: Underline,
+    overline: OverlineIcon as LucideIcon,
+    "line-through": Strikethrough,
+  },
+  "text-transform": {
+    none: Ban,
+    uppercase: CaseUpper,
+    lowercase: CaseLower,
+    capitalize: CaseSensitive,
+  },
+  // Flex container axis. Icons are direction-agnostic (the same arrow set
+  // reads the same regardless of writing mode) so they work for both row
+  // and column flow once the user understands the convention.
+  "flex-direction": {
+    row: ArrowRight,
+    "row-reverse": ArrowLeft,
+    column: ArrowDown,
+    "column-reverse": ArrowUp,
+  },
+  // Main-axis distribution. Horizontal-axis lucide icons for visual clarity;
+  // they still read correctly when the parent is column-flow because the
+  // semantics (start / center / end / between / around / evenly) are the same.
+  "justify-content": {
+    "flex-start": AlignHorizontalJustifyStart,
+    center: AlignHorizontalJustifyCenter,
+    "flex-end": AlignHorizontalJustifyEnd,
+    "space-between": AlignHorizontalSpaceBetween,
+    "space-around": AlignHorizontalSpaceAround,
+    "space-evenly": AlignHorizontalDistributeCenter,
+  },
+  // Cross-axis alignment. Vertical-axis icons mirror the main-axis set so
+  // the picker pair (Justify + Align) reads as orthogonal at a glance.
+  "align-items": {
+    "flex-start": AlignVerticalJustifyStart,
+    center: AlignVerticalJustifyCenter,
+    "flex-end": AlignVerticalJustifyEnd,
+    baseline: Baseline,
+    stretch: StretchVertical,
+  },
+  // Cross-axis distribution between wrapped lines. Same axis (and so same
+  // icon family) as align-items, with space-* variants like justify-content.
+  "align-content": {
+    "flex-start": AlignVerticalJustifyStart,
+    center: AlignVerticalJustifyCenter,
+    "flex-end": AlignVerticalJustifyEnd,
+    "space-between": AlignVerticalSpaceBetween,
+    "space-around": AlignVerticalSpaceAround,
+    stretch: StretchVertical,
+  },
+  // Per-child override of align-items. Adds `auto` (= inherit from parent).
+  "align-self": {
+    auto: Ban,
+    "flex-start": AlignVerticalJustifyStart,
+    center: AlignVerticalJustifyCenter,
+    "flex-end": AlignVerticalJustifyEnd,
+    baseline: Baseline,
+    stretch: StretchVertical,
+  },
+  // Grid container — default inline-axis alignment of items within their
+  // cells. Grid uses the keywords `start` / `end` (not `flex-start`), so the
+  // icon map keys differ from justify-content above.
+  "justify-items": {
+    start: AlignHorizontalJustifyStart,
+    center: AlignHorizontalJustifyCenter,
+    end: AlignHorizontalJustifyEnd,
+    stretch: StretchHorizontal,
+  },
+  // Per-child override of justify-items on grid items.
+  "justify-self": {
+    start: AlignHorizontalJustifyStart,
+    center: AlignHorizontalJustifyCenter,
+    end: AlignHorizontalJustifyEnd,
+    stretch: StretchHorizontal,
+  },
+  // grapesjs-style-bg type selector. The plugin (and its BackgroundType enum)
+  // names the option ids `image` / `color` / `grad`. Mapping all three here so
+  // RadioField's `allHaveIcons` check passes and the field renders as a
+  // ToggleGroup instead of falling back to the select dropdown.
+  "__background-type": {
+    image: ImageIcon,
+    color: Palette,
+    grad: Blend,
+  },
+}

@@ -35,9 +35,44 @@ function queryEmbedder(): GoogleGenerativeAIEmbeddings {
   return queryClient
 }
 
+// Gemini's free tier returns empty vectors when rate-limited (no error thrown).
+// Chunk into small batches with a delay between calls. One retry per batch on
+// empty-vector responses catches the occasional transient miss.
+const EMBED_BATCH_SIZE = 20
+const EMBED_INTER_BATCH_DELAY_MS = 1500
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((r) => setTimeout(r, ms))
+
+async function embedSlice(slice: string[]): Promise<number[][]> {
+  let vecs = await docEmbedder().embedDocuments(slice)
+  const emptyIdx = vecs
+    .map((v, i) => (v.length === 0 ? i : -1))
+    .filter((i) => i >= 0)
+  if (emptyIdx.length > 0) {
+    await sleep(EMBED_INTER_BATCH_DELAY_MS * 2)
+    const retryTexts = emptyIdx.map((i) => slice[i])
+    const retryVecs = await docEmbedder().embedDocuments(retryTexts)
+    vecs = vecs.map((v, i) => {
+      const r = emptyIdx.indexOf(i)
+      return r >= 0 ? retryVecs[r] : v
+    })
+  }
+  return vecs
+}
+
 export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
-  return docEmbedder().embedDocuments(texts)
+  const out: number[][] = []
+  for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
+    const slice = texts.slice(i, i + EMBED_BATCH_SIZE)
+    const vecs = await embedSlice(slice)
+    out.push(...vecs)
+    if (i + EMBED_BATCH_SIZE < texts.length) {
+      await sleep(EMBED_INTER_BATCH_DELAY_MS)
+    }
+  }
+  return out
 }
 
 export async function embedQuery(query: string): Promise<number[]> {

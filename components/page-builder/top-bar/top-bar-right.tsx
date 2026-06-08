@@ -1,6 +1,8 @@
 "use client"
 
-import * as React from "react"
+import { useCallback } from "react"
+import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
 import { DevicesProvider } from "@grapesjs/react"
 import {
   Monitor,
@@ -23,14 +25,23 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  contentIndexHref,
+  contentIndexLabel,
+  contentStatus,
+  contentTenantId,
+  hasPreview,
+  previewPath,
+  type ContentStatus,
+  type EditorContent,
+} from "@/components/page-builder/types"
+import { useIsDirty } from "@/lib/page-builder/save-status-store"
+import { useFormGuard } from "@/hooks/use-form-guard"
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 
-type PageSummary = {
-  id: string
-  path: string
-}
-
-type Props = React.HTMLAttributes<HTMLDivElement> & {
-  page: PageSummary
+type Props = {
+  content: EditorContent
+  className?: string
 }
 
 function getDeviceIcon(id: string): LucideIcon {
@@ -40,22 +51,138 @@ function getDeviceIcon(id: string): LucideIcon {
   return Monitor
 }
 
-export default function TopBarRight({ page, className, ...rest }: Props) {
+// The two commit buttons read pending state from the enclosing <form> via
+// useFormStatus. `data.get("status")` tells us *which* button is in flight
+// (each submit button contributes its own name=status value), so we can
+// label only the active one. The DRAFT button doubles as "Switch to draft"
+// once published; the PUBLISHED button reads "Publish" → "Update".
+
+function SaveDraftButton({ status }: { status: ContentStatus }) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "DRAFT"
+  const isPublished = status === "PUBLISHED"
   return (
-    <div
-      className={cn("flex items-center justify-end gap-2", className)}
-      {...rest}
+    <Button
+      type="submit"
+      name="status"
+      value="DRAFT"
+      variant="ghost"
+      size="sm"
+      className="text-primary"
+      disabled={pending}
     >
-      <Button
-        type="submit"
-        name="status"
-        value="DRAFT"
-        variant="ghost"
-        size="sm"
-        className="text-primary"
-      >
-        Save draft
-      </Button>
+      {inFlight
+        ? isPublished
+          ? "Switching..."
+          : "Saving..."
+        : isPublished
+          ? "Switch to draft"
+          : "Save draft"}
+    </Button>
+  )
+}
+
+function PublishButton({
+  status,
+  dirty,
+}: {
+  status: ContentStatus
+  dirty: boolean
+}) {
+  const { pending, data } = useFormStatus()
+  const inFlight = pending && data?.get("status") === "PUBLISHED"
+  const isPublished = status === "PUBLISHED"
+  // Once published with no new edits there's nothing to push, so the
+  // primary action is inert — matching WP's greyed-out "Update".
+  const nothingToPush = isPublished && !dirty
+  return (
+    <Button
+      type="submit"
+      name="status"
+      value="PUBLISHED"
+      size="sm"
+      disabled={pending || nothingToPush}
+    >
+      {inFlight
+        ? isPublished
+          ? "Updating..."
+          : "Publishing..."
+        : isPublished
+          ? "Update"
+          : "Publish"}
+    </Button>
+  )
+}
+
+// Templates have no publish lifecycle — a template/pattern reaches the
+// public site only by being inserted into a Page/Post, whose own status
+// gates publication. So the template editor shows a single plain Save
+// (no Publish / Switch-to-draft). It posts no `status` field, so
+// `saveTemplate` leaves the row's status untouched.
+function SaveButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" size="sm" disabled={pending}>
+      {pending ? "Saving..." : "Save"}
+    </Button>
+  )
+}
+
+export default function TopBarRight({ content, className }: Props) {
+  const isTemplate = content.kind === "template"
+  // Tenant rides on the preview URL — `/api/preview` validates it and
+  // redirects into `/preview/<tenantId><path>`, where the preview routes
+  // read the tenant from the URL segment. Without it those routes can't
+  // disambiguate when two tenants share a path. Templates have no
+  // preview path (no public route) — `showPreview` gates the link.
+  const tenantId = contentTenantId(content)
+  const showPreview = hasPreview(content) && tenantId !== null
+  const previewHref = showPreview
+    ? `/api/preview?path=${encodeURIComponent(previewPath(content))}` +
+      `&tenantId=${encodeURIComponent(tenantId)}`
+    : ""
+  const indexHref = contentIndexHref(content)
+  const indexLabel = contentIndexLabel(content)
+  // Templates have no publish lifecycle — status drives only the
+  // page/post Save-draft / Publish buttons, which aren't rendered here.
+  const status = isTemplate ? null : contentStatus(content)
+  const dirty = useIsDirty()
+  const router = useRouter()
+
+  // Branded confirmation shared by every exit path we control, so they all
+  // look the same. (Tab close / refresh is the one exception — that's the
+  // browser's own un-styleable `beforeunload` dialog, owned by GrapesJS's
+  // `noticeOnUnload`, which is why `guardUnload: false` here.)
+  const { confirm, dialog } = useConfirmDialog({
+    title: "Leave with unsaved changes?",
+    description:
+      "Your latest edits haven't been saved yet and will be lost if you leave this page.",
+    confirmText: "Leave",
+    cancelText: "Stay",
+    destructive: true,
+  })
+
+  // Back / forward buttons (popstate) — handled inside the hook, which awaits
+  // this modal via `onBlock`.
+  useFormGuard({ isDirty: dirty, guardUnload: false, onBlock: confirm })
+
+  // In-app soft navigation (Next 15.3+ <Link onNavigate>). onNavigate is
+  // synchronous, so we cancel the click up front, ask via the same modal, then
+  // resume the navigation imperatively when the user confirms.
+  const guardIndexNav = useCallback(
+    (event: { preventDefault: () => void }) => {
+      if (!dirty) return
+      event.preventDefault()
+      void confirm().then((leave) => {
+        if (leave) router.push(indexHref)
+      })
+    },
+    [dirty, confirm, router, indexHref]
+  )
+
+  return (
+    <div className={cn("flex items-center justify-end gap-2", className)}>
+      {!isTemplate && status && <SaveDraftButton status={status} />}
 
       <DevicesProvider>
         {({ selected, select, devices }) => (
@@ -96,12 +223,13 @@ export default function TopBarRight({ page, className, ...rest }: Props) {
 
       <SidebarTrigger type="button" aria-label="Toggle settings sidebar" />
 
-      <Button type="submit" name="status" value="PUBLISHED" size="sm">
-        Publish
-      </Button>
+      {isTemplate || !status ? (
+        <SaveButton />
+      ) : (
+        <PublishButton status={status} dirty={dirty} />
+      )}
 
       <ThemeToggle />
-
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -116,26 +244,32 @@ export default function TopBarRight({ page, className, ...rest }: Props) {
           }
         />
         <DropdownMenuContent align="end">
+          {showPreview ? (
+            <DropdownMenuItem
+              render={
+                <a href={previewHref} target="_blank" rel="noreferrer">
+                  Preview
+                </a>
+              }
+            />
+          ) : null}
           <DropdownMenuItem
-            render={
-              <a
-                href={`/api/preview?path=/${encodeURIComponent(page.path)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Preview
-              </a>
-            }
-          />
-          <DropdownMenuItem render={<Link href="/admin/pages" />}>
-            Back to pages
+            render={<Link href={indexHref} onNavigate={guardIndexNav} />}
+          >
+            {indexLabel}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="font-mono text-xs">
-            /{page.path}
-          </DropdownMenuItem>
+          {showPreview ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="font-mono text-xs">
+                {previewPath(content)}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {dialog}
     </div>
   )
 }

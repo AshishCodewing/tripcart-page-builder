@@ -2,14 +2,7 @@
 
 import * as React from "react"
 
-export type LeftPanelMode =
-  | "blocks"
-  | "layers"
-  | "theme"
-  | "presets"
-  | "typography"
-  | "colors"
-  | "layout"
+export type LeftPanelMode = "blocks" | "layers"
 
 type LeftPanelState = {
   mode: LeftPanelMode

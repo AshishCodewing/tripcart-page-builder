@@ -5,17 +5,40 @@
  * registration time so the React block-inserter can route them into the
  * "Patterns" tab while leaving atomic blocks (text, image, columns, …) in
  * the "Blocks" tab.
+ *
+ * `patternComponents` exposes the React-component configs so `editor-shell`
+ * can pass them to `reactRendererPlugin.init()` and the public preview can
+ * re-use the same map for SSR.
  */
 
 import type { Block, Editor } from "grapesjs"
+import type { ComponentConfig } from "@/lib/plugins/react-renderer"
 import { registerHeroBlock } from "./hero-block/hero-block"
 import { registerAboutBlock } from "./about-block/about-block"
-import { registerCtaBlock } from "./cta-block/cta-block"
+import {
+  ctaSectionConfig,
+  ctaSectionType,
+  registerCtaBlock,
+} from "./cta-block/cta-block"
+import { registerCardBlocks } from "./cards/cards"
+import { registerTestimonialBlock } from "./testimonial-block/testimonial-block"
+import { registerTripsBlock } from "./trips-block/trips-block"
+import { registerDestinationPage } from "./page-destination/page-destination"
+import { registerPricingPage } from "./page-pricing/page-pricing"
 
 export const patternsPlugin = (editor: Editor): void => {
   registerHeroBlock(editor)
   registerAboutBlock(editor)
   registerCtaBlock(editor)
+  registerCardBlocks(editor)
+  registerTestimonialBlock(editor)
+  registerTripsBlock(editor)
+  registerDestinationPage(editor)
+  registerPricingPage(editor)
+}
+
+export const patternComponents: Record<string, ComponentConfig> = {
+  [ctaSectionType]: ctaSectionConfig,
 }
 
 /**

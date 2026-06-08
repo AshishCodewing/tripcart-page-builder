@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tabs"
 import { isPatternBlock } from "@/lib/plugins/patterns"
 
-import BlockManager from "./block-manager"
+import BlockManager from "../managers/block-manager"
 
 type CategoryMap = Map<string, Block[]>
 

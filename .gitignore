@@ -42,3 +42,13 @@ next-env.d.ts
 
 # vendored CSS copied from node_modules by scripts/sync-vendor-css.mjs
 /public/vendor/
+
+# Playwright MCP browser console dumps
+.playwright-mcp/
+.fallow/
+
+# Stray screenshots dropped at the repo root (e.g. patterns-panel.png).
+# Scoped to root so public/ assets and skill assets are unaffected.
+/*.png
+/*.jpg
+/*.jpeg

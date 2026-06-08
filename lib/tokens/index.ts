@@ -1,116 +1,292 @@
 /**
- * Source of truth for all Tripcart brand design tokens.
+ * Source of truth for Tripcart's bundled brand defaults.
  *
- * Defaults reference Open Props variables (https://open-props.style) so the
- * design system has a well-considered baseline out of the box. Open Props is
- * loaded into the GrapesJS canvas iframe via `canvas.styles` in editor-shell;
- * any environment that renders authored content must also load Open Props for
- * these `var(...)` references to resolve.
+ * The defaults reference Open Props variables (https://open-props.style)
+ * so the design system has a well-considered baseline. Open Props is
+ * loaded into the GrapesJS canvas iframe via `canvas.styles` in
+ * editor-shell; any environment that renders authored content must also
+ * load Open Props for these `var(...)` references to resolve.
+ *
+ * Shape mirrors WordPress `theme.json`:
+ *   - `defaultTheme.settings` is the *registry* of design tokens.
+ *   - `defaultTheme.styles`   is reserved for default style application
+ *     (root, per-element, per-component). Empty in this PR; populated
+ *     in the styles-application follow-up.
+ *
+ * `tokensFromStored` rehydrates a `Theme` from a persisted `:root` style
+ * object by reading the canonical `--tc--preset--*` names. Tokens absent
+ * from the stored rule keep their default value.
  */
 
-import { toKebab } from "@/lib/toKebab"
+import { presetVarName, type PresetCategory } from "@/lib/theme/compile"
+import type { FontSizeToken, Theme, Token } from "@/lib/theme/schema"
 
-export type TokenValue = {
-  label: string
-  value: string
-}
+export type ActivePresetId = Partial<Record<PresetCategory, string>>
 
-export type TokenSchema = {
-  colors: Record<string, TokenValue>
-  typography: Record<string, TokenValue>
-}
+const colorPalette: Token[] = [
+  { slug: "background", name: "Background", value: "hsl(var(--gray-0-hsl))" },
+  { slug: "foreground", name: "Foreground", value: "hsl(var(--gray-12-hsl))" },
+  { slug: "card", name: "Card", value: "hsl(var(--gray-0-hsl))" },
+  {
+    slug: "cardForeground",
+    name: "Card Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "popover", name: "Popover", value: "hsl(var(--gray-0-hsl))" },
+  {
+    slug: "popoverForeground",
+    name: "Popover Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "primary", name: "Primary", value: "hsl(var(--blue-6-hsl))" },
+  {
+    slug: "primaryForeground",
+    name: "Primary Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  { slug: "secondary", name: "Secondary", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "secondaryForeground",
+    name: "Secondary Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "muted", name: "Muted", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "mutedForeground",
+    name: "Muted Foreground",
+    value: "hsl(var(--gray-7-hsl))",
+  },
+  { slug: "accent", name: "Accent", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "accentForeground",
+    name: "Accent Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+  },
+  { slug: "destructive", name: "Destructive", value: "hsl(var(--red-6-hsl))" },
+  { slug: "warning", name: "Warning", value: "hsl(var(--yellow-6-hsl))" },
+  {
+    slug: "warningForeground",
+    name: "Warning Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  { slug: "success", name: "Success", value: "hsl(var(--green-6-hsl))" },
+  {
+    slug: "successForeground",
+    name: "Success Foreground",
+    value: "hsl(var(--gray-0-hsl))",
+  },
+  {
+    slug: "border",
+    name: "Border",
+    value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 10%, transparent)",
+  },
+  {
+    slug: "input",
+    name: "Input",
+    value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 15%, transparent)",
+  },
+  { slug: "ring", name: "Ring", value: "hsl(var(--blue-6-hsl))" },
+]
 
-// Default theme is "blue + system-sans" — a light, neutral baseline. It
-// matches `COLOR_PRESETS[blue]` and `TYPOGRAPHY_PRESETS[system-sans]` exactly,
-// so on first run the preset cards reflect the active state and applying a
-// different preset is a clean swap rather than a custom-token edit.
-export const defaultTokens: TokenSchema = {
-  colors: {
-    background: { label: "Background", value: "var(--gray-0)" },
-    foreground: { label: "Foreground", value: "var(--gray-12)" },
-    card: { label: "Card", value: "var(--gray-0)" },
-    cardForeground: { label: "Card Foreground", value: "var(--gray-12)" },
-    popover: { label: "Popover", value: "var(--gray-0)" },
-    popoverForeground: { label: "Popover Foreground", value: "var(--gray-12)" },
-    primary: { label: "Primary", value: "var(--blue-6)" },
-    primaryForeground: { label: "Primary Foreground", value: "var(--gray-0)" },
-    secondary: { label: "Secondary", value: "var(--gray-2)" },
-    secondaryForeground: {
-      label: "Secondary Foreground",
-      value: "var(--gray-12)",
+const fontFamilies: Token[] = [
+  { slug: "body", name: "Body Font", value: "var(--font-sans)" },
+  { slug: "heading", name: "Heading Font", value: "var(--font-sans)" },
+]
+
+// Font-size scale follows WP's small/medium/large/x-large/xx-large
+// labels mapped onto Open Props' modular scale. `medium` is the body
+// baseline (1rem); the steps roughly double-and-a-half.
+const fontSizes: FontSizeToken[] = [
+  { slug: "small", name: "Small", value: "var(--font-size-0)" },
+  { slug: "medium", name: "Medium", value: "var(--font-size-1)" },
+  { slug: "large", name: "Large", value: "var(--font-size-3)" },
+  { slug: "x-large", name: "Extra Large", value: "var(--font-size-5)" },
+  { slug: "xx-large", name: "2X Large", value: "var(--font-size-7)" },
+]
+
+const fontWeights: Token[] = [
+  { slug: "light", name: "Light", value: "var(--font-weight-3)" },
+  { slug: "regular", name: "Regular", value: "var(--font-weight-4)" },
+  { slug: "medium", name: "Medium", value: "var(--font-weight-5)" },
+  { slug: "semibold", name: "Semibold", value: "var(--font-weight-6)" },
+  { slug: "bold", name: "Bold", value: "var(--font-weight-7)" },
+]
+
+const lineHeights: Token[] = [
+  { slug: "tight", name: "Tight", value: "var(--font-lineheight-0)" },
+  { slug: "snug", name: "Snug", value: "var(--font-lineheight-1)" },
+  { slug: "normal", name: "Normal", value: "var(--font-lineheight-3)" },
+  { slug: "relaxed", name: "Relaxed", value: "var(--font-lineheight-4)" },
+]
+
+const letterSpacings: Token[] = [
+  { slug: "tight", name: "Tight", value: "var(--font-letterspacing--1)" },
+  { slug: "normal", name: "Normal", value: "var(--font-letterspacing-0)" },
+  { slug: "wide", name: "Wide", value: "var(--font-letterspacing-2)" },
+]
+
+// Spacing scale follows Tailwind-conventional names mapped onto Open
+// Props sizes. `md` is roughly 1rem so it lines up with the body
+// font-size baseline. The step ratios are uneven on purpose — picked
+// for usable rhythm rather than mechanical doubling.
+const spacingSizes: Token[] = [
+  { slug: "xs", name: "Extra Small", value: "var(--size-1)" },
+  { slug: "sm", name: "Small", value: "var(--size-2)" },
+  { slug: "md", name: "Medium", value: "var(--size-4)" },
+  { slug: "lg", name: "Large", value: "var(--size-6)" },
+  { slug: "xl", name: "Extra Large", value: "var(--size-8)" },
+  { slug: "xxl", name: "2X Large", value: "var(--size-10)" },
+]
+
+const borderRadii: Token[] = [
+  { slug: "sm", name: "Small", value: "var(--radius-1)" },
+  { slug: "md", name: "Medium", value: "var(--radius-2)" },
+  { slug: "lg", name: "Large", value: "var(--radius-3)" },
+  { slug: "xl", name: "Extra Large", value: "var(--radius-4)" },
+  { slug: "full", name: "Full", value: "var(--radius-round)" },
+]
+
+const borderWidths: Token[] = [
+  { slug: "thin", name: "Thin", value: "var(--border-size-1)" },
+  { slug: "medium", name: "Medium", value: "var(--border-size-2)" },
+  { slug: "thick", name: "Thick", value: "var(--border-size-3)" },
+]
+
+// border.styles are CSS keywords, not Open Props vars — Open Props
+// doesn't model these.
+const borderStyles: Token[] = [
+  { slug: "solid", name: "Solid", value: "solid" },
+  { slug: "dashed", name: "Dashed", value: "dashed" },
+  { slug: "dotted", name: "Dotted", value: "dotted" },
+]
+
+const shadowPresets: Token[] = [
+  { slug: "sm", name: "Small", value: "var(--shadow-1)" },
+  { slug: "md", name: "Medium", value: "var(--shadow-2)" },
+  { slug: "lg", name: "Large", value: "var(--shadow-3)" },
+  { slug: "xl", name: "Extra Large", value: "var(--shadow-4)" },
+  { slug: "xxl", name: "2X Large", value: "var(--shadow-5)" },
+]
+
+// Default theme = "blue + system-sans". Matches COLOR_PRESETS[blue] and
+// TYPOGRAPHY_PRESETS[system-sans] exactly, so on first run the preset
+// cards reflect the active state.
+//
+// `styles` populates element-level defaults so the new compileTheme
+// styles path produces visible output: every <button> picks up the
+// brand primary; every <h1> uses the heading font at xx-large bold;
+// links inherit primary with a hover underline. Slugs in StyleRefs
+// are written exactly as stored in the token arrays — resolveStyleRef
+// kebabs them when assembling the final CSS variable name.
+export const defaultTheme: Theme = {
+  version: 1,
+  settings: {
+    color: { palette: colorPalette },
+    typography: {
+      fontFamilies,
+      fontSizes,
+      fontWeights,
+      lineHeights,
+      letterSpacings,
     },
-    muted: { label: "Muted", value: "var(--gray-2)" },
-    mutedForeground: { label: "Muted Foreground", value: "var(--gray-7)" },
-    accent: { label: "Accent", value: "var(--gray-2)" },
-    accentForeground: { label: "Accent Foreground", value: "var(--gray-12)" },
-    // Open Props ships solid palette steps; alpha overlays are derived via
-    // color-mix so border/input still track the active foreground.
+    spacing: { sizes: spacingSizes },
     border: {
-      label: "Border",
-      value: "color-mix(in oklch, var(--gray-12) 10%, transparent)",
+      radii: borderRadii,
+      widths: borderWidths,
+      styles: borderStyles,
     },
-    input: {
-      label: "Input",
-      value: "color-mix(in oklch, var(--gray-12) 15%, transparent)",
-    },
+    shadow: { presets: shadowPresets },
   },
-
-  typography: {
-    body: { label: "Body Font", value: "var(--font-sans)" },
-    heading: { label: "Heading Font", value: "var(--font-sans)" },
+  styles: {
+    color: {
+      text: "var:preset|color|foreground",
+      background: "var:preset|color|background",
+    },
+    typography: {
+      fontFamily: "var:preset|font-family|body",
+      fontSize: "var:preset|font-size|medium",
+      lineHeight: "var:preset|line-height|normal",
+    },
+    elements: {
+      heading: {
+        typography: {
+          fontFamily: "var:preset|font-family|heading",
+          fontWeight: "var:preset|font-weight|bold",
+          lineHeight: "var:preset|line-height|tight",
+        },
+      },
+      h1: { typography: { fontSize: "var:preset|font-size|xx-large" } },
+      h2: { typography: { fontSize: "var:preset|font-size|x-large" } },
+      h3: { typography: { fontSize: "var:preset|font-size|large" } },
+      button: {
+        color: {
+          text: "var:preset|color|primaryForeground",
+          background: "var:preset|color|primary",
+        },
+        border: { radius: "var:preset|radius|md" },
+      },
+      link: {
+        color: { text: "var:preset|color|primary" },
+        ":hover": {
+          typography: { textDecoration: "underline" },
+        },
+      },
+    },
   },
 }
 
-/** Preset IDs the default theme is built on. Drives initial selection in UI. */
-export const defaultActivePresetId = {
-  colors: "blue",
-  typography: "system-sans",
-} as const
-
-export const tokenToCssVar = (
-  category: keyof TokenSchema,
-  key: string
-): string => {
-  // Colours follow the shadcn convention — no prefix (--background,
-  // --primary, --card-foreground, etc.). Other categories keep their
-  // namespace prefix so they don't collide with Open Props or shadcn.
-  const prefixMap: Record<keyof TokenSchema, string | null> = {
-    colors: null,
-    typography: "font",
-  }
-  const prefix = prefixMap[category]
-  const name = toKebab(key)
-  return prefix ? `--${prefix}-${name}` : `--${name}`
-}
-
-export const tokensToStyleObject = (
-  tokens: TokenSchema
-): Record<string, string> => {
-  const styles: Record<string, string> = {}
-  for (const [category, group] of Object.entries(tokens)) {
-    for (const [key, token] of Object.entries(group)) {
-      styles[tokenToCssVar(category as keyof TokenSchema, key)] = token.value
-    }
-  }
-
-  return styles
+export const defaultActivePresetId: ActivePresetId = {
+  color: "blue",
+  "font-family": "system-sans",
 }
 
 /**
- * Build a TokenSchema by overlaying values pulled from a CSS style object
- * (typically the styles attached to the persisted `:root` CssRule). Token
- * keys absent from the style object keep their existing value, so this is
- * safe across schema additions.
+ * Categories we know how to hydrate from a stored `:root` style object.
+ * Each entry pairs a `PresetCategory` (used to build the variable name)
+ * with an accessor that returns the matching `Token[]` slot in the
+ * mutable theme draft.
  */
-export const tokensFromStyleObject = (
-  base: TokenSchema,
+const HYDRATABLE: ReadonlyArray<{
+  category: PresetCategory
+  pick: (draft: Theme) => Token[] | undefined
+}> = [
+  { category: "color", pick: (t) => t.settings.color?.palette },
+  { category: "font-family", pick: (t) => t.settings.typography?.fontFamilies },
+  {
+    // FontSizeToken extends Token; the hydration loop only mutates
+    // `value`, so the cast is safe. Stored clamp() expressions land in
+    // `value` and pass through `fontSizeCss` unchanged on next compile.
+    category: "font-size",
+    pick: (t) => t.settings.typography?.fontSizes as Token[] | undefined,
+  },
+  { category: "font-weight", pick: (t) => t.settings.typography?.fontWeights },
+  { category: "line-height", pick: (t) => t.settings.typography?.lineHeights },
+  {
+    category: "letter-spacing",
+    pick: (t) => t.settings.typography?.letterSpacings,
+  },
+  { category: "spacing", pick: (t) => t.settings.spacing?.sizes },
+  { category: "radius", pick: (t) => t.settings.border?.radii },
+  { category: "border-width", pick: (t) => t.settings.border?.widths },
+  { category: "border-style", pick: (t) => t.settings.border?.styles },
+  { category: "shadow", pick: (t) => t.settings.shadow?.presets },
+]
+
+/**
+ * Overlay stored CSS variable values onto a base theme draft. Tokens
+ * absent from `styles` keep their default value, so this is safe across
+ * additive schema changes.
+ */
+export const tokensFromStored = (
+  base: Theme,
   styles: Record<string, string>
-): TokenSchema => {
+): Theme => {
   const next = structuredClone(base)
-  for (const [category, group] of Object.entries(next)) {
-    for (const [key, token] of Object.entries(group)) {
-      const varName = tokenToCssVar(category as keyof TokenSchema, key)
-      const stored = styles[varName]
+  for (const { category, pick } of HYDRATABLE) {
+    const tokens = pick(next)
+    if (!tokens) continue
+    for (const token of tokens) {
+      const stored = styles[presetVarName(category, token.slug)]
       if (typeof stored === "string" && stored.length > 0) {
         token.value = stored
       }

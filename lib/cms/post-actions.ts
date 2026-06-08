@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
@@ -11,14 +12,19 @@ import { validateSlug } from "./path"
 export async function createPost(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
+  const tenantId = String(form.get("tenantId") ?? "").trim()
 
   if (!title) throw new Error("Title is required.")
+  if (!tenantId) throw new Error("Tenant is required.")
   validateSlug(slug)
 
-  const post = await prisma.post.create({ data: { slug, title } })
+  const post = await prisma.post.create({ data: { slug, title, tenantId } })
   redirect(`/admin/posts/${post.id}/edit`)
 }
 
+// NB: `tenantId` is intentionally NOT read or written here. Post tenancy
+// is immutable post-creation — a post belongs to the tenant it was
+// created under, and reassigning it would orphan its theme references.
 export async function savePost(id: string, form: FormData): Promise<void> {
   const existing = await prisma.post.findUnique({ where: { id } })
   if (!existing) throw new Error("Post not found.")
@@ -28,6 +34,19 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   const excerpt = (form.get("excerpt") as string) || null
   const status =
     (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
+
+  // The editor populates this on submit (see EditorShell). Optional here
+  // because non-editor callers (e.g. metadata-only updates from the post
+  // index) will omit it — in which case we keep the previous value.
+  const dataField = form.get("data")
+  let data: unknown = undefined
+  if (typeof dataField === "string" && dataField.length) {
+    try {
+      data = JSON.parse(dataField)
+    } catch {
+      throw new Error("Invalid project payload — could not parse JSON.")
+    }
+  }
 
   validateSlug(newSlug)
 
@@ -51,6 +70,11 @@ export async function savePost(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
+      // Committing the editor state clears any pending autosave draft so
+      // the next load seeds from `data`. Metadata-only saves leave it.
+      ...(data !== undefined
+        ? { data: data as object, draftData: Prisma.DbNull }
+        : {}),
     },
   })
 
@@ -62,11 +86,11 @@ export async function savePost(id: string, form: FormData): Promise<void> {
 export async function deletePost(id: string): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id },
-    select: { slug: true, status: true },
+    select: { slug: true, status: true, tenantId: true },
   })
   if (!post) return
   await prisma.post.delete({ where: { id } })
   updateTag(cacheTags.post(post.slug))
   if (post.status === "PUBLISHED") updateTag(cacheTags.postIndex)
-  redirect("/admin/posts")
+  redirect(`/admin/tenants/${post.tenantId}`)
 }

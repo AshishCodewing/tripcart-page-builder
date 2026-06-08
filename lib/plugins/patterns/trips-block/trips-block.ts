@@ -7,17 +7,17 @@ const tripsCss = `
 .tc-trips {
   padding-block: clamp(4.5rem, 9vw, 8rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--background, var(--gray-0));
-  color: var(--foreground, var(--gray-12));
-  font-family: var(--font-body, var(--font-sans));
+  background-color: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
 }
 
-.tc-trips .tc-trips__inner {
+.tc-trips__inner {
   max-width: 78rem;
   margin-inline: auto;
 }
 
-.tc-trips .tc-trips__header {
+.tc-trips__header {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   align-items: end;
@@ -26,29 +26,29 @@ const tripsCss = `
 }
 
 @media (max-width: 720px) {
-  .tc-trips .tc-trips__header {
+  .tc-trips__header {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
 }
 
-.tc-trips .tc-trips__heading {
+.tc-trips__heading {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
 }
 
-.tc-trips .tc-trips__eyebrow {
+.tc-trips__eyebrow {
   font-size: var(--font-size-0);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--primary, var(--indigo-6));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   margin: 0;
 }
 
-.tc-trips .tc-trips__title {
-  font-family: var(--font-heading, var(--font-sans));
+.tc-trips__title {
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.875rem, 4vw, 3.25rem);
   line-height: 1.05;
   letter-spacing: -0.018em;
@@ -57,16 +57,16 @@ const tripsCss = `
   text-wrap: balance;
 }
 
-.tc-trips .tc-trips__title em {
+.tc-trips__title em {
   font-style: italic;
-  color: var(--primary, var(--indigo-6));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
-.tc-trips .tc-trips__lede {
+.tc-trips__lede {
   font-size: clamp(0.9375rem, 1.2vw, 1.0625rem);
   line-height: 1.55;
-  color: var(--foreground, var(--gray-7));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
   margin: 0;
   max-width: 32rem;
   justify-self: end;
@@ -74,26 +74,32 @@ const tripsCss = `
 }
 
 @media (max-width: 720px) {
-  .tc-trips .tc-trips__lede { justify-self: start; text-align: start; }
+  .tc-trips__lede { justify-self: start; text-align: start; }
 }
 
-.tc-trips .tc-trips__grid {
+.tc-trips__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(1rem, 2.4vw, 1.75rem);
 }
 
 @media (max-width: 880px) {
-  .tc-trips .tc-trips__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tc-trips__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
-  .tc-trips .tc-trips__grid { grid-template-columns: 1fr; }
+  .tc-trips__grid { grid-template-columns: 1fr; }
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
 
 .tc-trip-card {
+  /* CSS-var bridge: a flat .tc-trip-card:hover rule drives the child
+     image's scale via a custom property the .tc-trip-card__image rule
+     reads. Required because GrapesJS parses descendant selectors into a
+     flat list and won't match descendant rules against single-class child
+     components. */
+  --trip-card-image-scale: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(0.875rem, 1.4vw, 1.125rem);
@@ -103,55 +109,57 @@ const tripsCss = `
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-trip-card:hover { transform: translateY(-3px); }
+.tc-trip-card:hover {
+  transform: translateY(-3px);
+  --trip-card-image-scale: 1.04;
+}
 
-.tc-trip-card .tc-trip-card__media {
+.tc-trip-card__media {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-3, 1rem);
-  background: color-mix(in oklch, var(--foreground, var(--gray-12)) 4%, transparent);
+  background: color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
-.tc-trip-card .tc-trip-card__image {
+.tc-trip-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transform: scale(var(--trip-card-image-scale, 1));
   transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-trip-card:hover .tc-trip-card__image { transform: scale(1.04); }
-
-.tc-trip-card .tc-trip-card__body {
+.tc-trip-card__body {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
   padding-inline: 0.125rem;
 }
 
-.tc-trip-card .tc-trip-card__eyebrow {
+.tc-trip-card__eyebrow {
   font-size: var(--font-size-0, 0.8125rem);
   font-weight: var(--font-weight-6);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--foreground, var(--gray-7));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
-.tc-trip-card .tc-trip-card__title {
-  font-family: var(--font-heading, var(--font-sans));
+.tc-trip-card__title {
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.125rem, 1.7vw, 1.375rem);
   line-height: 1.2;
   letter-spacing: -0.01em;
   font-weight: var(--font-weight-7);
-  color: var(--foreground, var(--gray-12));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   margin: 0;
   text-wrap: balance;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tc-trip-card,
-  .tc-trip-card .tc-trip-card__image { transition: none; }
+  .tc-trip-card__image { transition: none; }
 }
 `
 
@@ -166,7 +174,8 @@ export const registerTripsBlock = (editor: Editor): void => {
       defaults: {
         tagName: "a",
         name: "Trip Card",
-        attributes: { class: "tc-trip-card", href: "#" },
+        classes: ["tc-trip-card"],
+        attributes: { href: "#" },
 
         draggable: ".tc-trips__grid",
         droppable: false,
@@ -197,7 +206,7 @@ export const registerTripsBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "Trip Cards",
-        attributes: { class: "tc-trips" },
+        classes: ["tc-trips"],
 
         droppable: false,
         draggable: true,
@@ -209,11 +218,11 @@ export const registerTripsBlock = (editor: Editor): void => {
         components: [
           {
             tagName: "div",
-            attributes: { class: "tc-trips__inner" },
+            classes: ["tc-trips__inner"],
             components: [
               {
                 tagName: "div",
-                attributes: { class: "tc-trips__header" },
+                classes: ["tc-trips__header"],
                 components: `
                   <div class="tc-trips__heading">
                     <span class="tc-trips__eyebrow">Hand-picked</span>
@@ -230,7 +239,7 @@ export const registerTripsBlock = (editor: Editor): void => {
               },
               {
                 tagName: "div",
-                attributes: { class: "tc-trips__grid" },
+                classes: ["tc-trips__grid"],
                 droppable: '[data-gjs-type="trip-card"]',
                 components: [
                   { type: "trip-card" },

@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
@@ -17,21 +18,26 @@ export async function createPage(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
   const title = String(form.get("title") ?? "").trim()
   const parentId = (form.get("parentId") as string) || null
+  const tenantId = String(form.get("tenantId") ?? "").trim()
 
   if (!title) throw new Error("Title is required.")
+  if (!tenantId) throw new Error("Tenant is required.")
   validateSlug(slug)
   if (parentId === null) validateTopLevelSlug(slug)
 
   const path = await buildPath(slug, parentId)
 
   const page = await prisma.page.create({
-    data: { slug, path, parentId, title },
+    data: { slug, path, parentId, title, tenantId },
   })
 
   updateTag(cacheTags.nav)
   redirect(`/admin/pages/${page.id}/edit`)
 }
 
+// NB: `tenantId` is intentionally NOT read or written here. Page tenancy
+// is immutable post-creation — a page belongs to the tenant it was
+// created under, and reassigning it would orphan its theme references.
 export async function savePage(id: string, form: FormData): Promise<void> {
   const existing = await prisma.page.findUnique({ where: { id } })
   if (!existing) throw new Error("Page not found.")
@@ -41,6 +47,19 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   const title = String(form.get("title") ?? existing.title).trim()
   const status =
     (form.get("status") as "DRAFT" | "PUBLISHED") ?? existing.status
+
+  // The editor populates this on submit (see EditorShell). Optional here
+  // because non-editor callers (e.g. metadata-only updates from the page
+  // index) will omit it — in which case we keep the previous value.
+  const dataField = form.get("data")
+  let data: unknown = undefined
+  if (typeof dataField === "string" && dataField.length) {
+    try {
+      data = JSON.parse(dataField)
+    } catch {
+      throw new Error("Invalid project payload — could not parse JSON.")
+    }
+  }
 
   validateSlug(newSlug)
 
@@ -77,6 +96,11 @@ export async function savePage(id: string, form: FormData): Promise<void> {
       status,
       publishedAt:
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
+      // Committing the editor state clears any pending autosave draft so
+      // the next load seeds from `data`. Metadata-only saves leave it.
+      ...(data !== undefined
+        ? { data: data as object, draftData: Prisma.DbNull }
+        : {}),
     },
   })
 
@@ -91,6 +115,7 @@ export async function deletePage(id: string): Promise<void> {
     select: {
       path: true,
       status: true,
+      tenantId: true,
       _count: { select: { children: true } },
     },
   })
@@ -103,5 +128,5 @@ export async function deletePage(id: string): Promise<void> {
   await prisma.page.delete({ where: { id } })
   updateTag(cacheTags.page(page.path))
   if (page.status === "PUBLISHED") updateTag(cacheTags.nav)
-  redirect("/admin/pages")
+  redirect(`/admin/tenants/${page.tenantId}`)
 }

@@ -19,35 +19,82 @@ enum ContentStatus {
   PUBLISHED
 }
 
+enum TemplateKind {
+  // Page-shaped starting point — the "layout" in Next.js terms.
+  // Includes a content slot and typically references one or more PART
+  // templates (header, footer). Used to scaffold a new Page.
+  LAYOUT
+  // Section-scope starting point — a block of content (hero, pricing
+  // table, etc.). Surfaced in the in-canvas inserter alongside
+  // code-defined Block primitives.
+  PATTERN
+  // Area-tagged reusable chrome (header, footer, sidebar, …). Always
+  // synced by intent. `area` is required when kind = PART.
+  PART
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  // Tenant-wide brand theme — full Theme document as defined in
+  // lib/theme/schema.ts. Empty `{}` means "use the bundled defaultTheme."
+  theme     Json     @default("{}")
+  // Monotonic counter bumped on every theme write. Embedded in the
+  // compiled-theme CSS URL so each version is its own cache key, served
+  // immutable — theme edits invalidate by URL change, not by purge.
+  themeVersion Int   @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pages     Page[]
+  posts     Post[]
+  templates Template[]
+
+  @@map("tenants")
+}
+
 model Page {
   id          String        @id @default(cuid())
   slug        String
-  path        String        @unique
+  path        String
   parentId    String?
   parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
   children    Page[]        @relation("PageTree")
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
-  html        String        @default("")
-  css         String        @default("")
   data        Json          @default("{}")
+  // In-progress editor autosave (full ProjectDefinition). null = no
+  // draft ahead of `data`; the editor seeds from `draftData ?? data` and
+  // the public render reads `data` only. Cleared on explicit Save/Publish.
+  draftData   Json?
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // Path uniqueness is scoped per tenant — two tenants can each own
+  // `/about` independently. Sibling uniqueness keeps slugs unique
+  // within a parent's children regardless of tenant (which is fine
+  // because parentId values don't overlap across tenants).
+  @@unique([tenantId, path])
   @@unique([parentId, slug])
   @@index([status])
+  @@index([tenantId])
   @@map("pages")
 }
 
 model Post {
   id          String        @id @default(cuid())
-  slug        String        @unique
+  slug        String
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   excerpt     String?
-  html        String        @default("")
-  css         String        @default("")
   data        Json          @default("{}")
+  // In-progress editor autosave (full ProjectDefinition). See Page.draftData.
+  draftData   Json?
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
@@ -55,7 +102,11 @@ model Post {
   categories  Category[]    @relation("PostCategories")
   tags        Tag[]         @relation("PostTags")
 
+  // Slug uniqueness is scoped per tenant — two tenants can each own
+  // `/blog/hello-world` independently.
+  @@unique([tenantId, slug])
   @@index([status, publishedAt])
+  @@index([tenantId])
   @@map("posts")
 }
 
@@ -75,6 +126,57 @@ model Tag {
   posts Post[] @relation("PostTags")
 
   @@map("tags")
+}
+
+// Reusable content units referenced from Page/Post project data.
+//
+// One table covers three UX roles (see `kind`) plus the global-vs-tenant
+// library split (see `tenantId` nullability). See docs/templates.md for
+// the design walkthrough.
+//
+// Slug uniqueness is enforced by two indexes, since Prisma 7's `@@unique`
+// can't express partial conditions:
+//   - `@@unique([tenantId, slug])` (below) — for tenant rows, the
+//     standard composite. NULL tenantIds are treated as distinct by
+//     default Postgres semantics, so this does NOT prevent duplicate
+//     globals.
+//   - A partial unique index `(slug) WHERE tenantId IS NULL`, added in
+//     the migration SQL — guarantees one row per slug among globals.
+// Within a tenant, a row with the same slug as a global shadows it at
+// render — the renderer prefers the tenant row over the global fallback.
+model Template {
+  id          String        @id @default(cuid())
+  // null = global library; non-null = tenant-scoped (can shadow global)
+  tenantId    String?
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug        String
+  kind        TemplateKind
+  // Only set when kind = PART, e.g. "header" | "footer" | "sidebar".
+  // Not enforced in the DB; the app layer should validate.
+  area        String?
+  // true = insert as `template-ref` (resolved at render, edits propagate)
+  // false = copy the `data` subtree into the consuming Page on insert
+  // The flag affects FUTURE inserts only; existing refs/copies are
+  // unchanged when this toggles.
+  synced      Boolean       @default(false)
+  title       String
+  description String?
+  // GrapesJS subtree (styles + components) — same shape as a slice of
+  // `Page.data.pages[].frames[].component`.
+  data        Json          @default("{}")
+  // In-progress editor autosave, stored in the slim `{ component, styles }`
+  // shape (same as `data`). null = no draft ahead of `data`. See Page.draftData.
+  draftData   Json?
+  // Optional thumbnail URL for inserter UIs.
+  preview     String?
+  // No publish lifecycle: a template reaches the public site only by
+  // being inserted into a Page/Post, whose own status gates publication.
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, kind])
+  @@map("templates")
 }
 
 // Stub for post-MVP slug-rename redirects. Unused at MVP.

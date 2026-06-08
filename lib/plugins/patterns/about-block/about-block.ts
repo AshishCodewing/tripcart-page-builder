@@ -8,12 +8,24 @@ const aboutCss = `
 .tc-about {
   padding-block: clamp(4.5rem, 9vw, 8rem);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--background, var(--gray-0));
-  color: var(--foreground, var(--gray-12));
-  font-family: var(--font-body, var(--font-sans));
+  background-color: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
 }
 
-.tc-about .tc-about__inner {
+.tc-about {
+  /* CSS-var bridge: a flat .tc-about:hover rule drives the image scale via
+     a custom property the .tc-about__image rule reads. Required because
+     GrapesJS parses descendant selectors into a flat selector list and
+     won't match descendant rules against single-class child components. */
+  --about-image-scale: 1;
+}
+
+.tc-about:hover {
+  --about-image-scale: 1.025;
+}
+
+.tc-about__inner {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: clamp(2rem, 5vw, 5rem);
@@ -23,31 +35,31 @@ const aboutCss = `
 }
 
 @media (max-width: 880px) {
-  .tc-about .tc-about__inner {
+  .tc-about__inner {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
 }
 
-.tc-about .tc-about__copy {
+.tc-about__copy {
   display: flex;
   flex-direction: column;
   gap: clamp(0.75rem, 1.5vw, 1.25rem);
   max-width: 36rem;
 }
 
-.tc-about .tc-about__eyebrow {
-  font-family: var(--font-body, var(--font-sans));
+.tc-about__eyebrow {
+  font-family: var(--tc--preset--font-family--body, var(--font-sans));
   font-size: var(--font-size-0);
   font-weight: var(--font-weight-7);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--primary, var(--indigo-6));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   margin: 0;
 }
 
-.tc-about .tc-about__title {
-  font-family: var(--font-heading, var(--font-sans));
+.tc-about__title {
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(2rem, 4.4vw, 3.75rem);
   line-height: 1.04;
   letter-spacing: -0.02em;
@@ -56,78 +68,75 @@ const aboutCss = `
   text-wrap: balance;
 }
 
-.tc-about .tc-about__title em {
+.tc-about__title em {
   font-style: italic;
-  color: var(--primary, var(--indigo-6));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   font-weight: var(--font-weight-7);
 }
 
-.tc-about .tc-about__lede {
+.tc-about__lede {
   font-size: clamp(1.0625rem, 1.3vw, 1.1875rem);
   line-height: 1.6;
-  color: var(--foreground, var(--gray-7));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
   text-wrap: pretty;
   margin: 0;
 }
 
-.tc-about .tc-about__meta {
+.tc-about__meta {
   display: flex;
   flex-wrap: wrap;
   gap: clamp(1.25rem, 3vw, 2rem);
   margin-block-start: clamp(1rem, 2vw, 1.5rem);
   padding-block-start: clamp(1rem, 2vw, 1.5rem);
-  border-block-start: 1px solid var(--border, color-mix(in oklch, var(--gray-12) 12%, transparent));
+  border-block-start: 1px solid var(--tc--preset--color--border, color-mix(in oklch, hsl(var(--gray-12-hsl)) 12%, transparent));
 }
 
-.tc-about .tc-about__meta-item {
+.tc-about__meta-item {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
-.tc-about .tc-about__meta-value {
-  font-family: var(--font-heading, var(--font-sans));
+.tc-about__meta-value {
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.5rem, 2.4vw, 1.875rem);
   font-weight: var(--font-weight-8);
   letter-spacing: -0.01em;
   line-height: 1;
-  color: var(--foreground, var(--gray-12));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
 }
 
-.tc-about .tc-about__meta-label {
+.tc-about__meta-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--foreground, var(--gray-7));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
-.tc-about .tc-about__media {
+.tc-about__media {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-3, 1rem);
-  background: color-mix(in oklch, var(--foreground, var(--gray-12)) 4%, transparent);
+  background: color-mix(in oklch, var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl))) 4%, transparent);
 }
 
-.tc-about .tc-about__image {
+.tc-about__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transform: scale(var(--about-image-scale, 1));
   transition: transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tc-about:hover .tc-about__image {
-  transform: scale(1.025);
-}
-
-.tc-about .tc-about__badge {
+.tc-about__badge {
   position: absolute;
   inset-inline-start: clamp(0.875rem, 2vw, 1.5rem);
   inset-block-end: clamp(0.875rem, 2vw, 1.5rem);
   padding: clamp(0.875rem, 1.4vw, 1.125rem) clamp(1rem, 1.6vw, 1.375rem);
-  background: var(--background, var(--gray-0));
-  color: var(--foreground, var(--gray-12));
+  background: var(--tc--preset--color--background, hsl(var(--gray-0-hsl)));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-12-hsl)));
   border-radius: var(--radius-2, 0.625rem);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.04),
@@ -138,24 +147,24 @@ const aboutCss = `
   max-width: calc(100% - 2rem);
 }
 
-.tc-about .tc-about__badge-value {
-  font-family: var(--font-heading, var(--font-sans));
+.tc-about__badge-value {
+  font-family: var(--tc--preset--font-family--heading, var(--font-sans));
   font-size: clamp(1.375rem, 2.2vw, 1.75rem);
   font-weight: var(--font-weight-9);
   letter-spacing: -0.015em;
   line-height: 1;
-  color: var(--primary, var(--indigo-6));
+  color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
 }
 
-.tc-about .tc-about__badge-label {
+.tc-about__badge-label {
   font-size: var(--font-size-0);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--foreground, var(--gray-7));
+  color: var(--tc--preset--color--foreground, hsl(var(--gray-7-hsl)));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tc-about .tc-about__image { transition: none; }
+  .tc-about__image { transition: none; }
 }
 `
 
@@ -167,7 +176,7 @@ export const registerAboutBlock = (editor: Editor): void => {
       defaults: {
         tagName: "section",
         name: "About",
-        attributes: { class: "tc-about" },
+        classes: ["tc-about"],
 
         droppable: false,
         draggable: true,
