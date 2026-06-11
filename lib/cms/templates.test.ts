@@ -5,10 +5,7 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import {
-  resolvePageTree,
-  slimTemplateProject,
-} from "@/lib/cms/templates"
+import { resolvePageTree, slimTemplateProject } from "@/lib/cms/templates"
 import type {
   ComponentDefinition,
   ProjectDefinition,
@@ -68,10 +65,9 @@ describe("resolvePageTree", () => {
         data: { component: { tagName: "article" }, styles: [tplStyle] },
       },
     })
-    const input = project(
-      { tagName: "div", components: [ref("card")] },
-      [pageStyle]
-    )
+    const input = project({ tagName: "div", components: [ref("card")] }, [
+      pageStyle,
+    ])
     const result = await resolvePageTree(TENANT, input)
 
     const resolvedRoot = result.pages![0].frames![0].component!
@@ -164,8 +160,10 @@ describe("resolvePageTree", () => {
 
   it("emits a max-depth-exceeded placeholder for a deep template chain", async () => {
     // t0 → t1 → … → t17, each referencing the next. MAX_DEPTH = 16.
-    const fixtures: Record<string, { data: { component: ComponentDefinition } }> =
-      {}
+    const fixtures: Record<
+      string,
+      { data: { component: ComponentDefinition } }
+    > = {}
     for (let i = 0; i < 17; i++) {
       fixtures[`t${i}`] = { data: { component: ref(`t${i + 1}`) } }
     }
@@ -192,9 +190,9 @@ describe("slimTemplateProject", () => {
 
   it("defaults styles to [] when absent", () => {
     const root: ComponentDefinition = { tagName: "section" }
-    expect(slimTemplateProject({ pages: [{ frames: [{ component: root }] }] })).toEqual(
-      { component: root, styles: [] }
-    )
+    expect(
+      slimTemplateProject({ pages: [{ frames: [{ component: root }] }] })
+    ).toEqual({ component: root, styles: [] })
   })
 
   it("throws when the payload has no root component", () => {

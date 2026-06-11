@@ -123,9 +123,7 @@ describe("assertNotDescendant", () => {
 
   it("(characterization) a parentId cycle that never reaches the page exits after MAX_DEPTH (32) calls without throwing", async () => {
     // self-referential parent → infinite chain, bounded only by MAX_DEPTH.
-    findUnique.mockImplementation(
-      (async () => ({ parentId: "loop" })) as never
-    )
+    findUnique.mockImplementation((async () => ({ parentId: "loop" })) as never)
     await expect(
       assertNotDescendant("not-in-chain", "loop")
     ).resolves.toBeUndefined()

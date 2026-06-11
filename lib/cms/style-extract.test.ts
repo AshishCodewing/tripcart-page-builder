@@ -93,15 +93,15 @@ describe("collectStyledIds", () => {
   it("collects id names across string, object, and selectorsAdd forms", () => {
     const styles = [
       { selectors: ["#a", ".not-an-id"] },
-      { selectors: [{ name: "b", type: 2 }, { name: "c", type: 1 }] },
+      {
+        selectors: [
+          { name: "b", type: 2 },
+          { name: "c", type: 1 },
+        ],
+      },
       { selectorsAdd: "#d > #e .klass" },
     ] as unknown as Rule[]
-    expect([...collectStyledIds(styles)].sort()).toEqual([
-      "a",
-      "b",
-      "d",
-      "e",
-    ])
+    expect([...collectStyledIds(styles)].sort()).toEqual(["a", "b", "d", "e"])
   })
 })
 
