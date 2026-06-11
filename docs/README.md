@@ -1,43 +1,29 @@
 # Documentation
 
-Project docs are split into two tiers:
+## Start here: the Handbook
 
-- **[`guides/`](./guides)** — concise, human-readable overviews. Start here to
-  understand a system end-to-end.
-- **[`reference/`](./reference)** — deep dives into the implementation: data
-  models, request flows, design decisions, and remaining work.
+New to the codebase? Read **[`handbook/`](./handbook)** — the developer onboarding
+guide. It explains how the page builder works, one topic at a time, with a concise
+doc (the mental model) and a technical doc (a map into the code) for each:
 
-New to the codebase? Read the guides first, then drop into the reference docs
-for the area you're touching.
+- [Overview & index](./handbook/README.md)
+- [Architecture](./handbook/architecture.md)
+- [Editor & UI](./handbook/editor-ui.md)
+- [React Renderer](./handbook/react-renderer.md)
+- [Theming](./handbook/theming.md)
+- [Blocks & Patterns](./handbook/blocks-patterns.md)
+- [Templates](./handbook/templates.md)
+- [Persistence](./handbook/persistence.md)
+- [Preview & Publishing](./handbook/preview.md)
 
----
+## Reference (working docs)
 
-## Guides (start here)
+Living design/status docs for in-flight work. These are cited by code comments and by
+plans in [`plans/`](../plans) — they track decisions and remaining work, not
+onboarding.
 
 | Doc | What it covers |
 |---|---|
-| [Theming — A Developer's Guide](./guides/theming-guide.md) | How theming works, how Open Props is used, and what a new dev needs to know. |
-| [Rendering the JSON](./guides/json-rendering.md) | GrapesJS's canonical `getHtml`/`getCss`/`getProjectData` export vs. why we built our own React renderer. |
-
-## Reference (deep dives)
-
-### Theming
-| Doc | What it covers |
-|---|---|
-| [The Theme Document](./reference/theme-document.md) | The per-tenant theme JSON shape, field by field (modeled on WP `theme.json`). |
-| [Preview Theme CSS: Request Flow](./reference/preview-theme-css-flow.md) | How a preview render fetches compiled theme CSS via the versioned-URL cache. |
-| [CSS Architecture: Internal vs External](./reference/css-publish-architecture.md) | Where CSS is inlined vs linked at publish time, and the `protected`-rule discipline. |
-| [Theme Document Quiz](./reference/theme-document-quiz.md) | Self-check questions on `lib/tokens/index.ts` and the token system. |
-
-### Rendering
-| Doc | What it covers |
-|---|---|
-| [Page / Post Rendering Pipeline](./reference/rendering-pipeline.md) | Full route → DB → template-resolution → JSON→JSX flow for the public render. |
-| [Tailwind + GrapesJS Blocks Architecture](./reference/tailwind-blocks-architecture.md) | How Tailwind-styled blocks are authored, registered, and rendered. |
-
-### Templates
-| Doc | What it covers |
-|---|---|
-| [Templates](./reference/templates.md) | The template data model: kinds, sync semantics, global-vs-tenant shadowing. |
-| [Create-template-from-scratch UI](./reference/create-template-ui.md) | The Library admin browse + create flow (§3 implementation guide). |
-| [Templates — Remaining Work](./reference/templates-followups.md) | Status tracker + design notes for the unfinished templates work. |
+| [Templates](./reference/templates.md) | Template data-model design: kinds, sync semantics, global-vs-tenant shadowing. |
+| [Templates — Remaining Work](./reference/templates-followups.md) | Status tracker + design notes for unfinished templates work (referenced by section number from code + plans). |
+| [Page / Post Rendering Pipeline](./reference/rendering-pipeline.md) | Route → DB → template-resolution → JSON→JSX flow for the public render. |
