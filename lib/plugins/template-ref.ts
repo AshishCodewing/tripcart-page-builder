@@ -32,7 +32,7 @@
  * silently vanishes. `protected` keeps them out of saved page data
  * (`filterProtectedStyles` / tc-local strip them); the dedupe inside
  * `applyTemplateStyles` guarantees we never flip a page-owned rule to
- * protected. See §7 in docs/templates-followups.md.
+ * protected. See §7 in docs/reference/templates-followups.md.
  *
  * GrapesJS APIs used (per docs):
  *   - `editor.Components.addType` — component-type registration

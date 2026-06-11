@@ -1,6 +1,6 @@
 # §3 — Create-template-from-scratch UI (Templates + Patterns pages)
 
-Implementation guide for §3 of `docs/templates-followups.md`. This is the **browse + create**
+Implementation guide for §3 of `docs/reference/templates-followups.md`. This is the **browse + create**
 entry point for templates — today the only way a template comes into existence is the
 convert-from-selection flow in the page editor; there's no admin surface to author one from
 nothing or to see what a tenant already has.

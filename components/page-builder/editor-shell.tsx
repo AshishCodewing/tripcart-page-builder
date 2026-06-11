@@ -437,7 +437,7 @@ type Props = {
   deleteAction: () => Promise<void>
   /**
    * Tenant templates (plus visible globals) to surface as Block-Manager
-   * entries — see §8 in docs/templates-followups.md. Fetched server-side
+   * entries — see §8 in docs/reference/templates-followups.md. Fetched server-side
    * in the editor route. Pass `[]` for global-template editing where
    * there's no tenant context.
    */

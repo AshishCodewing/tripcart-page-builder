@@ -4,7 +4,7 @@
 -- its styles; the project-wrapper layers were dead weight that every
 -- reader had to walk through (`pages[0].frames[0].component`).
 --
--- See §9 of docs/templates-followups.md for the rationale and the
+-- See §9 of docs/reference/templates-followups.md for the rationale and the
 -- corresponding code changes in saveTemplate, createTemplateFromSelection,
 -- and resolvePageTree.
 --

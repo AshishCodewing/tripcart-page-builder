@@ -131,7 +131,7 @@ model Tag {
 // Reusable content units referenced from Page/Post project data.
 //
 // One table covers three UX roles (see `kind`) plus the global-vs-tenant
-// library split (see `tenantId` nullability). See docs/templates.md for
+// library split (see `tenantId` nullability). See docs/reference/templates.md for
 // the design walkthrough.
 //
 // Slug uniqueness is enforced by two indexes, since Prisma 7's `@@unique`

@@ -122,7 +122,7 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
  * component via `cmp.toJSON()` and posts it as the `subtree` field.
  *
  * Always tenant-scoped — global library writes live elsewhere (see §3
- * of docs/templates-followups.md). Slug is derived from the title and
+ * of docs/reference/templates-followups.md). Slug is derived from the title and
  * de-duplicated against the tenant's existing templates by appending
  * `-2`, `-3`, ... — surfaces no slug input in the modal to keep the
  * create flow single-field.

@@ -1,6 +1,6 @@
 # Templates — Remaining Work
 
-Tracks what still needs to land before the templates story is "complete." See `docs/templates.md` for the design and commit `af0e932` for the current shipped state.
+Tracks what still needs to land before the templates story is "complete." See `docs/reference/templates.md` for the design and commit `af0e932` for the current shipped state.
 
 ## Status snapshot
 
@@ -37,6 +37,7 @@ Tracks what still needs to land before the templates story is "complete." See `d
 - **§5 template delete + reference impact** — `deleteTemplate(id)` server action deletes the row, bumps `template:<slug>`, and redirects to the kind's Library route (PATTERN → patterns, LAYOUT/PART → templates; globals → `/admin/tenants`). Wired into the template editor's right-panel "Move to trash" (was a no-op). Per the resolved decision, delete is **unconditional** — refs aren't blocked; the resolver already renders a `missing:<slug>` placeholder for the now-deleted row, so refs degrade gracefully. **Deferred:** a pre-delete "reference inventory" view / ref-count warning (would build on `templateRefExists`). See §5.
 
 ### Pending
+- **LAYOUT content slot + page→layout assignment** — the change that makes `kind: LAYOUT` actually mean "WP template" (a page-shell with a content slot) rather than "big pattern". A page opts into a layout; its content is spliced into the layout's `content-slot` at render. Smallest WP-custom-template-style model (explicit per-page assignment, no template hierarchy). See §14. **This is the highest-leverage gap** — without it the three `TemplateKind`s are really "patterns, area-tagged patterns, and big patterns".
 - **Pattern categories** on Templates so the block inserter can filter by category beyond just kind — matches WP's pattern-category UX. See §10.
 - **Overrides on synced templates** — mark specific child components as per-instance-editable so a synced card layout can have a fixed structure with variable title/image. WP 6.6+ feature; closes a real gap in our synced model. See §11.
 - **Headless thumbnail generation for `Template.preview`** — replace the per-kind placeholder SVGs with real renders. See §12.
@@ -437,6 +438,57 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ---
 
+## 14. LAYOUT content slot + page→layout assignment ("a real template")
+
+**Status: planned (2026-06-09).** Design captured; not yet built.
+
+**What:** Make `kind: LAYOUT` behave like a WordPress *template* instead of just another referenceable blob. Two pieces: (a) a `content-slot` component that a LAYOUT author drops where page content belongs, and (b) an optional per-page layout assignment so a Page's `data` becomes a *fragment* spliced into the chosen LAYOUT's slot at render. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page only owns the middle.
+
+**Why:** Today every `Page.data` is the **entire** top-to-bottom document — header, content, footer baked into one row. Templates reach the page only by being *pulled in* by a `template-ref` inside that data (content→template). WordPress is the inversion: a template is the blueprint that reserves a hole (`<!-- wp:post-content /-->`) and the page's content pours *into* it (template→content). Without a content slot, `LAYOUT` is mechanically identical to `PATTERN` — there is nothing that makes it a page-shell. This section adds the slot + the inversion, which is the single thing that makes `LAYOUT` mean what "template" means in WP. See `docs/reference/templates.md` and the WP Themes Handbook (theme-structure / template-parts, in the RAG — [[reference_wp_themes_handbook_rag]]) for the model.
+
+**Design fork (resolved):** We build WP's **custom-template** model (explicit per-page assignment via a dropdown), NOT the full **template hierarchy** (auto-matching `404`/`archive`/`single`/… to templates by query shape). Hierarchy can layer on later by *computing* `layoutSlug` from route shape instead of reading it from a column — same resolver, different source. Explicit assignment is the smaller, correct MVP.
+
+**Non-breaking by construction:** a Page with `layoutSlug = null` renders byte-identical to today (its `data` is still the whole document). Only pages that opt in become fragments.
+
+**Scope — five touches:**
+
+1. **Schema — one nullable column.** `Page.layoutSlug String?`. Slug not FK-id, to inherit the tenant-first/global-fallback shadowing `loadTemplate` already gives every other reference. `null` = self-contained (today). Migration backfills nothing (default null).
+   - Addendum: extend `templateRefExists(slug)` to also probe this column (`OR EXISTS (SELECT 1 FROM "pages" WHERE "layoutSlug" = $s)`) so the §4 slug-rename guard covers layout assignments, not just JSON `data-slug` refs.
+
+2. **Slot component** — `const CONTENT_SLOT_TYPE = "content-slot"`. A ~20-line plugin cloned from `lib/plugins/template-ref.ts`: a locked, non-deletable component labeled "Page content", registered as one Block draggable **only in the LAYOUT editor** (gate by content-kind, like the §8 inserter context question). This is the only new editor surface needed for correct rendering. (One slot per layout — matches WP, which allows one `post-content` per template.)
+
+3. **Resolver** (`lib/cms/templates.ts`) — two additions:
+   - Add `slot?: ComponentDefinition` to `ResolveCtx`. In `resolveNode`, before the `template-ref` branch: `if (node.type === CONTENT_SLOT_TYPE) return ctx.slot ?? placeholder("empty-slot")`.
+   - New composer `resolvePageWithLayout(tenantId, page)` that wraps the existing path:
+     1. `resolvePageTree(tenantId, page.data)` → resolved page content (parts/refs/styles as today).
+     2. if `!page.layoutSlug` → return that unchanged (today's behavior).
+     3. `loadTemplate(tenantId, page.layoutSlug)`; bail to bare page if missing → page still renders.
+     4. resolve the layout tree with `ctx.slot = pageRoot` — `resolveNode` expands the layout's own header/footer PART refs with zero new code and drops the page content at the slot.
+     5. merge styles: page styles + page-template styles (already in the resolvedPage) + layout styles + layout-part styles, in cascade order.
+   - The page content is **already resolved** before it reaches the slot, so the splice is pure — no re-resolution, no double-expansion.
+
+4. **Render call-site** — swap `resolvePageTree(tenantId, page.data)` → `resolvePageWithLayout(tenantId, page)` in `app/preview/[tenantId]/[...slug]/page.tsx:42` (and `select` `layoutSlug` in the page query). Same hook in the eventual published render path and in the blog-post route if posts should support layouts too (decide separately — posts may want a fixed `single`-style layout rather than per-post choice).
+
+5. **Layout-assignment UI** — a "Layout" `Select` in the page editor right panel, populated from `listTemplatesByKind(tenantId, "LAYOUT")` (read already exists): `None` + each LAYOUT. Writes `Page.layoutSlug` through the existing page save action. Do this last; touches 1–4 are fully testable with a hand-set `layoutSlug`.
+
+**Design notes:**
+
+- **Reuses everything.** Part expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, the `placeholder()` markers — all reused untouched. The net new logic is the slot branch (3 lines) + the composer (~25 lines).
+- **Editor inline preview deferred.** The canvas still shows only the page fragment, not the surrounding layout chrome. A §7-style inline-resolve could later show the layout around the page in-editor, but it is NOT needed for correct rendering — the composition happens server-side at render.
+- **Missing/empty layout degrades gracefully.** Missing layout → page renders bare (its own content, no chrome). Layout with no `content-slot` → page content is dropped (renders `empty-slot` placeholder nowhere to put it); consider a save-time warning in the LAYOUT editor that a layout without a slot can't host content.
+- **Cycle surface.** A LAYOUT could in principle reference a `template-ref` whose template is itself a LAYOUT containing a slot — the existing `visiting` cycle guard + `MAX_DEPTH` already cover pathological nesting; the slot itself can't recurse (it's filled with already-resolved content).
+- **`Template.version` cache key.** When render-path caching lands (see §1 design notes), the composed result keys on `(tenantId, pageId, layoutSlug, layoutVersion, …refSlugVersions)`. Out of scope here.
+
+**Open questions:**
+
+- Do Posts get layout assignment too, or a fixed `single`-style layout? (Leaning: posts share the mechanism but default to a tenant-configured post layout rather than per-post choice.)
+- Should an unassigned page fall back to a tenant default LAYOUT (a soft step toward hierarchy), or stay fully self-contained? (Leaning: stay self-contained for MVP; a tenant-default is a one-line change later — `page.layoutSlug ?? tenant.defaultLayoutSlug`.)
+- Multiple named slots (WP doesn't have these; some builders do)? Out of scope — one slot.
+
+**Estimated size:** small. 1 migration (one column), ~25 lines in `templates.ts`, a ~20-line slot plugin, a 1-line call-site swap, one right-panel `Select`. Everything load-bearing is reuse.
+
+---
+
 ## Toolbar extension reference
 
 For when we wire the "Convert to template" button. From the grapesjs-docs RAG (`dom_components/model/types.ts`):
@@ -502,15 +554,15 @@ Captured for when we resume each task:
 | Slug rename policy when refs exist? | **Resolved + shipped (2026-06-05):** forbid (option 1) via `templateRefExists`. Bulk-rename (option 2) deferred. |
 | Delete behavior when refs exist? | **Resolved + shipped (2026-06-05):** allow delete; refs render `missing:<slug>` placeholders. Inventory view deferred. |
 | `Template.version: Int` for cache keys? | Add when we wire render-path caching. Mirror the theme system's `themeVersion` pattern. |
-| Special slugs (`home` / `404` / etc.) renderer mapping? | Spec'd in `docs/templates.md`; build alongside the render-path integration. |
+| Special slugs (`home` / `404` / etc.) renderer mapping? | Spec'd in `docs/reference/templates.md`; build alongside the render-path integration. |
 | Cross-tenant publish ("install this from tenant A to tenant B")? | Out of scope for MVP. Would need many-to-many or copy-on-install. |
 
 ---
 
 ## Related docs
 
-- `docs/templates.md` — design walkthrough (data model, kinds, sync semantics, global shadowing).
-- `docs/theme-document.md` — the tenant theme system that templates inherit.
-- `docs/css-publish-architecture.md` — protected CssRules discipline (same `protected: true` flag matters for templates).
+- `docs/reference/templates.md` — design walkthrough (data model, kinds, sync semantics, global shadowing).
+- `docs/reference/theme-document.md` — the tenant theme system that templates inherit.
+- `docs/reference/css-publish-architecture.md` — protected CssRules discipline (same `protected: true` flag matters for templates).
 - `feedback_grapesjs_extend_patch_propagation.md` (in memory) — why pattern C is safer than pattern B for toolbar injection.
 - `reference_grapesjs_symbols_plugin_rag.md` (in memory) — silexlabs/grapesjs-symbols source for when/if we revisit Symbols.

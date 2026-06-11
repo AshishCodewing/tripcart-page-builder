@@ -6,7 +6,7 @@
  * file is the read path: tenant-with-global-fallback lookup and the
  * recursive resolver used by the preview render path.
  *
- * See `docs/templates.md` for the design.
+ * See `docs/reference/templates.md` for the design.
  */
 
 import type { Template, TemplateKind } from "@/generated/prisma/client"

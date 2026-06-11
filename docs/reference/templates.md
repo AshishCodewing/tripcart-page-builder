@@ -260,6 +260,6 @@ These can wait until after the initial migration ships.
 
 ## Related
 
-- `docs/theme-document.md` — the tenant-level theme system that templates inherit.
-- `docs/preview-theme-css-flow.md` — how the preview render path consumes tenant theme CSS.
-- `docs/css-publish-architecture.md` — how protected CssRules stay out of per-page blobs (the same `protected: true` discipline matters for templates).
+- `docs/reference/theme-document.md` — the tenant-level theme system that templates inherit.
+- `docs/reference/preview-theme-css-flow.md` — how the preview render path consumes tenant theme CSS.
+- `docs/reference/css-publish-architecture.md` — how protected CssRules stay out of per-page blobs (the same `protected: true` discipline matters for templates).

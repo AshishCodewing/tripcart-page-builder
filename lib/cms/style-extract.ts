@@ -1,6 +1,6 @@
 /**
  * Precise per-subtree CSS extraction for the convert-to-template flow
- * (§6 in docs/templates-followups.md).
+ * (§6 in docs/reference/templates-followups.md).
  *
  * When a selection is promoted to a Template, only the Style-Manager
  * rules that actually target the converted subtree should ride along in
