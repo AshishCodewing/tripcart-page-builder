@@ -55,5 +55,12 @@ export async function saveEditorDraft(
         data: { draftData: validated },
       })
       return
+    default: {
+      // Exhaustiveness guard — a new EditorKind must wire its own
+      // persistence here; the `never` assignment turns a grown union into
+      // a compile error, the throw is the runtime backstop.
+      const unreachable: never = kind
+      throw new Error(`Unknown editor kind: ${String(unreachable)}`)
+    }
   }
 }
