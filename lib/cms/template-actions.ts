@@ -8,6 +8,10 @@ import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
 import { titleToSlug, validateSlug } from "./path"
+import {
+  parseProjectPayload,
+  validateComponentPayload,
+} from "./project-payload"
 import { slimTemplateProject, templateRefExists } from "./templates"
 
 /**
@@ -85,12 +89,7 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
   const dataField = form.get("data")
   let body: ReturnType<typeof slimTemplateProject> | undefined
   if (typeof dataField === "string" && dataField.length) {
-    let project: unknown
-    try {
-      project = JSON.parse(dataField)
-    } catch {
-      throw new Error("Invalid template payload — could not parse JSON.")
-    }
+    const project = parseProjectPayload(dataField, "template")
     body = slimTemplateProject(project)
   }
 
@@ -211,14 +210,13 @@ export async function createTemplateFromSelection(
 
   if (typeof subtreeField !== "string" || subtreeField.length === 0)
     throw new Error("Selected component data is required.")
-  let subtree: unknown
+  let parsedSubtree: unknown
   try {
-    subtree = JSON.parse(subtreeField)
+    parsedSubtree = JSON.parse(subtreeField)
   } catch {
     throw new Error("Invalid subtree payload — could not parse JSON.")
   }
-  if (!subtree || typeof subtree !== "object")
-    throw new Error("Subtree must be a component object.")
+  const subtree = validateComponentPayload(parsedSubtree)
 
   // Optional `styles` snapshot from the dialog — page-scoped CSS rules
   // that target the subtree (e.g. Style-Manager-edited `#id { ... }`).

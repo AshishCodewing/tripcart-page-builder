@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 
+import { validateProjectPayload } from "./project-payload"
 import { slimTemplateProject } from "./templates"
 
 /**
@@ -21,6 +22,9 @@ import { slimTemplateProject } from "./templates"
  *
  * TODO(auth): admin mutations are currently unguarded repo-wide. When auth
  * lands, gate this on the caller owning the tenant that owns `id`.
+ *
+ * The payload is structurally validated (`validateProjectPayload`) before
+ * any write — same boundary rule as the explicit save actions.
  */
 type EditorKind = "page" | "post" | "template"
 
@@ -29,9 +33,10 @@ export async function saveEditorDraft(
   id: string,
   project: unknown
 ): Promise<void> {
+  const validated = validateProjectPayload(project)
   switch (kind) {
     case "template": {
-      const draftData = slimTemplateProject(project)
+      const draftData = slimTemplateProject(validated)
       await prisma.template.update({
         where: { id },
         data: { draftData: draftData as object },
@@ -41,13 +46,13 @@ export async function saveEditorDraft(
     case "page":
       await prisma.page.update({
         where: { id },
-        data: { draftData: project as object },
+        data: { draftData: validated },
       })
       return
     case "post":
       await prisma.post.update({
         where: { id },
-        data: { draftData: project as object },
+        data: { draftData: validated },
       })
       return
   }
