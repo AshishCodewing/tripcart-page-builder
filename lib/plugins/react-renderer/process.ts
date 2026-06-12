@@ -12,13 +12,39 @@ interface ProcessCtx {
   config: RendererReactOptions
 }
 
+// A processed GrapesJS component definition. A real React element always
+// produces an object; only a non-React model yields `undefined`. A symbol-typed
+// element (Fragment) is transparent and produces an array of its flattened
+// children instead.
+type ProcessedDefinition = Record<string, unknown>
+
 const isString = (v: unknown): v is string => typeof v === "string"
 
 const textNode = (content: string) => ({ type: "textnode", content })
 
+// Process JSX children into a flat definition list. JSX surfaces `children` as
+// one of: undefined, a string, a single element, or an array of
+// elements/strings. Fragment children (which process to an array) are spliced
+// into the parent's `components` via flatMap; non-element/non-string children
+// are dropped, as before.
+const processChildren = (
+  args: ProcessCtx,
+  children: unknown
+): ProcessedDefinition[] => {
+  if (children === undefined || children === null) return []
+  const childArray = Array.isArray(children) ? children : [children]
+  return childArray.flatMap((child): ProcessedDefinition[] => {
+    if (isString(child)) return [textNode(child)]
+    if (!isReactElement(child)) return []
+    const processed = processReactElements({ ...args, model: child })
+    if (processed === undefined) return []
+    return Array.isArray(processed) ? processed : [processed]
+  })
+}
+
 export const processReactElements = (
   args: ProcessCtx & { model: unknown }
-): Record<string, unknown> | undefined => {
+): ProcessedDefinition | ProcessedDefinition[] | undefined => {
   const { model, editor, config } = args
   if (!isReactElement(model)) return undefined
 
@@ -28,8 +54,14 @@ export const processReactElements = (
   }
   const { children, className, style, ...rest } = props
 
-  const out: Record<string, unknown> = {}
-  const isSymbolType = typeof type === "symbol"
+  // Symbols (Fragment, etc.) are transparent: splice their flattened children
+  // into the parent instead of materializing a container. An empty Fragment
+  // yields [], so it contributes nothing.
+  if (typeof type === "symbol") {
+    return processChildren(args, children)
+  }
+
+  const out: ProcessedDefinition = {}
 
   if (typeof type === "function") {
     // Function component → resolve via config.components map.
@@ -37,36 +69,32 @@ export const processReactElements = (
       config,
       type as Parameters<typeof getComponentConfig>[1]
     )
-    out.type = match?.type
+    if (match) {
+      out.type = match.type
+    } else {
+      // Unregistered: degrade loudly but keep a usable definition. We omit the
+      // `type` key entirely (never `type: undefined`) so GrapesJS doesn't
+      // re-process the raw element through its $$typeof preset branch.
+      const named = type as { displayName?: string; name?: string }
+      const label = named.displayName || named.name || "anonymous"
+      console.warn(
+        `[react-renderer] unregistered React component <${label}>; ` +
+          `add it to config.components to render it. Falling back to a default container.`
+      )
+    }
   } else if (typeof type === "string" && editor.Components.getType(type)) {
     out.type = type
-  } else if (typeof type === "string" && !isSymbolType) {
+  } else if (typeof type === "string") {
     out.tagName = type
   }
-  // Symbols (Fragment, etc.) leave both type and tagName unset; the renderer
-  // will treat the element as a transparent container.
 
   if (className) out.classes = className
   if (style && typeof style === "object") {
     out.style = camelKeysToKebabStyle(style as Record<string, string | number>)
   }
 
-  // JSX surfaces `children` as one of: undefined, a string, a single element,
-  // or an array of elements/strings. Coerce non-empty values to an array so
-  // single-child trees aren't silently dropped.
-  if (children !== undefined && children !== null) {
-    const childArray = Array.isArray(children) ? children : [children]
-    const components = childArray
-      .map((child) =>
-        isString(child)
-          ? textNode(child)
-          : isReactElement(child)
-            ? processReactElements({ ...args, model: child })
-            : null
-      )
-      .filter((c): c is NonNullable<typeof c> => Boolean(c))
-    if (components.length) out.components = components
-  }
+  const components = processChildren(args, children)
+  if (components.length) out.components = components
 
   if (Object.keys(rest).length) {
     // splitPropsFromAttr separates HTML attributes (rendered on the tag) from
@@ -86,7 +114,8 @@ export const processReactElements = (
 // Block content can be JSX. When a block is registered, swap the React tree
 // for a processed component definition so dropping the block produces real
 // GrapesJS components — but stash the original on `reactContent` so callers
-// inspecting the block still see what was authored.
+// inspecting the block still see what was authored. A processed Fragment yields
+// an array, which `content` natively accepts.
 export const manageReactBlockContent =
   (ctx: ProcessCtx) =>
   (block: Block): void => {
@@ -99,7 +128,8 @@ export const manageReactBlockContent =
     }
   }
 
-// Same idea, for pages added with a JSX `component`.
+// Same idea, for pages added with a JSX `component`. A processed Fragment
+// yields an array, which `components` natively accepts.
 export const manageReactPageContent =
   (ctx: ProcessCtx) =>
   (pageProps: PageProperties): void => {
