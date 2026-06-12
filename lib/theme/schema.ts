@@ -18,53 +18,42 @@
  * AND inside `styles` references (`var:preset|color|primary`). The
  * editor UI should treat `slug` as write-once; renaming `name` is cheap,
  * renaming `slug` invalidates every authored reference.
+ *
+ * Every type here is DERIVED from the Zod validator in `./schema.zod.ts`
+ * via `z.infer` — that file is the single source of truth; change the
+ * shape there. (`CssValue`/`StyleRef` stay hand-written string aliases:
+ * they only carry documentation, Zod sees plain strings. `ElementName`
+ * is derived from the elements schema's key set.)
  */
+
+import type { z } from "zod"
+
+import type {
+  borderStyleSchema,
+  boxStyleSchema,
+  colorStyleSchema,
+  elementsSchema,
+  fontSizeTokenSchema,
+  pseudoStyleBlockSchema,
+  spacingStyleSchema,
+  styleBlockSchema,
+  styleDefaultsSchema,
+  themeSchema,
+  tokenRegistrySchema,
+  tokenSchema,
+  typographyStyleSchema,
+} from "./schema.zod"
 
 export type ThemeVersion = 1
 
 export type CssValue = string
 
-export type Token = {
-  slug: string
-  name: string
-  value: CssValue
-}
+export type Token = z.infer<typeof tokenSchema>
 
-export type FontSizeToken = Token & {
-  /** When set, the compiler emits a `clamp(min, value, max)` fluid size. */
-  fluid?: { min: CssValue; max: CssValue }
-}
+/** `fluid` set means the compiler emits a `clamp(min, value, max)` size. */
+export type FontSizeToken = z.infer<typeof fontSizeTokenSchema>
 
-export type TokenRegistry = {
-  color?: {
-    palette?: Token[]
-  }
-  typography?: {
-    fontFamilies?: Token[]
-    fontSizes?: FontSizeToken[]
-    fontWeights?: Token[]
-    lineHeights?: Token[]
-    letterSpacings?: Token[]
-  }
-  spacing?: {
-    sizes?: Token[]
-  }
-  border?: {
-    radii?: Token[]
-    widths?: Token[]
-    styles?: Token[]
-  }
-  shadow?: {
-    presets?: Token[]
-  }
-  layout?: {
-    contentSize?: CssValue
-    wideSize?: CssValue
-  }
-  dimensions?: {
-    minHeight?: CssValue
-  }
-}
+export type TokenRegistry = z.infer<typeof tokenRegistrySchema>
 
 /**
  * A `StyleRef` is either a raw CSS value or a preset/custom reference
@@ -74,91 +63,36 @@ export type TokenRegistry = {
  */
 export type StyleRef = string
 
-export type ColorStyle = {
-  text?: StyleRef
-  background?: StyleRef
-}
+export type ColorStyle = z.infer<typeof colorStyleSchema>
 
-export type TypographyStyle = {
-  fontFamily?: StyleRef
-  fontSize?: StyleRef
-  fontWeight?: StyleRef
-  lineHeight?: StyleRef
-  letterSpacing?: StyleRef
-  textDecoration?: StyleRef
-  textTransform?: StyleRef
-}
+export type TypographyStyle = z.infer<typeof typographyStyleSchema>
 
-export type BoxStyle = {
-  top?: StyleRef
-  right?: StyleRef
-  bottom?: StyleRef
-  left?: StyleRef
-}
+export type BoxStyle = z.infer<typeof boxStyleSchema>
 
-export type SpacingStyle = {
-  padding?: BoxStyle
-  margin?: BoxStyle
-  blockGap?: StyleRef
-}
+export type SpacingStyle = z.infer<typeof spacingStyleSchema>
 
-export type BorderStyle = {
-  color?: StyleRef
-  radius?: StyleRef
-  style?: StyleRef
-  width?: StyleRef
-}
+export type BorderStyle = z.infer<typeof borderStyleSchema>
 
-export type StyleBlock = {
-  color?: ColorStyle
-  typography?: TypographyStyle
-  spacing?: SpacingStyle
-  border?: BorderStyle
-  shadow?: StyleRef
-}
+export type StyleBlock = z.infer<typeof styleBlockSchema>
 
-export type PseudoStyleBlock = StyleBlock & {
-  ":hover"?: StyleBlock
-  ":focus"?: StyleBlock
-  ":active"?: StyleBlock
-  ":visited"?: StyleBlock
-}
+export type PseudoStyleBlock = z.infer<typeof pseudoStyleBlockSchema>
 
 /**
  * Mirrors WP's supported element list. Each maps to a class handle the
  * renderer attaches (e.g. `tc-element-button`), so element-level defaults
  * target a class rather than a tag — same trick WP uses with
- * `.wp-element-button`.
+ * `.wp-element-button`. Derived from the elements schema's key set.
  */
-export type ElementName =
-  | "button"
-  | "link"
-  | "heading"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "h4"
-  | "h5"
-  | "h6"
-  | "caption"
-  | "cite"
+export type ElementName = keyof z.infer<typeof elementsSchema>
 
-export type StyleDefaults = StyleBlock & {
-  elements?: Partial<Record<ElementName, PseudoStyleBlock>>
-  /**
-   * Keyed by GrapesJS component `type`. Open-ended (no fixed enum) so
-   * new patterns/blocks register without a schema bump. The compiler
-   * targets the component's root selector (typically
-   * `.tc-component-<type>`).
-   */
-  components?: Record<string, PseudoStyleBlock>
-}
+/**
+ * `components` is keyed by GrapesJS component `type`. Open-ended (no
+ * fixed enum) so new patterns/blocks register without a schema bump. The
+ * compiler targets the component's root selector (typically
+ * `.tc-component-<type>`).
+ */
+export type StyleDefaults = z.infer<typeof styleDefaultsSchema>
 
-export type CustomTree = { [key: string]: CssValue | CustomTree }
+export type { CustomTree } from "./schema.zod"
 
-export type Theme = {
-  version: ThemeVersion
-  settings: TokenRegistry
-  styles?: StyleDefaults
-  custom?: CustomTree
-}
+export type Theme = z.infer<typeof themeSchema>
