@@ -48,6 +48,7 @@ Each topic has **two** docs:
 | Templates | [templates.md](templates.md) | [templates.technical.md](templates.technical.md) | Reusable layouts/patterns/parts, synced refs vs copies |
 | Persistence | [persistence.md](persistence.md) | [persistence.technical.md](persistence.technical.md) | CMS data layer, autosave vs publish, storage adapter |
 | Preview & Publishing | [preview.md](preview.md) | [preview.technical.md](preview.technical.md) | Draft mode, preview routes, the public render path |
+| RAG (Docs Search) | [rag.md](rag.md) | [rag.technical.md](rag.technical.md) | Local doc-search corpus + the `search_grapesjs_docs` MCP tool (dev tooling) |
 
 ## Where things live
 

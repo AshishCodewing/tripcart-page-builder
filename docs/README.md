@@ -15,6 +15,7 @@ doc (the mental model) and a technical doc (a map into the code) for each:
 - [Templates](./handbook/templates.md)
 - [Persistence](./handbook/persistence.md)
 - [Preview & Publishing](./handbook/preview.md)
+- [RAG (Docs Search)](./handbook/rag.md)
 
 ## Reference (working docs)
 
