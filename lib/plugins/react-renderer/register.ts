@@ -58,7 +58,13 @@ export const registerComponents = (
     })
 
     Components.addType(typeName, {
-      isComponent: (el: HTMLElement) => el?.tagName === typeName,
+      // tagName is uppercased by the DOM; compare case-insensitively so an
+      // imported/pasted tag can match this type. `?.` guards the text/comment
+      // nodes the parser also feeds through. CAUTION: this recognizer is now
+      // live — a future type key that matches a native HTML tag name would
+      // hijack imported markup of that tag.
+      isComponent: (el: HTMLElement) =>
+        el?.tagName?.toLowerCase() === typeName.toLowerCase(),
       model: {
         defaults: {
           type: typeName,
