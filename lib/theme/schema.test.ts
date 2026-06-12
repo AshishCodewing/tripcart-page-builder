@@ -38,7 +38,9 @@ const themeFixture: Theme = {
       widths: [{ slug: "thin", name: "Thin", value: "1px" }],
       styles: [{ slug: "solid", name: "Solid", value: "solid" }],
     },
-    shadow: { presets: [{ slug: "low", name: "Low", value: "var(--shadow-2)" }] },
+    shadow: {
+      presets: [{ slug: "low", name: "Low", value: "var(--shadow-2)" }],
+    },
     layout: { contentSize: "65ch", wideSize: "80rem" },
     dimensions: { minHeight: "100vh" },
   },
@@ -46,7 +48,10 @@ const themeFixture: Theme = {
     color: { text: "var:preset|color|primary", background: "white" },
     typography: { fontSize: "var:preset|typography|md" },
     spacing: {
-      padding: { top: "var:preset|spacing|sm", bottom: "var:preset|spacing|sm" },
+      padding: {
+        top: "var:preset|spacing|sm",
+        bottom: "var:preset|spacing|sm",
+      },
       margin: { left: "auto", right: "auto" },
       blockGap: "1rem",
     },

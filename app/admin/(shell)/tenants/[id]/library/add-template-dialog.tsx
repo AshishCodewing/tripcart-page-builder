@@ -39,7 +39,10 @@ export function AddTemplateDialog({ tenantId, kind, label }: Props) {
         <DialogHeader>
           <DialogTitle>{label}</DialogTitle>
         </DialogHeader>
-        <form action={createTemplate.bind(null, tenantId)} className="space-y-4">
+        <form
+          action={createTemplate.bind(null, tenantId)}
+          className="space-y-4"
+        >
           <input type="hidden" name="kind" value={kind} />
           <div className="space-y-2">
             <Label htmlFor="template-title">Title</Label>
