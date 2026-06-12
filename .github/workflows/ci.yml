@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy value: prisma.config.ts requires DATABASE_URL at load time, but
+      # `prisma generate` never connects. CI must not see a real database.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          # package.json has no `packageManager` field, so the action needs
+          # an explicit version (keep in sync with the major used locally).
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test

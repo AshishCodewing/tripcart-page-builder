@@ -5,6 +5,7 @@ import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { cn } from "@/lib/utils"
+import { useIsClient } from "@/hooks/use-is-client"
 import { Toggle } from "@/components/ui/toggle"
 import {
   Tooltip,
@@ -22,10 +23,7 @@ type Props = Omit<
 
 export function ThemeToggle({ className, size = "sm", ...props }: Props) {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useIsClient()
 
   // Avoid hydration mismatch — server renders no theme info.
   const isDark = mounted ? resolvedTheme === "dark" : false

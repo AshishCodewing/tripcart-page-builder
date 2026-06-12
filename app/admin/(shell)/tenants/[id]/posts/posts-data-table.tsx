@@ -71,6 +71,11 @@ const previewHref = (tenantId: string, slug: string) =>
   `/api/preview?path=${encodeURIComponent(`/blog/${slug}`)}&tenantId=${tenantId}`
 
 export function PostsDataTable({ tenantId, items }: Props) {
+  // TanStack Table mutates its `table` object in place rather than returning a
+  // fresh reference, which breaks React's immutability rules: React Compiler
+  // would memoize reads off `table` into stale UI. The directive opts this
+  // component out of compilation; see https://github.com/facebook/react/issues/33057
+  "use no memo"
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "updatedAt", desc: true },
   ])
@@ -170,6 +175,7 @@ export function PostsDataTable({ tenantId, items }: Props) {
     [tenantId]
   )
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- intentional "use no memo" opt-out (see above)
   const table = useReactTable({
     data: items,
     columns,

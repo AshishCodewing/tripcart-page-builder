@@ -4,6 +4,7 @@ import * as React from "react"
 import { useEditorMaybe } from "@grapesjs/react"
 import { Trash2 } from "lucide-react"
 
+import { useIsClient } from "@/hooks/use-is-client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,13 +59,18 @@ function formatRelative(date: Date): string {
 }
 
 function RelativeTime({ date }: { date: Date }) {
-  const [label, setLabel] = React.useState<string | null>(null)
+  // `formatRelative` reads `Date.now()`, which differs between server and
+  // client, so render an empty string until hydrated to avoid a mismatch.
+  const isClient = useIsClient()
+  // Re-render every 30s to keep the relative label fresh. The tick is a
+  // timer callback (not a synchronous effect-body setState), and the label
+  // itself is derived during render rather than mirrored into state.
+  const [, tick] = React.useReducer((n: number) => n + 1, 0)
   React.useEffect(() => {
-    setLabel(formatRelative(date))
-    const id = setInterval(() => setLabel(formatRelative(date)), 30_000)
+    const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
-  }, [date])
-  return <>{label ?? ""}</>
+  }, [])
+  return <>{isClient ? formatRelative(date) : ""}</>
 }
 
 function FieldRow({
