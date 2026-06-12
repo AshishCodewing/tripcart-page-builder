@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
 import { validateSlug } from "./path"
+import { parseProjectPayload } from "./project-payload"
 
 export async function createPost(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
@@ -39,13 +40,9 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   // because non-editor callers (e.g. metadata-only updates from the post
   // index) will omit it — in which case we keep the previous value.
   const dataField = form.get("data")
-  let data: unknown = undefined
+  let data: object | undefined = undefined
   if (typeof dataField === "string" && dataField.length) {
-    try {
-      data = JSON.parse(dataField)
-    } catch {
-      throw new Error("Invalid project payload — could not parse JSON.")
-    }
+    data = parseProjectPayload(dataField)
   }
 
   validateSlug(newSlug)
@@ -72,9 +69,7 @@ export async function savePost(id: string, form: FormData): Promise<void> {
         willBePublished && !wasPublished ? new Date() : existing.publishedAt,
       // Committing the editor state clears any pending autosave draft so
       // the next load seeds from `data`. Metadata-only saves leave it.
-      ...(data !== undefined
-        ? { data: data as object, draftData: Prisma.DbNull }
-        : {}),
+      ...(data !== undefined ? { data, draftData: Prisma.DbNull } : {}),
     },
   })
 

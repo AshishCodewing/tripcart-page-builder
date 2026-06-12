@@ -12,7 +12,7 @@ your row when done.
 | 001 | Verification baseline — Vitest + characterization tests | P1 | M | — | DONE |
 | 002 | GitHub Actions CI gate (typecheck/lint/test) | P1 | S | 001 (test step) | DONE |
 | 003 | Cancel pending autosave debounce on explicit save | P2 | S | — | DONE |
-| 004 | Validate project JSON payloads at the action boundary | P2 | M | 001 | TODO |
+| 004 | Validate project JSON payloads at the action boundary | P2 | M | 001 | DONE |
 | 005 | Theme schema single source of truth (Zod-derived types) | P3 | M | 001 | TODO |
 | 006 | RAG side-project decoupling — investigate & recommend | P3 | M | — | TODO |
 | 007 | Repo hygiene batch (README, strays, deps, env docs, guard) | P3 | S | — | TODO |
