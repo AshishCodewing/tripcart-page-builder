@@ -76,21 +76,21 @@ export function TenantSidebar({
     {
       label: "Library",
       items: [
-        { 
+        {
           label: "Templates",
           icon: LayoutTemplateIcon,
           base: `${base}/library`,
           children: [
-            { label: "All Templates", href: `${base}/library/templates`},
-          ]
+            { label: "All Templates", href: `${base}/library/templates` },
+          ],
         },
-        { 
+        {
           label: "Patterns",
           icon: LayoutTemplateIcon,
           base: `${base}/library`,
           children: [
-            { label: "All Patterns", href: `${base}/library/patterns`},
-          ]
+            { label: "All Patterns", href: `${base}/library/patterns` },
+          ],
         },
       ],
     },

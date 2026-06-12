@@ -89,7 +89,9 @@ export function PostsDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Title"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ row }) => (
@@ -107,11 +109,15 @@ export function PostsDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Slug"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ getValue }) => (
-          <span className="font-mono text-xs">/blog/{getValue() as string}</span>
+          <span className="font-mono text-xs">
+            /blog/{getValue() as string}
+          </span>
         ),
       },
       {
@@ -131,7 +137,9 @@ export function PostsDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Updated"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ getValue }) => (

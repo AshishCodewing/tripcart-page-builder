@@ -35,11 +35,9 @@ export default function EditorError({
     <div className="flex h-dvh flex-col items-center justify-center gap-6 p-8 text-center">
       <div className="max-w-md space-y-2">
         <h1 className="text-lg font-semibold">
-          {missing
-            ? "This content no longer exists"
-            : "Something went wrong"}
+          {missing ? "This content no longer exists" : "Something went wrong"}
         </h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {missing
             ? "It may have been deleted in another tab or session, so your changes couldn't be saved. Head back and reopen it from the list."
             : "We couldn't save your changes. Try again, or head back and reopen the editor."}

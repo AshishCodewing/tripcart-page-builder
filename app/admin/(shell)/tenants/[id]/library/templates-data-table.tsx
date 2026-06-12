@@ -188,7 +188,9 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           <SortHeader
             label="Title"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ row }) => {
@@ -267,7 +269,9 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           <SortHeader
             label="Updated"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ getValue }) => (
@@ -328,7 +332,13 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
   const table = useReactTable({
     data: items,
     columns,
-    state: { sorting, columnFilters, globalFilter, columnVisibility, rowSelection },
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+      columnVisibility,
+      rowSelection,
+    },
     enableRowSelection: true,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

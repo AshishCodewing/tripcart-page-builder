@@ -89,7 +89,9 @@ export function PagesDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Title"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ row }) => (
@@ -107,7 +109,9 @@ export function PagesDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Path"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ getValue }) => (
@@ -131,7 +135,9 @@ export function PagesDataTable({ tenantId, items }: Props) {
           <SortHeader
             label="Updated"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         cell: ({ getValue }) => (
