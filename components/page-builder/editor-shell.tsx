@@ -599,6 +599,19 @@ function EditorShellInner({
     []
   )
 
+  // An explicit Save/Publish posts the freshest getProjectData() itself and
+  // the server clears `draftData` — a debounce queued before the click is
+  // stale by definition and, if allowed to fire after the commit, would
+  // resurrect `draftData` and leave the editor claiming to be "ahead" of
+  // what it just published. Drop both the timer and the captured payload.
+  const cancelPendingDraft = React.useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    pendingDraftRef.current = null
+  }, [])
+
   // Flush a pending debounced draft on unmount / record switch so the
   // last <1s of edits isn't silently dropped when navigating away before
   // the timer fires. (Publish is unaffected — it posts fresh
@@ -721,6 +734,12 @@ function EditorShellInner({
   // cascade over the fresh tenant theme on preview/public render.
   const augmentedSave = React.useCallback(
     async (formData: FormData) => {
+      // Cancel before the snapshot, not after the await: the freshest state
+      // is read synchronously into formData on this same tick, so any queued
+      // debounce payload is strictly stale — and cancelling first closes the
+      // window where it could fire mid-save and rewrite `draftData` after
+      // the server clears it.
+      cancelPendingDraft()
       const editor = editorRef.current
       if (editor) {
         const filtered = filterProtectedStyles(editor.getProjectData())
@@ -741,7 +760,7 @@ function EditorShellInner({
         })
       }
     },
-    [saveAction]
+    [saveAction, cancelPendingDraft]
   )
 
   return (
