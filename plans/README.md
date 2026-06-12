@@ -14,7 +14,7 @@ your row when done.
 | 003 | Cancel pending autosave debounce on explicit save | P2 | S | — | DONE |
 | 004 | Validate project JSON payloads at the action boundary | P2 | M | 001 | DONE |
 | 005 | Theme schema single source of truth (Zod-derived types) | P3 | M | 001 | DONE |
-| 006 | RAG side-project decoupling — investigate & recommend | P3 | M | — | TODO |
+| 006 | RAG side-project decoupling — investigate & recommend | P3 | M | — | DONE (memo: docs/rag-decoupling-decision.md — recommends (b), fold into 007) |
 | 007 | Repo hygiene batch (README, strays, deps, env docs, guard) | P3 | S | — | TODO |
 | 008 | LAYOUT content slot + page→layout assignment (§14) | P2 | M | 001 | TODO |
 | 009 | Public render path — design spike | P2 | M | — (read 008) | TODO |
