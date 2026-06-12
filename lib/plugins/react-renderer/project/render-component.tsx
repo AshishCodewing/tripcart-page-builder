@@ -31,12 +31,14 @@ export const RenderComponent = (props: RenderComponentProps) => {
 
   // For registered React components, coerce numeric-looking strings into
   // numbers so the component receives `width={123}` instead of `width="123"`.
-  // We don't do this for raw HTML tags — React would forward the number to
-  // the DOM attribute anyway, but the SDK matches strings to strings there.
+  // Coercion is round-trip-safe: only values where `String(Number(v)) === v`
+  // convert, so "01234", " 123 ", "1e5", and "" stay strings (no silent data
+  // loss). The canvas renderer always passes raw strings, so registered
+  // components must tolerate both a string and a number for the same prop.
   if (isReactCmp) {
     Object.keys(reactProps).forEach((k) => {
       const v = reactProps[k]
-      if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) {
+      if (typeof v === "string" && v !== "" && String(Number(v)) === v) {
         reactProps[k] = Number(v)
       }
     })

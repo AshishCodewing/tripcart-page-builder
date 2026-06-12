@@ -113,15 +113,23 @@ describe("RenderProject — registered React component", () => {
     ],
   })
 
-  it("(KNOWN QUIRK) coerces a numeric-looking string prop to a number, losing the leading zero", () => {
-    // KNOWN QUIRK: for registered React components, numeric-looking string
-    // props are Number()-coerced — "01234" becomes 1234 and the leading zero
-    // is lost. Audited 2026-06-11 (render-component.tsx:36-43).
+  it("leaves a numeric-looking string with a leading zero as a string (lossless)", () => {
+    // Coercion is round-trip-safe: "01234" does not satisfy
+    // String(Number(v)) === v, so it stays a string — the leading zero
+    // survives.
     const html = render({
       projectData: withPriceTag("01234"),
       config: { components: { "price-tag": { component: PriceTag } } },
     })
-    expect(html).toContain("number:1234")
+    expect(html).toContain("string:01234")
+  })
+
+  it("coerces a clean integer string to a number", () => {
+    const html = render({
+      projectData: withPriceTag("123"),
+      config: { components: { "price-tag": { component: PriceTag } } },
+    })
+    expect(html).toContain("number:123")
   })
 
   it("leaves a non-numeric string prop as a string", () => {
