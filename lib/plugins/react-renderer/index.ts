@@ -56,9 +56,21 @@ const installRenderer: Plugin = (editor, options = {}) => {
   // Component definitions can be JSX. The processor runs whenever a model is
   // added; if it's a React element, we transform it into a regular GrapesJS
   // component definition.
+  //
+  // GrapesJS's processDef shallow-merges the processor result as a SINGLE
+  // object (underscore extend), so the processor can never return an array.
+  // A transparent Fragment processes to an array of children: collapse a
+  // one-child Fragment to that child; a zero- or multi-child Fragment is
+  // wrapped in `{ components }`, which materializes a default container (the
+  // documented merge-constraint limitation). undefined passes through so a
+  // non-React model keeps its original definition.
   ;(
     editor.Components.config as { processor?: (model: unknown) => unknown }
-  ).processor = (model) => processReactElements({ model, editor, config })
+  ).processor = (model) => {
+    const processed = processReactElements({ model, editor, config })
+    if (!Array.isArray(processed)) return processed
+    return processed.length === 1 ? processed[0] : { components: processed }
+  }
 
   registerComponents(editor, config)
 

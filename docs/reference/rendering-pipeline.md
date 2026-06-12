@@ -179,6 +179,39 @@ its raw `tagName`, so plain markup round-trips as ordinary HTML elements.
 
 ---
 
+## Pinned GrapesJS internals (check on upgrade)
+
+The canvas half of `lib/plugins/react-renderer/` reaches into GrapesJS
+internals that are **not part of the public API**. Pinned against
+**grapesjs 0.22.16** — re-verify each on any GrapesJS upgrade:
+
+- **`Components.config.processor` result is shallow-merged as a single
+  object** (`processDef` → underscore `extend`). The processor can never
+  return an array, so a transparent Fragment that flattens to multiple
+  children must be collapsed at the call site (`index.ts`): one child →
+  the child; zero/multi → `{ components }` (materializes a default
+  container — accepted limitation). `process.ts` / `index.ts`.
+- **`Parser.parserHtml.splitPropsFromAttr(rest)`** splits a prop bag into
+  `{ attrs, props }` (HTML attributes vs model-level props). `process.ts`.
+- **`Components.ComponentView` + `.extend(...)`** — bind.ts subclasses the
+  view to adopt React-owned DOM (overriding `initComponents`,
+  `_createElement`, `_removeElement`, `__clearAttributes`, `render`, and
+  calling `_ensureElement` / `_setData` / `renderAttributes` /
+  `updateSrc`). `bind.ts`.
+- **Backbone `setElement` reliance** — the existing-view rebind path calls
+  `view.setElement(el)` to undelegate/re-delegate handlers (notably
+  `dragstart`). NOTE: `setElement` does **not** redo the constructor-only
+  wiring of `el.__gjsv` / `$el.data('model')`; if hover/select ever breaks
+  post-rebind, re-add those in the else branch with evidence. `bind.ts`.
+- **`ComponentView.frameView`** getter (= `opts.config.frameView`) — used
+  for frame-scoped view teardown (`v.frameView === frameView`).
+  `render-component.tsx`, `bind.ts`.
+- **`Components.events`** keys (`update`, `removed`, plus the
+  `update:components|attributes|classes` sub-events) drive the canvas
+  re-render/teardown subscriptions. `render-component.tsx`.
+- **`Canvas.config.customRenderer`** props shape — the per-frame render
+  entry point the plugin installs. `index.ts`, `render-root`.
+
 ## One-line summary
 
 `data` (JSON) → `ProjectEditor` parses it → `template-ref` nodes resolved from

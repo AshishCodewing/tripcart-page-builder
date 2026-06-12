@@ -77,10 +77,22 @@ export const bindComponentToElement = (args: BindArgs): ComponentView => {
       },
     })
 
+    // The Backbone constructor (called with `el`) already runs setElement, so
+    // the new view's element + delegated handlers are wired here.
     view = new ExtendedView({ el, config: viewConfig, model: component })
+  } else {
+    // Existing view pointed at a different (stale) node. setElement is the
+    // Backbone-correct rebind: it undelegates the old node's handlers, swaps
+    // el/$el, and re-delegates onto the new node — so the delegated `dragstart`
+    // handler follows the element. (A raw `view.el = el` would leave $el and
+    // the event delegation pointed at the dead node.)
+    ;(
+      view as ComponentView & { setElement: (el: HTMLElement) => void }
+    ).setElement(el)
   }
 
-  view.el = el
+  // render()'s overridden body re-runs _ensureElement (idempotent — el already
+  // matches), then re-applies attributes/data wiring for both paths.
   view.render()
   return view
 }

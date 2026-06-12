@@ -62,33 +62,42 @@ new discoveries:
 ### From the react-renderer focused audit (2026-06-11, same commit)
 
 The maintainer planned only the test baseline (plan 011) from this run.
-Remaining vetted findings, recorded so they aren't re-discovered (plan 011's
-tests pin the current behavior of the first two as KNOWN QUIRK cases):
+Findings 4–8 were subsequently fixed; finding 9 stays deferred.
 
 4. **Project renderer coerces numeric-looking string props to numbers** —
-   `lib/plugins/react-renderer/project/render-component.tsx:36-43`. Lossy
-   (`"01234"` → `1234`) and divergent from the canvas renderer, which passes
-   strings. S effort, LOW risk.
+   `lib/plugins/react-renderer/project/render-component.tsx`.
+   **Fixed 2026-06 — advisor/012-react-renderer-small-fixes**: coercion is
+   now round-trip-safe (`String(Number(v)) === v`), so `"01234"` stays a
+   string while clean integers still coerce.
 5. **Unregistered function components silently degrade** —
-   `lib/plugins/react-renderer/process.ts:34-46`. `out.type = undefined`
-   with no warning; Fragments materialize a wrapper `div` despite the
-   "transparent container" comment. S effort, LOW risk.
+   `lib/plugins/react-renderer/process.ts`.
+   **Fixed 2026-06 — advisor/012-react-renderer-small-fixes**: unregistered
+   components now `console.warn` and drop the `type` key (no
+   `type:undefined`); Fragments flatten transparently. Accepted limitation:
+   a zero- or multi-child Fragment at the **processor root** still
+   materializes a default container, because GrapesJS shallow-merges the
+   processor result as a single object and cannot accept an array there.
 6. **`isComponent` never matches** —
-   `lib/plugins/react-renderer/register.ts:61` compares uppercase DOM
-   `tagName` against the as-written type key, so HTML paste/import never
-   recognizes React component types. S effort, LOW risk.
+   `lib/plugins/react-renderer/register.ts`.
+   **Fixed 2026-06 — advisor/012-react-renderer-small-fixes**: tag names
+   now compare case-insensitively, so HTML paste/import recognizes React
+   component types (cautioned: the recognizer is now live).
 7. **Raw `view.el = el` rebinding skips Backbone `setElement`** —
-   `lib/plugins/react-renderer/bind.ts:83`. Stale `$el`/undelegated events;
-   the path is hot because text components remount on every update
-   (`render-component.tsx:161`). S effort, MED risk (canvas behavior, no
-   test coverage until 011 + a canvas harness exist).
-8. **Small debt batch** — cross-frame `dropView`
-   (`render-component.tsx:44`), `console.error` noise on plain style strings
-   (`style.ts:73`), dead conditions (`attrs.ts:217-228`, `process.ts:43`),
-   and a missing "pinned GrapesJS internals" doc note. S effort, LOW risk.
+   `lib/plugins/react-renderer/bind.ts`.
+   **Fixed 2026-06 — advisor/012-react-renderer-small-fixes**: the
+   existing-view path now calls `view.setElement(el)` so `$el` and
+   delegated handlers re-wire. Gated by the manual canvas checklist (no
+   automated coverage).
+8. **Small debt batch** — cross-frame `dropView`, `console.error` noise on
+   plain style strings, dead conditions in `attrs.ts` / `process.ts`, and a
+   missing "pinned GrapesJS internals" doc note.
+   **Fixed 2026-06 — advisor/012-react-renderer-small-fixes**: `dropView`
+   is frame-scoped, the style `console.error` is gone, the dead conditions
+   are removed, and `docs/reference/rendering-pipeline.md` now has a "Pinned
+   GrapesJS internals (check on upgrade)" section.
 9. **`DataSourceManager` constructed but never consumed**
    (`project/project-editor.ts:16`) — decide keep-as-seam vs delete when
-   plan 009 runs.
+   plan 009 runs. **Still deferred to plan 009.**
 
 ## Findings considered and rejected (so nobody re-audits them)
 

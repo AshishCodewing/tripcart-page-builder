@@ -1,6 +1,6 @@
 import { createElement, Fragment } from "react"
 import type { Editor } from "grapesjs"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   getComponentConfig,
@@ -29,6 +29,21 @@ const process = (
   config: RendererReactOptions = {},
   editor = makeEditor()
 ) => processReactElements({ model, editor, config })
+
+// Most element cases process to a single definition object; narrow the union
+// (which also covers the Fragment array case) down to that object for asserts.
+const processOne = (
+  model: unknown,
+  config: RendererReactOptions = {},
+  editor = makeEditor()
+): Record<string, unknown> | undefined => {
+  const out = process(model, config, editor)
+  return Array.isArray(out) ? undefined : out
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe("isReactElement", () => {
   it("recognizes a createElement result", () => {
@@ -76,7 +91,7 @@ describe("processReactElements", () => {
   })
 
   it("resolves a registered GrapesJS string type to out.type with no tagName", () => {
-    const out = process(
+    const out = processOne(
       createElement("text" as never),
       {},
       makeEditor(["text"])
@@ -87,40 +102,61 @@ describe("processReactElements", () => {
 
   it("resolves a registered React component to its config type", () => {
     const MyHero = () => null
-    const out = process(createElement(MyHero), {
+    const out = processOne(createElement(MyHero), {
       components: { MyHero: { component: MyHero } },
     })
     expect(out?.type).toBe("MyHero")
   })
 
-  it("(KNOWN QUIRK) degrades an unregistered function component to type:undefined", () => {
-    // KNOWN QUIRK: an unregistered function component finds no config match,
-    // so out.type is set to undefined and no tagName is assigned. The element
-    // silently disappears downstream with no warning. Audited 2026-06-11.
+  it("degrades an unregistered function component to a typeless container and warns", () => {
+    // An unregistered function component finds no config match, so we omit the
+    // `type` key entirely (never type:undefined) and warn naming the component
+    // so the silent disappearance is loud. A default container materializes
+    // downstream.
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {})
     const Unknown = () => null
-    const out = process(createElement(Unknown))
-    expect(out && "type" in out && out.type === undefined).toBe(true)
-    expect(out && "tagName" in out).toBe(false)
-  })
-
-  it("(KNOWN QUIRK) leaves a Fragment with neither type nor tagName but processes children", () => {
-    // KNOWN QUIRK: Fragments (symbol type) get neither type nor tagName, so a
-    // default <div> materializes downstream — Fragments are NOT transparent.
-    // Children are still processed. Audited 2026-06-11.
-    const out = process(createElement(Fragment, null, createElement("div")))
+    const out = processOne(createElement(Unknown))
     expect(out && "type" in out).toBe(false)
     expect(out && "tagName" in out).toBe(false)
-    expect(out?.components).toEqual([{ tagName: "div" }])
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy.mock.calls[0]?.[0]).toContain("Unknown")
+  })
+
+  it("flattens a Fragment into its children array (transparent container)", () => {
+    // Fragments (symbol type) are transparent: they process to a flat array of
+    // their children, which splices into the parent's components.
+    const out = process(createElement(Fragment, null, createElement("div")))
+    expect(out).toEqual([{ tagName: "div" }])
+  })
+
+  it("processes an empty Fragment to an empty array", () => {
+    expect(process(createElement(Fragment))).toEqual([])
+  })
+
+  it("splices a nested Fragment's children into the parent components", () => {
+    const out = processOne(
+      createElement(
+        "div",
+        null,
+        createElement("span"),
+        createElement(Fragment, null, createElement("b"), createElement("i"))
+      )
+    )
+    expect(out?.components).toEqual([
+      { tagName: "span" },
+      { tagName: "b" },
+      { tagName: "i" },
+    ])
   })
 
   it("coerces a single string child into one textnode", () => {
-    const out = process(createElement("div", null, "hi"))
+    const out = processOne(createElement("div", null, "hi"))
     expect(out?.components).toEqual([{ type: "textnode", content: "hi" }])
   })
 
   it("drops non-string, non-element children from a mixed array", () => {
     const inner = createElement("span")
-    const out = process(createElement("div", null, "a", inner, null, 42))
+    const out = processOne(createElement("div", null, "a", inner, null, 42))
     expect(out?.components).toEqual([
       { type: "textnode", content: "a" },
       { tagName: "span" },
