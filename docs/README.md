@@ -28,3 +28,4 @@ onboarding.
 | [Templates](./reference/templates.md) | Template data-model design: kinds, sync semantics, global-vs-tenant shadowing. |
 | [Templates — Remaining Work](./reference/templates-followups.md) | Status tracker + design notes for unfinished templates work (referenced by section number from code + plans). |
 | [Page / Post Rendering Pipeline](./reference/rendering-pipeline.md) | Route → DB → template-resolution → JSON→JSX flow for the public render. |
+| [WP Template Hierarchy](./reference/wp-template-hierarchy.md) | How WordPress's template hierarchy works, which pieces we adopt (parts, reserved slugs, content slot) and which we deliberately skip. |
