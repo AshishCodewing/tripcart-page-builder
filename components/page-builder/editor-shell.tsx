@@ -750,6 +750,13 @@ function EditorShellInner({
       // cleared any pending draft, so the editor is no longer ahead.
       // (If saveAction throws, this is skipped and `dirty` stays true.)
       editorSaveStore.committed()
+      // GrapesJS keeps its own change counter, reset only by a successful
+      // editor.store() — which this form-action commit path never goes
+      // through. Its `noticeOnUnload` beforeunload guard reads that
+      // counter, so without clearing it here, reload/tab-close would still
+      // warn about "unsaved changes" right after a clean Save/Publish
+      // (back/forward and in-app nav read editorSaveStore and stand down).
+      editor?.clearDirtyCount()
       // Only publishing is worth confirming — it changes what visitors
       // see. Saving a draft is low-stakes and stays quiet.
       if (formData.get("status") === "PUBLISHED") {
