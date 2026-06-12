@@ -43,11 +43,9 @@ describe("attrsToReactProps", () => {
     expect(attrsToReactProps({ cx: "5" })).toEqual({ cx: "5" })
   })
 
-  it("(KNOWN QUIRK) leaves aria-label as its original key", () => {
-    // KNOWN QUIRK: kebabToCamel("aria-label") → "ariaLabel", which has no
-    // hyphen, so the `camel.startsWith("aria-")` guard can never fire — the
-    // attribute falls through to the unknown-attribute branch and keeps its
-    // original kebab key. Audited 2026-06-11.
+  it("passes aria-* through with its original kebab key", () => {
+    // The aria-* branch tests the original key (not the camelized one) and
+    // leaves kebab aria-* props untouched — React accepts them verbatim.
     expect(attrsToReactProps({ "aria-label": "hi" })).toEqual({
       "aria-label": "hi",
     })

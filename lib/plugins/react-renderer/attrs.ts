@@ -100,9 +100,6 @@ const STANDARD_REACT_PROPS = new Set([
   "required",
   "spellCheck",
   "tabIndex",
-  "aria-label",
-  "aria-labelledby",
-  "aria-describedby",
   "role",
 ])
 
@@ -214,12 +211,13 @@ export const attrsToReactProps = (
       out[camel] = value
       continue
     }
-    if (
-      !STANDARD_REACT_PROPS.has(camel) &&
-      !camel.startsWith("on") &&
-      !camel.startsWith("aria-") &&
-      !camel.startsWith("data-")
-    ) {
+    // aria-* must be tested on the ORIGINAL key: kebabToCamel("aria-label")
+    // collapses the hyphen to "ariaLabel", so a `camel.startsWith("aria-")`
+    // check could never fire. React accepts kebab aria-* props verbatim, so
+    // pass them through unchanged. (data-* is already handled above.)
+    if (key.startsWith("aria-")) {
+      out[key] = value
+    } else if (!STANDARD_REACT_PROPS.has(camel) && !camel.startsWith("on")) {
       // Unknown attribute: leave the original (likely kebab) key so it lands
       // on the DOM verbatim instead of becoming an unknown camelCase prop.
       out[key] = value
