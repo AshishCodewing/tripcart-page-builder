@@ -44,6 +44,7 @@ import { lengthProp } from "./style-fields/length-props"
 import { layoutSector } from "./style-config/layout-sector"
 
 import { useApplyThemeVars } from "@/hooks/use-apply-theme-vars"
+import { useIsClient } from "@/hooks/use-is-client"
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import type { Theme } from "@/lib/theme/schema"
 import { themeStore } from "@/lib/theme/theme-store"
@@ -451,9 +452,7 @@ export default function EditorShell(props: Props) {
   // providers, Tooltip/DropdownMenu portals) only stabilize after the
   // editor instance mounts. Defer the whole subtree to the client to
   // sidestep the hydration mismatch instead of fighting it piece-by-piece.
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
-  if (!mounted) return null
+  if (!useIsClient()) return null
 
   return (
     <LeftPanelProvider>

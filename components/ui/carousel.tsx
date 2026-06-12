@@ -93,6 +93,10 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
+    // Initial sync of Embla's scroll state into React on mount, then
+    // subscribe for updates — the canonical external-system effect. Embla is
+    // the source of truth here, so reading its snapshot once is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     onSelect(api)
     api.on("reInit", onSelect)
     api.on("select", onSelect)

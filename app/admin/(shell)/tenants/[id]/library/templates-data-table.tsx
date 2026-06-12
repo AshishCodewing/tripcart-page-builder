@@ -106,6 +106,11 @@ const includesValue = <T,>(
 }
 
 export function TemplatesDataTable({ items, emptyLabel }: Props) {
+  // TanStack Table mutates its `table` object in place rather than returning a
+  // fresh reference, which breaks React's immutability rules: React Compiler
+  // would memoize reads off `table` into stale UI. The directive opts this
+  // component out of compilation; see https://github.com/facebook/react/issues/33057
+  "use no memo"
   const router = useRouter()
   const [pending, startTransition] = React.useTransition()
   const [sorting, setSorting] = React.useState<SortingState>([
@@ -319,6 +324,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
     [runDelete, runDuplicate]
   )
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- intentional "use no memo" opt-out (see above)
   const table = useReactTable({
     data: items,
     columns,
