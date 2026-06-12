@@ -1,28 +1,30 @@
 /**
- * Runtime Zod validator for the `Theme` document.
+ * Zod schema for the `Theme` document — the single source of truth.
  *
- * Mirrors the TypeScript types in `./schema.ts` — they're hand-kept in
- * sync rather than derived (the TS types are the authoring contract;
- * Zod is the wire-validation contract). If you change one, change the
- * other. Drift is caught by Zod failing on a previously-valid payload
- * at runtime — surfaced through `updateTenantTheme`.
+ * The TypeScript contract in `./schema.ts` is DERIVED from these schemas
+ * via `z.infer`; edit only this file when the theme shape changes. Drift
+ * between the validator and the types is impossible by construction
+ * (`lib/theme/schema.test.ts` pins the equivalence at compile time).
  *
  * Used by tenant-side server actions to reject malformed JSON before
- * it lands in the database. Not used in the editor read path, where
- * we trust the TS types to keep us honest.
+ * it lands in the database (`updateTenantTheme`). Not used in the editor
+ * read path, where we trust the TS types to keep us honest.
+ *
+ * Structure note: object schemas are plain (no `.optional()` baked into
+ * the constants) with optionality applied at each usage site — required
+ * so the inferred types put `| undefined` at the property layer, matching
+ * the authoring contract.
  */
 
 import { z } from "zod"
 
-import type { CustomTree } from "@/lib/theme/schema"
-
-const tokenSchema = z.object({
+export const tokenSchema = z.object({
   slug: z.string().min(1),
   name: z.string(),
   value: z.string(),
 })
 
-const fontSizeTokenSchema = tokenSchema.extend({
+export const fontSizeTokenSchema = tokenSchema.extend({
   fluid: z
     .object({
       min: z.string(),
@@ -31,7 +33,7 @@ const fontSizeTokenSchema = tokenSchema.extend({
     .optional(),
 })
 
-const tokenRegistrySchema = z.object({
+export const tokenRegistrySchema = z.object({
   color: z
     .object({
       palette: z.array(tokenSchema).optional(),
@@ -76,67 +78,57 @@ const tokenRegistrySchema = z.object({
     .optional(),
 })
 
-const colorStyleSchema = z
-  .object({
-    text: z.string().optional(),
-    background: z.string().optional(),
-  })
-  .optional()
+export const colorStyleSchema = z.object({
+  text: z.string().optional(),
+  background: z.string().optional(),
+})
 
-const typographyStyleSchema = z
-  .object({
-    fontFamily: z.string().optional(),
-    fontSize: z.string().optional(),
-    fontWeight: z.string().optional(),
-    lineHeight: z.string().optional(),
-    letterSpacing: z.string().optional(),
-    textDecoration: z.string().optional(),
-    textTransform: z.string().optional(),
-  })
-  .optional()
+export const typographyStyleSchema = z.object({
+  fontFamily: z.string().optional(),
+  fontSize: z.string().optional(),
+  fontWeight: z.string().optional(),
+  lineHeight: z.string().optional(),
+  letterSpacing: z.string().optional(),
+  textDecoration: z.string().optional(),
+  textTransform: z.string().optional(),
+})
 
-const boxStyleSchema = z
-  .object({
-    top: z.string().optional(),
-    right: z.string().optional(),
-    bottom: z.string().optional(),
-    left: z.string().optional(),
-  })
-  .optional()
+export const boxStyleSchema = z.object({
+  top: z.string().optional(),
+  right: z.string().optional(),
+  bottom: z.string().optional(),
+  left: z.string().optional(),
+})
 
-const spacingStyleSchema = z
-  .object({
-    padding: boxStyleSchema,
-    margin: boxStyleSchema,
-    blockGap: z.string().optional(),
-  })
-  .optional()
+export const spacingStyleSchema = z.object({
+  padding: boxStyleSchema.optional(),
+  margin: boxStyleSchema.optional(),
+  blockGap: z.string().optional(),
+})
 
-const borderStyleSchema = z
-  .object({
-    color: z.string().optional(),
-    radius: z.string().optional(),
-    style: z.string().optional(),
-    width: z.string().optional(),
-  })
-  .optional()
+export const borderStyleSchema = z.object({
+  color: z.string().optional(),
+  radius: z.string().optional(),
+  style: z.string().optional(),
+  width: z.string().optional(),
+})
 
-const styleBlockSchema = z.object({
-  color: colorStyleSchema,
-  typography: typographyStyleSchema,
-  spacing: spacingStyleSchema,
-  border: borderStyleSchema,
+export const styleBlockSchema = z.object({
+  color: colorStyleSchema.optional(),
+  typography: typographyStyleSchema.optional(),
+  spacing: spacingStyleSchema.optional(),
+  border: borderStyleSchema.optional(),
   shadow: z.string().optional(),
 })
 
-const pseudoStyleBlockSchema = styleBlockSchema.extend({
+export const pseudoStyleBlockSchema = styleBlockSchema.extend({
   ":hover": styleBlockSchema.optional(),
   ":focus": styleBlockSchema.optional(),
   ":active": styleBlockSchema.optional(),
   ":visited": styleBlockSchema.optional(),
 })
 
-const elementsSchema = z.object({
+export const elementsSchema = z.object({
   button: pseudoStyleBlockSchema.optional(),
   link: pseudoStyleBlockSchema.optional(),
   heading: pseudoStyleBlockSchema.optional(),
@@ -150,12 +142,17 @@ const elementsSchema = z.object({
   cite: pseudoStyleBlockSchema.optional(),
 })
 
-const styleDefaultsSchema = styleBlockSchema.extend({
+export const styleDefaultsSchema = styleBlockSchema.extend({
   elements: elementsSchema.optional(),
   components: z.record(z.string(), pseudoStyleBlockSchema).optional(),
 })
 
-const customTreeSchema: z.ZodType<CustomTree> = z.lazy(() =>
+// Recursive types still need a hand-written shape — Zod can't infer a
+// self-referential record. `CustomTree` lives here (next to its schema)
+// and is re-exported by schema.ts so importers see one canonical name.
+export type CustomTree = { [key: string]: string | CustomTree }
+
+export const customTreeSchema: z.ZodType<CustomTree> = z.lazy(() =>
   z.record(z.string(), z.union([z.string(), customTreeSchema]))
 )
 
