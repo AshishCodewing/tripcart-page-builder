@@ -41,7 +41,11 @@ const useCanvasRender = (args: RenderArgs) => {
 
     const bumpKey = () => setRenderKey((k) => k + 1)
     const dropView = () => {
-      ;[...component.views].forEach((v) => v.remove())
+      // Only tear down views belonging to THIS frame; a component can have a
+      // live view in another frame/device that must survive.
+      ;[...component.views]
+        .filter((v) => v.frameView === frameView)
+        .forEach((v) => v.remove())
       setView(undefined)
     }
 
@@ -64,7 +68,7 @@ const useCanvasRender = (args: RenderArgs) => {
       component.off(removeEvents, dropView)
       dropView()
     }
-  }, [component])
+  }, [component, frameView])
 
   const connectDom = (el: HTMLElement | null) => {
     if (!el) return
