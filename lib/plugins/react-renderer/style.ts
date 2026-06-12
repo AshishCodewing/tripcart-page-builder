@@ -59,20 +59,24 @@ const parseStyleString = (str: string): CSSProperties | undefined => {
   return Object.keys(out).length ? (out as CSSProperties) : undefined
 }
 
-// Parse a string value: first as a "a:b;c:d" declaration list, then (if that
-// yields nothing) as a JSON-encoded style object from a stored attribute.
+// Parse a string value. A JSON-encoded style object (stored attribute) starts
+// with `{`, so try JSON.parse first for those — otherwise the declaration
+// parser would mis-read the JSON's `:` as a single CSS declaration. Anything
+// else (or JSON that fails to parse) falls through to the "a:b;c:d"
+// declaration list. A bare word that matches neither returns undefined
+// silently — that's expected, not an error.
 const parseStringStyle = (value: string): CSSProperties | undefined => {
-  const parsed = parseStyleString(value)
-  if (parsed) return parsed
-  try {
-    const json = JSON.parse(value)
-    if (json && typeof json === "object" && !Array.isArray(json)) {
-      return kebabKeysToCamelStyle(json as Record<string, unknown>)
+  if (value.trim().startsWith("{")) {
+    try {
+      const json = JSON.parse(value)
+      if (json && typeof json === "object" && !Array.isArray(json)) {
+        return kebabKeysToCamelStyle(json as Record<string, unknown>)
+      }
+    } catch {
+      // Not valid JSON after all; fall through to the declaration parser.
     }
-  } catch (err) {
-    console.error("Failed to parse style string as JSON", err)
   }
-  return undefined
+  return parseStyleString(value)
 }
 
 // Parse a `[{ name|property, value }]` array into a React style object,

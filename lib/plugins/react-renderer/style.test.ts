@@ -68,33 +68,26 @@ describe("normalizeStyleObject — string input", () => {
     })
   })
 
-  it("returns undefined and logs once for a non-declaration, non-JSON string", () => {
-    // KNOWN QUIRK: a bare word like "red" matches neither a declaration list
-    // (no colon) nor valid JSON, so JSON.parse throws and the catch block
-    // logs console.error before returning undefined. Audited 2026-06-11.
+  it("returns undefined silently for a non-declaration, non-JSON string", () => {
+    // A bare word like "red" matches neither a declaration list (no colon) nor
+    // a JSON object (no leading `{`), so it returns undefined without logging.
     const spy = vi.spyOn(console, "error").mockImplementation(() => {})
     expect(normalizeStyleObject("red")).toBeUndefined()
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).not.toHaveBeenCalled()
     spy.mockRestore()
   })
 
-  it("(KNOWN QUIRK) mis-parses a JSON-encoded style object instead of JSON-decoding it", () => {
-    // KNOWN QUIRK: the plan expected '{"font-size":"10px"}' to round-trip
-    // through JSON.parse into { fontSize: "10px" }. It does NOT. parseStyleString
-    // runs first and, because the JSON text contains a ':', it treats the whole
-    // string as one CSS declaration (name '{"font-size"', value '"10px"}') and
-    // returns that truthy garbage — so the JSON-decode branch is DEAD for any
-    // non-empty JSON object. Pinned to actual behavior; flagged for follow-up.
-    // Audited 2026-06-11 against the live code.
+  it("JSON-decodes a JSON-encoded style object", () => {
+    // A string starting with `{` is parsed as JSON first, so a stored style
+    // attribute round-trips into a camelCased React style object.
     expect(normalizeStyleObject('{"font-size":"10px"}')).toEqual({
-      '{"fontSize"': '"10px"}',
+      fontSize: "10px",
     })
   })
 
-  it("(KNOWN QUIRK) returns undefined for an empty JSON object string", () => {
-    // KNOWN QUIRK: '{}' is the only object-string that reaches the JSON branch
-    // (it has no colon, so parseStyleString yields nothing). JSON.parse('{}')
-    // succeeds but kebabKeysToCamelStyle({}) finds no keys → undefined.
+  it("returns undefined for an empty JSON object string (by design)", () => {
+    // '{}' parses as JSON, but kebabKeysToCamelStyle({}) finds no keys, so the
+    // all-dropped rule yields undefined.
     expect(normalizeStyleObject("{}")).toBeUndefined()
   })
 })
