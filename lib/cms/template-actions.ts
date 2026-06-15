@@ -12,7 +12,11 @@ import {
   parseProjectPayload,
   validateComponentPayload,
 } from "./project-payload"
-import { slimTemplateProject, templateRefExists } from "./templates"
+import {
+  assertChromeSlug,
+  slimTemplateProject,
+  templateRefExists,
+} from "./templates"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -63,6 +67,9 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       ? slugField.trim()
       : existing.slug
   const slugChanged = slug !== existing.slug
+  // A reserved chrome slug ("header"/"footer") may only be a PART — checked
+  // unconditionally so changing kind on an existing chrome slug is caught too.
+  assertChromeSlug(slug, kind)
   if (slugChanged) {
     validateSlug(slug)
     // Per-tenant slug uniqueness (globals share the null-tenant space).
@@ -168,6 +175,9 @@ export async function createTemplate(
   if (!baseSlug)
     throw new Error("Title must contain at least one letter or number.")
   validateSlug(baseSlug)
+  // This path only creates LAYOUT/PATTERN, so a "Header"/"Footer" title would
+  // claim a reserved chrome slug as a non-PART — reject it.
+  assertChromeSlug(baseSlug, kind)
   let slug = baseSlug
   let suffix = 2
   while (
@@ -242,6 +252,9 @@ export async function createTemplateFromSelection(
   if (!baseSlug)
     throw new Error("Title must contain at least one letter or number.")
   validateSlug(baseSlug)
+  // Converting to a PART at "header"/"footer" is the intended way to author
+  // site chrome; converting to a PATTERN/LAYOUT at those slugs is rejected.
+  assertChromeSlug(baseSlug, kind)
   let slug = baseSlug
   let suffix = 2
   while (

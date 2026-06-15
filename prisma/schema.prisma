@@ -44,20 +44,12 @@ model Tenant {
   // Monotonic counter bumped on every theme write. Embedded in the
   // compiled-theme CSS URL so each version is its own cache key, served
   // immutable — theme edits invalidate by URL change, not by purge.
-  themeVersion     Int        @default(1)
-  // Site chrome: the templates rendered as the header/footer around every
-  // preview/published page (the "site owns the frame" model — header/footer
-  // live in the route layout, not per page). null = no chrome for that slot.
-  // SetNull on delete so removing the template just clears the assignment.
-  headerTemplateId String?
-  headerTemplate   Template?  @relation("TenantHeader", fields: [headerTemplateId], references: [id], onDelete: SetNull)
-  footerTemplateId String?
-  footerTemplate   Template?  @relation("TenantFooter", fields: [footerTemplateId], references: [id], onDelete: SetNull)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  pages            Page[]
-  posts            Post[]
-  templates        Template[]
+  themeVersion Int        @default(1)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  pages        Page[]
+  posts        Post[]
+  templates    Template[]
 
   @@map("tenants")
 }
@@ -157,9 +149,6 @@ model Template {
   // null = global library; non-null = tenant-scoped (can shadow global)
   tenantId         String?
   tenant           Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  // Back-relations for the Tenant header/footer chrome assignment.
-  headerForTenants Tenant[]     @relation("TenantHeader")
-  footerForTenants Tenant[]     @relation("TenantFooter")
   slug             String
   kind             TemplateKind
   // Only set when kind = PART, e.g. "header" | "footer" | "sidebar".

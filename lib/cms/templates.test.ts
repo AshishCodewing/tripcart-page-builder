@@ -5,7 +5,12 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import { resolvePageTree, slimTemplateProject } from "@/lib/cms/templates"
+import {
+  assertChromeSlug,
+  isReservedChromeSlug,
+  resolvePageTree,
+  slimTemplateProject,
+} from "@/lib/cms/templates"
 import type {
   ComponentDefinition,
   ProjectDefinition,
@@ -175,6 +180,30 @@ describe("resolvePageTree", () => {
 
     const json = JSON.stringify(result)
     expect(json).toContain('"data-template-placeholder":"max-depth-exceeded"')
+  })
+})
+
+describe("reserved chrome slugs", () => {
+  it("flags header/footer as reserved, others not", () => {
+    expect(isReservedChromeSlug("header")).toBe(true)
+    expect(isReservedChromeSlug("footer")).toBe(true)
+    expect(isReservedChromeSlug("about")).toBe(false)
+    expect(isReservedChromeSlug("header-2")).toBe(false)
+  })
+
+  it("allows a reserved chrome slug only on a PART", () => {
+    expect(() => assertChromeSlug("header", "PART")).not.toThrow()
+    expect(() => assertChromeSlug("footer", "PART")).not.toThrow()
+  })
+
+  it("rejects a reserved chrome slug on a non-PART", () => {
+    expect(() => assertChromeSlug("header", "PATTERN")).toThrow(/reserved/)
+    expect(() => assertChromeSlug("footer", "LAYOUT")).toThrow(/reserved/)
+  })
+
+  it("ignores non-reserved slugs regardless of kind", () => {
+    expect(() => assertChromeSlug("about", "PATTERN")).not.toThrow()
+    expect(() => assertChromeSlug("header-2", "PATTERN")).not.toThrow()
   })
 })
 

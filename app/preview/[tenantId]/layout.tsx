@@ -1,7 +1,8 @@
 import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
-import { resolveTemplateChrome } from "@/lib/cms/templates"
+import { resolveChromeBySlug } from "@/lib/cms/templates"
+import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
 import { filterProtectedStyles } from "@/lib/plugins/tc-storage-adapter"
 import { patternComponents } from "@/lib/plugins/patterns"
 import {
@@ -52,24 +53,27 @@ export default async function PreviewLayout({
   // context. Read the chrome assignments alongside the theme version.
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: {
-      themeVersion: true,
-      headerTemplateId: true,
-      footerTemplateId: true,
-    },
+    select: { name: true, themeVersion: true },
   })
 
   // Site chrome (the "site owns the frame" model): the header/footer are
-  // tenant-assigned templates rendered once here in the layout, so they
-  // persist across navigation (this layout segment is above the page/post
-  // routes and doesn't remount). null assignment / empty template → no
-  // chrome for that slot.
-  const header = tenant?.headerTemplateId
-    ? await resolveTemplateChrome(tenantId, tenant.headerTemplateId)
-    : null
-  const footer = tenant?.footerTemplateId
-    ? await resolveTemplateChrome(tenantId, tenant.footerTemplateId)
-    : null
+  // rendered once here in the layout, so they persist across navigation
+  // (this segment is above the page/post routes and doesn't remount). Each
+  // slot is the tenant's template at the reserved slug "header" / "footer"
+  // (resolved tenant-first / global-fallback by `resolveChromeBySlug`, the
+  // WP way of referencing template parts), falling back to the code-defined
+  // default part (`lib/plugins/parts`) when no such template exists — the
+  // same default-in-code / DB-override model as the theme system.
+  let header: ProjectDefinition | null = null
+  let footer: ProjectDefinition | null = null
+  if (tenant) {
+    header =
+      (await resolveChromeBySlug(tenantId, "header")) ??
+      defaultHeader(tenant.name)
+    footer =
+      (await resolveChromeBySlug(tenantId, "footer")) ??
+      defaultFooter(tenant.name)
+  }
 
   return (
     <>
