@@ -12,6 +12,7 @@
 
 import type { Editor } from "grapesjs"
 import type { ComponentConfig } from "@/lib/plugins/react-renderer"
+import { ctaDescriptor } from "@/lib/plugins/patterns/manifest"
 import { CtaSection } from "./cta-section"
 
 export const ctaSectionType = "cta-section"
@@ -61,9 +62,9 @@ export const ctaSectionConfig: ComponentConfig = {
 }
 
 export const registerCtaBlock = (editor: Editor): void => {
-  editor.Blocks.add("tc-cta", {
-    label: "Call to Action",
-    category: "Sections",
+  editor.Blocks.add(ctaDescriptor.id, {
+    label: ctaDescriptor.label,
+    category: ctaDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

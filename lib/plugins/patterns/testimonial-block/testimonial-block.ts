@@ -3,6 +3,7 @@
 // hero-block.
 
 import type { Editor } from "grapesjs"
+import { testimonialDescriptor } from "@/lib/plugins/patterns/manifest"
 
 const testimonialCss = `
 .tc-testimonial {
@@ -149,9 +150,9 @@ export const registerTestimonialBlock = (editor: Editor): void => {
     },
   })
 
-  editor.Blocks.add("tc-testimonial", {
-    label: "Testimonial",
-    category: "Sections",
+  editor.Blocks.add(testimonialDescriptor.id, {
+    label: testimonialDescriptor.label,
+    category: testimonialDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

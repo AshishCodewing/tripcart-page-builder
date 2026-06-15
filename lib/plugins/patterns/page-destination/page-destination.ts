@@ -9,6 +9,7 @@
 // design system (`--tc--preset--*`) with Open Props fallbacks.
 
 import type { Editor } from "grapesjs"
+import { destinationPageDescriptor } from "@/lib/plugins/patterns/manifest"
 
 const destinationCss = `
 .tc-destination {
@@ -582,9 +583,9 @@ export const registerDestinationPage = (editor: Editor): void => {
     },
   })
 
-  editor.Blocks.add("tc-page-destination", {
-    label: "Destination Page",
-    category: "Sections",
+  editor.Blocks.add(destinationPageDescriptor.id, {
+    label: destinationPageDescriptor.label,
+    category: destinationPageDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

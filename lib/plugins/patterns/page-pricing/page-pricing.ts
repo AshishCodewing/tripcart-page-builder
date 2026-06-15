@@ -8,6 +8,7 @@
 // Tokens are `--tc--preset--*` with Open Props fallbacks.
 
 import type { Editor } from "grapesjs"
+import { pricingPageDescriptor } from "@/lib/plugins/patterns/manifest"
 
 const pricingCss = `
 .tc-pricing {
@@ -473,9 +474,9 @@ export const registerPricingPage = (editor: Editor): void => {
     },
   })
 
-  editor.Blocks.add("tc-page-pricing", {
-    label: "Pricing Page",
-    category: "Sections",
+  editor.Blocks.add(pricingPageDescriptor.id, {
+    label: pricingPageDescriptor.label,
+    category: pricingPageDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

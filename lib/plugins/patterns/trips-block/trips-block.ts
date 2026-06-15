@@ -2,6 +2,7 @@
 // responsive grid. Same authoring pattern as hero-block.
 
 import type { Editor } from "grapesjs"
+import { tripsDescriptor } from "@/lib/plugins/patterns/manifest"
 
 const tripsCss = `
 .tc-trips {
@@ -284,9 +285,9 @@ export const registerTripsBlock = (editor: Editor): void => {
     },
   })
 
-  editor.Blocks.add("tc-trips", {
-    label: "Trip Cards",
-    category: "Sections",
+  editor.Blocks.add(tripsDescriptor.id, {
+    label: tripsDescriptor.label,
+    category: tripsDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

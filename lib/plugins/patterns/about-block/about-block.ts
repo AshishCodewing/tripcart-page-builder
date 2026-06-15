@@ -3,6 +3,7 @@
 // as a template string and handed to GrapesJS via `defaults.styles`.
 
 import type { Editor } from "grapesjs"
+import { aboutDescriptor } from "@/lib/plugins/patterns/manifest"
 
 const aboutCss = `
 .tc-about {
@@ -230,9 +231,9 @@ export const registerAboutBlock = (editor: Editor): void => {
     },
   })
 
-  editor.Blocks.add("tc-about", {
-    label: "About",
-    category: "Sections",
+  editor.Blocks.add(aboutDescriptor.id, {
+    label: aboutDescriptor.label,
+    category: aboutDescriptor.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,
