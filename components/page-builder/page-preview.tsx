@@ -3,11 +3,12 @@
 // The project renderer's RenderProject + RenderPage emit a full <html>
 // document, which is the right shape for a standalone publish deployment.
 // Inside this Next.js app, however, the layout already provides <html> and
-// <body>, so we render the wrapper component's children inline and inject
-// the per-page CSS as a <style> block.
+// <body>, so we render the wrapper component's children inline (via the
+// shared `RenderProjectFragment`) and inject the per-page CSS as a <style>
+// block.
 //
 // Tenant theme composition is handled one layer up by
-// `app/(preview)/layout.tsx`, which fetches the tenant's brand theme
+// `app/preview/[tenantId]/layout.tsx`, which fetches the tenant's brand theme
 // and emits its compiled CSS once for the whole preview subtree. This
 // component only deals with page-scoped rules. `filterProtectedStyles`
 // strips any theme rules legacy publishes baked into `page.data` so
@@ -15,8 +16,7 @@
 
 import { filterProtectedStyles } from "@/lib/plugins/tc-storage-adapter"
 import {
-  ProjectEditor,
-  RenderComponent,
+  RenderProjectFragment,
   type ProjectDefinition,
 } from "@/lib/plugins/react-renderer/project"
 import type { RendererReactOptions } from "@/lib/plugins/react-renderer"
@@ -41,39 +41,18 @@ export function PagePreview({ projectData, config }: Props) {
   // cascade against the layout's fresh tenant theme (same selector,
   // same specificity, page CSS comes later in source order).
   const filtered = filterProtectedStyles(projectData as ProjectData)
-  const editor = new ProjectEditor(filtered as ProjectDefinition)
-  const pageCss = editor.Css.getCssAsString()
 
-  const root = editor.Pages.getAll()[0]?.frames[0]?.component
-  if (!root) {
-    return <PreviewEmpty reason="Project has no pages or frames." />
-  }
-
-  // The wrapper component maps to <body> in the project renderer's tag map;
-  // since we're already inside the host page's body, render its children
-  // directly and apply the wrapper's classes to a transparent host div.
-  const wrapperClasses = root.classes.join(" ")
-
+  // The wrapper component maps to <body>; we're already inside the host
+  // page's body, so the shared fragment renderer strips it and emits the
+  // page's children + CSS on a transparent host div.
   return (
-    <>
-      {pageCss.length > 0 && (
-        <style dangerouslySetInnerHTML={{ __html: pageCss }} />
-      )}
-      <div
-        className={wrapperClasses || undefined}
-        data-page-preview-root="true"
-      >
-        {root.components.map((child, i) => (
-          <RenderComponent
-            key={`${child.id ?? "n"}-${i}`}
-            component={child}
-            config={config}
-            parentId="preview"
-            index={i}
-          />
-        ))}
-      </div>
-    </>
+    <RenderProjectFragment
+      projectData={filtered as ProjectDefinition}
+      config={config}
+      rootAttributes={{ "data-page-preview-root": "true" }}
+      parentId="preview"
+      emptyFallback={<PreviewEmpty reason="Project has no pages or frames." />}
+    />
   )
 }
 

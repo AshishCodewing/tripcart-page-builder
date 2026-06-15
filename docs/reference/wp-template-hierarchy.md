@@ -1,5 +1,17 @@
 # WordPress Template Hierarchy — what it is, what we take, what we skip
 
+> **Update (2026-06-15): chrome ownership is now Approach A.** This doc's
+> central thesis is unchanged and reinforced — we do **not** build the deep
+> query-shape hierarchy; the Next.js App Router is our router. What changed is
+> *how a LAYOUT wraps content*: the earlier §14 "custom-template" design
+> (Approach B — each page bakes the whole document; the per-page template
+> dropdown) was superseded by Approach A (the route/site owns the chrome via a
+> persistent layout segment; a fixed **zone** menu, not a free per-page
+> dropdown). See `templates-followups.md` §14 and
+> `header-footer-architecture-options.md`. Two rows below read B-flavored —
+> the `content-slot` row still holds; "Custom templates (per-page dropdown)"
+> becomes "Zone assignment (fixed menu)". The rest of this doc stands.
+
 Decision/explainer doc (2026-06-12). Answers: "should the builder implement a
 WP-style template hierarchy?" Short version: **the full hierarchy, no — the
 Next.js App Router already plays that role. Template parts, already shipped. A

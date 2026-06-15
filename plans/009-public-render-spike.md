@@ -14,9 +14,9 @@
 - **Priority**: P2 (direction — maintainer-selected)
 - **Effort**: M (investigation + design doc)
 - **Risk**: LOW (no code changes)
-- **Depends on**: none (but read plan 008 — layout composition affects the render entry point)
+- **Depends on**: none (but read plan 008 — **chrome composition is now Approach A**: the LAYOUT renders as a persistent nested layout segment wrapping page content as `children`, NOT a single server-side merged tree. The public render path must mirror that restructure, not call a one-shot composer. See `docs/reference/templates-followups.md` §14 + `header-footer-architecture-options.md`.)
 - **Category**: direction
-- **Planned at**: commit `ae527df`, 2026-06-11
+- **Planned at**: commit `ae527df`, 2026-06-11 (reconciled to Approach A 2026-06-15)
 
 ## Why this matters
 
@@ -42,8 +42,14 @@ Pieces that already exist and want reuse:
   `lib/plugins/react-renderer/project/` render a stored `ProjectDefinition`
   to React server-side (no GrapesJS at render). Pattern components come from
   `lib/plugins/patterns` (`patternComponents`).
-- **Resolver**: `resolvePageTree` (and `resolvePageWithLayout` once plan 008
-  lands) in `lib/cms/templates.ts`.
+- **Resolver**: `resolvePageTree` (content fragment) in
+  `lib/cms/templates.ts`. Once plan 008 lands under Approach A, chrome is
+  resolved *separately* by `resolveLayoutChrome(tenantId, layoutSlug)` and
+  composed via a nested layout segment (page content drops in as `children`
+  at the `content-slot` boundary) — **not** the B-era single-merged-tree
+  `resolvePageWithLayout`, which A does not use. The public path replicates
+  the same `[...slug]/layout.tsx` + content-only `page.tsx` split that 008
+  builds for `app/preview`.
 - **Theme**: per-tenant compiled CSS served at
   `app/api/preview/theme/[tenantId]/[version]/theme.css/route.ts` with
   immutable caching keyed on `Tenant.themeVersion`; the preview layout
@@ -103,19 +109,27 @@ MVP). Sketch to evaluate, not prescribe:
   → `Tenant.domain` lookup (with `<slug>.<platform-domain>` subdomain
   fallback) → rewrite to the tenant-scoped tree. Cover: localhost behavior,
   the Vercel preview-URL host, and unknown hosts (404 vs marketing page).
-- Render: `status === "PUBLISHED"` gate, `resolvePageWithLayout`, the same
-  `PagePreview` component (likely renamed/shared), theme `<link>` reusing
-  the theme route (decide: keep it under `/api/preview/theme/...` or move
-  to a neutral `/api/theme/...` path — note the URL is embedded in cached
-  HTML).
-- Caching: this is where the design earns its keep. Evaluate Next 16
-  cache semantics for these routes (`"use cache"` / `cacheTag()` /
-  `cacheLife` vs `revalidateTag`-style tags) against the existing
-  `updateTag` calls in the mutation actions; specify the tag wiring per
-  route (page render tagged `page:<path>` + `tenant-theme:<id>` +
-  `template:<slug>` for each resolved template — note the resolver must
-  *report* which slugs it touched; sketch that return-shape change).
-  Cross-check claims against the Next.js 16 docs, not memory.
+- Render (Approach A): `status === "PUBLISHED"` gate; a public **nested
+  layout** resolves the zone chrome (`resolveLayoutChrome`) around
+  `{children}`; the public **page** renders only its content fragment
+  (`resolvePageTree`) via the same shared renderer (`PagePreview`, likely
+  renamed). Mirror the `app/preview` 008 structure — do NOT design a
+  single-merged-tree call. Theme `<link>` reuses the theme route (decide:
+  keep `/api/preview/theme/...` or move to a neutral `/api/theme/...` — note
+  the URL is embedded in cached HTML).
+- Caching (Approach A makes this *better*, surface it): because chrome
+  resolves independently of the page, a chrome/zone edit invalidates **one**
+  cache entry, not every page that shows that header — A's instant-publish
+  property, vs B where every page's baked copy had to refresh. Evaluate Next
+  16 cache semantics (`"use cache"` / `cacheTag()` / `cacheLife` vs
+  `revalidateTag`-style tags) against the existing `updateTag` calls, and
+  specify tags at **two levels**: the zone layout tagged
+  `template:<zoneSlug>` (+ `tenant-theme:<id>` + `template:<slug>` for each
+  PART the chrome resolved), and the page content tagged `page:<path>` (+
+  `template:<slug>` for each ref it resolved). The resolver must *report*
+  which slugs each level touched — sketch that return-shape change for both
+  `resolveLayoutChrome` and `resolvePageTree`. Cross-check against the
+  Next.js 16 docs, not memory.
 - Draft-mode interplay: published routes must never leak drafts;
   the preview tree stays as-is.
 - Risks: auth gap (admin and public in one deployment — reference the
@@ -170,8 +184,12 @@ fetch by Host header → 200 with content; unpublish → 404).
 
 ## Maintenance notes
 
-- Plan 008's `resolvePageWithLayout` is the intended public entry point;
-  the build plan that follows this spike should land after 008.
+- Plan 008's Approach-A render structure (a `[...slug]/layout.tsx` resolving
+  chrome via `resolveLayoutChrome` around a content-only `page.tsx`) is the
+  intended public entry point; the build plan that follows this spike should
+  land after 008 and replicate that split for the public route tree. The
+  B-era `resolvePageWithLayout` is the path not taken — do not design to it.
 - The resolver's "which template slugs did this render touch" return-shape
-  change (for tag wiring) also benefits the deferred §5 reference-inventory
-  feature in `docs/reference/templates-followups.md`.
+  change (for tag wiring, now needed at both the chrome and content levels)
+  also benefits the deferred §5 reference-inventory feature in
+  `docs/reference/templates-followups.md`.

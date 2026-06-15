@@ -90,6 +90,15 @@ export interface RendererReactOptions {
   rootComponent?: ComponentType<RootComponentProps>
   headAfter?: ComponentType<WithEditorProps>
   bodyAfter?: ComponentType<WithEditorProps>
+  /**
+   * Approach-A content-slot injection (docs/reference/templates-followups.md
+   * §14). When `RenderComponent` hits a `content-slot` node it emits this in
+   * the node's place — the mechanism by which a LAYOUT frame wraps page
+   * content as React `children`. `config` reaches every recursive node, so
+   * no marker threading is needed. Unset for ordinary renders, which are
+   * therefore unaffected.
+   */
+  slotContent?: ReactNode
 }
 
 export interface CustomRendererPropsWithConfig extends CustomRendererProps {

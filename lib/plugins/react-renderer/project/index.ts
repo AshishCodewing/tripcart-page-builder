@@ -9,6 +9,7 @@
 export { RenderProject, default } from "./render-project"
 export { RenderPage } from "./render-page"
 export { RenderComponent } from "./render-component"
+export { RenderProjectFragment } from "./render-fragment"
 export { RenderError } from "./render-error"
 export {
   ComponentNode,
@@ -20,6 +21,8 @@ export {
   ProjectEditor,
   findComponentById,
 } from "./parser"
+export { CONTENT_SLOT_TYPE } from "./types"
+export type { RenderProjectFragmentProps } from "./render-fragment"
 export type {
   Asset,
   Rule,

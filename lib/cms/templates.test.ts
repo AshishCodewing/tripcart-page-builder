@@ -5,7 +5,11 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import { resolvePageTree, slimTemplateProject } from "@/lib/cms/templates"
+import {
+  resolveLayoutChrome,
+  resolvePageTree,
+  slimTemplateProject,
+} from "@/lib/cms/templates"
 import type {
   ComponentDefinition,
   ProjectDefinition,
@@ -175,6 +179,83 @@ describe("resolvePageTree", () => {
 
     const json = JSON.stringify(result)
     expect(json).toContain('"data-template-placeholder":"max-depth-exceeded"')
+  })
+})
+
+describe("resolveLayoutChrome (Approach A)", () => {
+  it("expands the layout's PART refs and leaves the content-slot in place", async () => {
+    mockTemplates({
+      standard: {
+        data: {
+          component: {
+            tagName: "div",
+            components: [
+              ref("site-header"),
+              { type: "content-slot" },
+              ref("site-footer"),
+            ],
+          },
+        },
+      },
+      "site-header": { data: { component: { tagName: "header" } } },
+      "site-footer": { data: { component: { tagName: "footer" } } },
+    })
+
+    const result = await resolveLayoutChrome(TENANT, "standard")
+    const root = result!.pages![0].frames![0].component!
+
+    expect(root.components![0]).toEqual({ tagName: "header" })
+    // The slot is NOT filled here — the render layer injects content via
+    // config.slotContent. It must survive resolution untouched.
+    expect(root.components![1]).toEqual({ type: "content-slot" })
+    expect(root.components![2]).toEqual({ tagName: "footer" })
+  })
+
+  it("returns null when the layout slug is missing", async () => {
+    mockTemplates({})
+    expect(await resolveLayoutChrome(TENANT, "nope")).toBeNull()
+  })
+
+  it("returns null when the layout has no root component", async () => {
+    mockTemplates({ empty: { data: {} } })
+    expect(await resolveLayoutChrome(TENANT, "empty")).toBeNull()
+  })
+
+  it("merges the layout's own styles and its parts' styles", async () => {
+    const layoutStyle: Rule = { selectors: [".layout"] }
+    const headerStyle: Rule = { selectors: [".hdr"] }
+    mockTemplates({
+      standard: {
+        data: {
+          component: {
+            tagName: "div",
+            components: [ref("site-header"), { type: "content-slot" }],
+          },
+          styles: [layoutStyle],
+        },
+      },
+      "site-header": {
+        data: { component: { tagName: "header" }, styles: [headerStyle] },
+      },
+    })
+
+    const result = await resolveLayoutChrome(TENANT, "standard")
+    expect(result!.styles).toEqual([layoutStyle, headerStyle])
+  })
+})
+
+describe("resolvePageTree — content-slot is inert (Approach A)", () => {
+  it("passes a stray content-slot through untouched and hits no DB", async () => {
+    mockTemplates({})
+    const input = project({
+      tagName: "div",
+      components: [{ type: "content-slot" }],
+    })
+    const result = await resolvePageTree(TENANT, input)
+    const root = result.pages![0].frames![0].component!
+
+    expect(root.components![0]).toEqual({ type: "content-slot" })
+    expect(findMany).not.toHaveBeenCalled()
   })
 })
 

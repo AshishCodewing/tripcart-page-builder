@@ -20,6 +20,7 @@
     "ingest:grapesjs-source": "tsx scripts/ingest-grapesjs-source.ts",
     "ingest:grapesjs-symbols": "tsx scripts/ingest-grapesjs-symbols.ts",
     "ingest:wp-themes": "tsx scripts/ingest-wp-themes-docs.ts",
+    "audit:chrome": "tsx scripts/audit-page-chrome.ts",
     "mcp:rag": "tsx scripts/mcp-rag-server.ts"
   },
   "dependencies": {

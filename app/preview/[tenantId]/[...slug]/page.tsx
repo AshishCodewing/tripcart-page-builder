@@ -2,10 +2,10 @@ import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { getPageByPath } from "@/lib/cms/pages"
 import { resolvePageTree } from "@/lib/cms/templates"
 import { patternComponents } from "@/lib/plugins/patterns"
 import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
-import { prisma } from "@/lib/prisma"
 
 // Preview-only catch-all. Public rendering of CMS pages happens in a
 // separate deployment that consumes this DB; here we serve the current
@@ -34,9 +34,7 @@ export default async function PreviewCatchAllPage({
 
   const { tenantId, slug } = await params
   const path = slug.join("/")
-  const page = await prisma.page.findUnique({
-    where: { tenantId_path: { tenantId, path } },
-  })
+  const page = await getPageByPath(tenantId, path)
   if (!page) notFound()
 
   const projectData = await resolvePageTree(

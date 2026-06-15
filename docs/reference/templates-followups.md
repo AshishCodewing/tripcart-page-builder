@@ -37,7 +37,7 @@ Tracks what still needs to land before the templates story is "complete." See `d
 - **§5 template delete + reference impact** — `deleteTemplate(id)` server action deletes the row, bumps `template:<slug>`, and redirects to the kind's Library route (PATTERN → patterns, LAYOUT/PART → templates; globals → `/admin/tenants`). Wired into the template editor's right-panel "Move to trash" (was a no-op). Per the resolved decision, delete is **unconditional** — refs aren't blocked; the resolver already renders a `missing:<slug>` placeholder for the now-deleted row, so refs degrade gracefully. **Deferred:** a pre-delete "reference inventory" view / ref-count warning (would build on `templateRefExists`). See §5.
 
 ### Pending
-- **LAYOUT content slot + page→layout assignment** — the change that makes `kind: LAYOUT` actually mean "WP template" (a page-shell with a content slot) rather than "big pattern". A page opts into a layout; its content is spliced into the layout's `content-slot` at render. Smallest WP-custom-template-style model (explicit per-page assignment, no template hierarchy). See §14. **This is the highest-leverage gap** — without it the three `TemplateKind`s are really "patterns, area-tagged patterns, and big patterns".
+- **LAYOUT chrome ownership (Approach A — site/route owns the frame)** — the change that makes `kind: LAYOUT` actually mean "WP template" (a page-shell that wraps page content) rather than "big pattern". **Decision (2026-06-15): we build Approach A** — the LAYOUT is a persistent frame rendered by a Next.js layout segment, and a Page's `data` becomes only the *content fragment* poured into the frame's `content-slot` as React `children`. This replaces the earlier Approach B design (each page bakes the whole document; render-time server-side tree-splice). See §14 for the A design and `docs/reference/header-footer-architecture-options.md` for the product rationale. **This is the highest-leverage gap** — without it the three `TemplateKind`s are really "patterns, area-tagged patterns, and big patterns".
 - **Pattern categories** on Templates so the block inserter can filter by category beyond just kind — matches WP's pattern-category UX. See §10.
 - **Overrides on synced templates** — mark specific child components as per-instance-editable so a synced card layout can have a fixed structure with variable title/image. WP 6.6+ feature; closes a real gap in our synced model. See §11.
 - **Headless thumbnail generation for `Template.preview`** — replace the per-kind placeholder SVGs with real renders. See §12.
@@ -438,54 +438,76 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ---
 
-## 14. LAYOUT content slot + page→layout assignment ("a real template")
+## 14. LAYOUT chrome ownership — Approach A (the site/route owns the frame)
 
-**Status: planned (2026-06-09).** Design captured; not yet built.
+**Status: redesigned for Approach A (2026-06-15).** Supersedes the earlier Approach B design (kept below under "Superseded — the Approach B design" for the record). Not yet built. Plan: `plans/008-layout-content-slot.md` (rewritten for A).
 
-**What:** Make `kind: LAYOUT` behave like a WordPress *template* instead of just another referenceable blob. Two pieces: (a) a `content-slot` component that a LAYOUT author drops where page content belongs, and (b) an optional per-page layout assignment so a Page's `data` becomes a *fragment* spliced into the chosen LAYOUT's slot at render. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page only owns the middle.
+**What:** Make `kind: LAYOUT` behave like a WordPress *template* / a Next.js nested layout: a **persistent frame** (header, footer, any chrome) rendered by a layout segment, with the page's own content poured into a `content-slot` as React `children`. A Page's `data` stops being the whole top-to-bottom document and becomes only the **content fragment**. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page owns only the middle.
 
-**Why:** Today every `Page.data` is the **entire** top-to-bottom document — header, content, footer baked into one row. Templates reach the page only by being *pulled in* by a `template-ref` inside that data (content→template). WordPress is the inversion: a template is the blueprint that reserves a hole (`<!-- wp:post-content /-->`) and the page's content pours *into* it (template→content). Without a content slot, `LAYOUT` is mechanically identical to `PATTERN` — there is nothing that makes it a page-shell. This section adds the slot + the inversion, which is the single thing that makes `LAYOUT` mean what "template" means in WP. See `docs/reference/templates.md` and the WP Themes Handbook (theme-structure / template-parts, in the RAG — [[reference_wp_themes_handbook_rag]]) for the model.
+**Why we switched B → A:** Under the old Approach B, each `Page.data` baked the entire document (header + content + footer) and the render path composed it server-side by splicing the page tree into the layout's slot — producing one complete document per page, re-sent whole on every navigation. Approach A inverts ownership: the **site/route owns the chrome**, the page owns only its content, and chrome persists across navigation (open cart drawers / menus survive a page change; a header edit publishes instantly instead of forcing every page to refresh its baked copy). The product rationale, the zones model, and the asymmetry that drove the call ("A's perf wins can be added to B later, but B's per-page-chrome freedom can never be added to A") live in `docs/reference/header-footer-architecture-options.md`. The technical through-line — *"we already have a template hierarchy: the Next.js App Router"* — is in `docs/reference/wp-template-hierarchy.md`; A leans **into** that thesis: a LAYOUT maps to a layout segment, not to a blob the resolver splices.
 
-**Design fork (resolved):** We build WP's **custom-template** model (explicit per-page assignment via a dropdown), NOT the full **template hierarchy** (auto-matching `404`/`archive`/`single`/… to templates by query shape). Hierarchy can layer on later by *computing* `layoutSlug` from route shape instead of reading it from a column — same resolver, different source. Explicit assignment is the smaller, correct MVP.
+**Zones, not free per-page layouts.** Under A the framework cannot let a page reach out and hide its own frame; instead the *site* can have a small, **product-shipped** set of frames ("zones"): **Standard** (tenant header/footer), **Checkout** (slim logo-only header, no nav), **Bare** (no chrome). A page chooses *which zone* it belongs to from a fixed menu — it cannot invent "this one page with a different header." Each zone is still tenant-editable (it's a LAYOUT template). Adding a zone is a product/engineering change, not a user action. This is the one capability A trades away vs B (arbitrary per-page chrome), recovered for the common cases (checkout, chrome-less landing) via the curated zone list.
 
-**Non-breaking by construction:** a Page with `layoutSlug = null` renders byte-identical to today (its `data` is still the whole document). Only pages that opt in become fragments.
+### Scope (A)
 
-**Scope — five touches:**
+The work splits into three buckets. **Bucket 1 is no-regret** — it is needed under A or B and can land first. **Bucket 2 is the A-specific render restructure** (the real cost). **Bucket 3 is the A-specific cleanup** that B never required.
 
-1. **Schema — one nullable column.** `Page.layoutSlug String?`. Slug not FK-id, to inherit the tenant-first/global-fallback shadowing `loadTemplate` already gives every other reference. `null` = self-contained (today). Migration backfills nothing (default null).
-   - Addendum: extend `templateRefExists(slug)` to also probe this column (`OR EXISTS (SELECT 1 FROM "pages" WHERE "layoutSlug" = $s)`) so the §4 slug-rename guard covers layout assignments, not just JSON `data-slug` refs.
+**Bucket 1 — no-regret foundation (build first):**
 
-2. **Slot component** — `const CONTENT_SLOT_TYPE = "content-slot"`. A ~20-line plugin cloned from `lib/plugins/template-ref.ts`: a locked, non-deletable component labeled "Page content", registered as one Block draggable **only in the LAYOUT editor** (gate by content-kind, like the §8 inserter context question). This is the only new editor surface needed for correct rendering. (One slot per layout — matches WP, which allows one `post-content` per template.)
+1. **`content-slot` component** — `const CONTENT_SLOT_TYPE = "content-slot"`. A ~20-line plugin cloned from `lib/plugins/template-ref.ts`: a locked component labeled "Page content", registered as one Block draggable **only in the LAYOUT editor**. Marks where page content pours in. One slot per layout (matches WP `post-content`). Identical under A and B — only its *rendering* differs (A: React `children` boundary; B: server-side tree splice).
+2. **LAYOUT template editing** — already shipped (§3/§4). A LAYOUT author drops header PART + `content-slot` + footer PART and saves. Untouched.
+3. **Zone assignment data** — a column on `Page` recording which zone/LAYOUT a page uses (working name `layoutSlug String?`, `null` = the tenant default/Standard zone). Slug not FK-id, to inherit tenant-first/global-fallback shadowing. Extend `templateRefExists(slug)` to also probe this column (`OR EXISTS (SELECT 1 FROM "pages" WHERE "layoutSlug" = $s)`) so the §4 slug-rename guard covers zone assignments.
 
-3. **Resolver** (`lib/cms/templates.ts`) — two additions:
-   - Add `slot?: ComponentDefinition` to `ResolveCtx`. In `resolveNode`, before the `template-ref` branch: `if (node.type === CONTENT_SLOT_TYPE) return ctx.slot ?? placeholder("empty-slot")`.
-   - New composer `resolvePageWithLayout(tenantId, page)` that wraps the existing path:
-     1. `resolvePageTree(tenantId, page.data)` → resolved page content (parts/refs/styles as today).
-     2. if `!page.layoutSlug` → return that unchanged (today's behavior).
-     3. `loadTemplate(tenantId, page.layoutSlug)`; bail to bare page if missing → page still renders.
-     4. resolve the layout tree with `ctx.slot = pageRoot` — `resolveNode` expands the layout's own header/footer PART refs with zero new code and drops the page content at the slot.
-     5. merge styles: page styles + page-template styles (already in the resolvedPage) + layout styles + layout-part styles, in cascade order.
-   - The page content is **already resolved** before it reaches the slot, so the splice is pure — no re-resolution, no double-expansion.
+**Bucket 2 — render-path restructure (the A core; design spike):**
 
-4. **Render call-site** — swap `resolvePageTree(tenantId, page.data)` → `resolvePageWithLayout(tenantId, page)` in `app/preview/[tenantId]/[...slug]/page.tsx:42` (and `select` `layoutSlug` in the page query). Same hook in the eventual published render path and in the blog-post route if posts should support layouts too (decide separately — posts may want a fixed `single`-style layout rather than per-post choice).
+4. **Resolver reshape — chrome resolves to a frame with a children-boundary, not a merged document.** In `resolveNode`, add the slot branch: when `node.type === CONTENT_SLOT_TYPE`, emit a **boundary marker** (e.g. `placeholder("content-slot")` or a dedicated `{ type: "content-slot-boundary" }`) rather than splicing resolved page content. A new composer `resolveLayoutChrome(tenantId, layoutSlug)` resolves *only* the LAYOUT's tree (its header/footer PART refs expand with zero new code via the existing `template-ref` branch; styles merge as today) and returns the frame with the slot boundary intact. The page's content fragment is resolved **separately** (`resolvePageTree(tenantId, page.data)` unchanged) and the React renderer drops it at the boundary as `children`. *The B-era `resolvePageWithLayout` single-merged-tree composer is not used under A* — composition happens at the React-layout level, not by tree merge.
+5. **Render-path restructure** — `app/preview/[tenantId]/[...slug]` gains a layout segment that renders the resolved chrome around `{children}`; the page renders only its content fragment. **Design fork to resolve in the spike:**
+   - **A2 (MVP target):** a dynamic `app/preview/[tenantId]/[...slug]/layout.tsx` reads `(tenantId, path)`, loads the page's zone, resolves the chrome, and wraps `{children}`. Simplest; gets correct render + instant-publish + the data migration. Cross-navigation *state* persistence (drawers staying open) is partial because the per-path layout re-renders server-side on path change.
+   - **A1 (persistence follow-on / "region navigation"):** encode the zone in the route (route groups or a rewrite) so the zone layout sits **above** the changing `[...slug]` segment and stays mounted across same-zone navigations — this is what buys true open-drawer-across-nav. Heavier; defer until the state-persistence capability is actually needed.
+   - Mirror the same restructure in the eventual public render path and in the blog-post route (posts likely get a fixed `single`-style zone rather than per-post choice — open question).
 
-5. **Layout-assignment UI** — a "Layout" `Select` in the page editor right panel, populated from `listTemplatesByKind(tenantId, "LAYOUT")` (read already exists): `None` + each LAYOUT. Writes `Page.layoutSlug` through the existing page save action. Do this last; touches 1–4 are fully testable with a hand-set `layoutSlug`.
+**Bucket 3 — A-specific surfaces:**
 
-**Design notes:**
+> **No data migration.** The earlier B→A plan budgeted a step to *extract chrome out of existing `Page.data`* (the one thing that made A not non-breaking). That step is **removed**: existing page data is disposable, and the chrome audit (`scripts/audit-page-chrome.ts`, run 2026-06-15) confirmed **0 pages pull chrome via shared PART templates** — chrome is baked raw per page, so there is nothing cleanly extractable anyway. Existing pages are reset rather than migrated. The corollary: the **zone library bootstraps empty** — there are no existing shared header/footer PARTs to promote into zones, so authoring the first zone LAYOUT is a real build step, not a backfill.
 
-- **Reuses everything.** Part expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, the `placeholder()` markers — all reused untouched. The net new logic is the slot branch (3 lines) + the composer (~25 lines).
-- **Editor inline preview deferred.** The canvas still shows only the page fragment, not the surrounding layout chrome. A §7-style inline-resolve could later show the layout around the page in-editor, but it is NOT needed for correct rendering — the composition happens server-side at render.
-- **Missing/empty layout degrades gracefully.** Missing layout → page renders bare (its own content, no chrome). Layout with no `content-slot` → page content is dropped (renders `empty-slot` placeholder nowhere to put it); consider a save-time warning in the LAYOUT editor that a layout without a slot can't host content.
-- **Cycle surface.** A LAYOUT could in principle reference a `template-ref` whose template is itself a LAYOUT containing a slot — the existing `visiting` cycle guard + `MAX_DEPTH` already cover pathological nesting; the slot itself can't recurse (it's filled with already-resolved content).
-- **`Template.version` cache key.** When render-path caching lands (see §1 design notes), the composed result keys on `(tenantId, pageId, layoutSlug, layoutVersion, …refSlugVersions)`. Out of scope here.
+6. **Seed the Standard zone LAYOUT — the first concrete artifact.** Because the zone library starts empty, the first visible build step is to author a LAYOUT (header PART + `content-slot` + footer PART) and make it the tenant default/Standard zone. This is the no-regret authoring flow (Bucket 1) exercised end-to-end; it replaces what would have been a migration.
+7. **Editor inline preview — now in-scope, not deferred.** Under B the canvas could keep showing only the page fragment. Under A the author needs to see the page *inside its frame* (the §7-style inline-resolve, applied to the chrome). Per `wp-template-hierarchy.md`'s "UX lesson": the chrome shown around the page must be **visibly not-editable-here**, with an explicit "Edit template" jump — same discipline as the locked `template-ref`.
+8. **Zone-assignment UI** — a "Layout / Zone" `Select` in the page editor right panel, populated from the fixed zone set (each a LAYOUT via `listTemplatesByKind(tenantId, "LAYOUT")`). Writes the zone column through the existing page save action.
 
-**Open questions:**
+### Design notes (A)
 
-- Do Posts get layout assignment too, or a fixed `single`-style layout? (Leaning: posts share the mechanism but default to a tenant-configured post layout rather than per-post choice.)
-- Should an unassigned page fall back to a tenant default LAYOUT (a soft step toward hierarchy), or stay fully self-contained? (Leaning: stay self-contained for MVP; a tenant-default is a one-line change later — `page.layoutSlug ?? tenant.defaultLayoutSlug`.)
-- Multiple named slots (WP doesn't have these; some builders do)? Out of scope — one slot.
+- **Reuses most of the resolver.** PART expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, `placeholder()` markers — all reused. What changes is the *shape of the result* (frame-with-boundary, rendered via `children`) and the *render path* (nested layout), not the per-node resolution.
+- **Missing/empty zone degrades gracefully.** Missing LAYOUT → page renders bare (its content, no chrome). LAYOUT with no `content-slot` → save-time warning in the LAYOUT editor (a frame with nowhere to host content is a misconfiguration under A, not just dropped content as under B).
+- **Persistent chrome is the headline benefit and the hardest part.** True cross-navigation persistence (A1) depends on the zone layout sitting above the changing segment. The MVP (A2) delivers correct rendering and instant publish without full state persistence; sequence A1 when the persistence capability is demanded.
+- **`Template.version` cache key.** When render-path caching lands (§1 notes), the resolved chrome keys on `(tenantId, zoneSlug, layoutVersion, …refSlugVersions)` — independent of the page, which is the whole point: a chrome edit invalidates one cache entry, not every page.
 
-**Estimated size:** small. 1 migration (one column), ~25 lines in `templates.ts`, a ~20-line slot plugin, a 1-line call-site swap, one right-panel `Select`. Everything load-bearing is reuse.
+### Open questions (A)
+
+- **Render fork A1 vs A2** — start with A2 (dynamic nested layout) for MVP correctness; promote to A1 (region routing) when open-drawer-across-nav is actually required. Resolve in the plan-008 spike.
+- **Posts** — fixed `single`-style zone (leaning) vs per-post choice. `wp-template-hierarchy.md` flags `singular` as the reserved slug that earns its keep first (posts are the one many-records-one-design type).
+- **Tenant default zone** — unassigned page → Standard zone (leaning) vs fully bare. A one-liner later: `page.layoutSlug ?? tenant.defaultZoneSlug`.
+
+**Estimated size:** medium (was "small" under B; was briefly "medium-to-large" when a data migration was in scope — that step is removed, see Bucket 3). Bucket 1 is small (slot plugin + column). Bucket 2 (resolver reshape + nested-layout render path) is the real cost — a render-path restructure, not a 1-line call-site swap. Bucket 3 is authoring + UI, no migration. The codebase is already largely A-shaped: `PagePreview` already renders the page as a content *fragment* (strips the wrapper), `RenderComponent` already has a `children` prop, and `app/preview/[tenantId]/layout.tsx` is already a persistent composing layer — so the slot→`children` injection is ~3 lines via the renderer config. See `plans/008-layout-content-slot.md`.
+
+---
+
+### Superseded — the Approach B design (for the record)
+
+> Kept verbatim because parts of it (the `content-slot` plugin, the `templateRefExists` extension, the zone/layout column) carry over to A as the no-regret foundation. **The load-bearing piece — `resolvePageWithLayout`, the single-merged-tree server-side splice — is NOT used under A.** Do not implement from this section; it documents the path not taken.
+
+**B — What:** an optional per-page layout assignment so a Page's `data` becomes a *fragment* spliced into the chosen LAYOUT's slot **at render, server-side**. **B was non-breaking by construction:** a Page with `layoutSlug = null` rendered byte-identical to today.
+
+**B — Design fork (resolved under B, now reopened by the A switch):** B built WP's **custom-template** model (explicit per-page assignment via a dropdown), NOT the full template hierarchy. A keeps explicit assignment but constrains it to a fixed *zone* menu (above).
+
+**B — The five touches were:**
+
+1. Schema — `Page.layoutSlug String?` + `templateRefExists` addendum. *(Carries to A — Bucket 1.3.)*
+2. Slot component — `content-slot` plugin. *(Carries to A — Bucket 1.1; rendering differs.)*
+3. Resolver — `slot?: ComponentDefinition` on `ResolveCtx`; slot branch `return ctx.slot ?? placeholder("empty-slot")`; **`resolvePageWithLayout(tenantId, page)`** that resolved the page, then resolved the layout with `ctx.slot = pageRoot` to splice the already-resolved page content into the slot, merging styles in cascade order. *(Does NOT carry — A renders chrome with a `children` boundary instead of splicing a merged tree.)*
+4. Render call-site — one-line swap `resolvePageTree` → `resolvePageWithLayout` in `app/preview/[tenantId]/[...slug]/page.tsx`. *(Replaced under A by the nested-layout restructure — Bucket 2.5.)*
+5. Layout-assignment UI — a "Layout" `Select` (free per-LAYOUT). *(Carries to A as a constrained zone `Select` — Bucket 3.8.)*
+
+**B — design notes worth keeping:** the cycle surface (a LAYOUT referencing a LAYOUT) is covered by the existing `visiting` + `MAX_DEPTH` guards under either approach; missing/empty layout degrades gracefully under either.
 
 ---
 

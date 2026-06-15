@@ -1,8 +1,19 @@
+import { cache } from "react"
+
 import { prisma } from "@/lib/prisma"
 
 export async function getPageById(id: string) {
   return prisma.page.findUnique({ where: { id } })
 }
+
+// Per-request-memoized page lookup by (tenantId, path). Wrapped in React's
+// `cache` so multiple consumers in one render pass share a single query —
+// notably the Approach-A render path, where both `[...slug]/layout.tsx`
+// (resolving the page's zone) and `[...slug]/page.tsx` (rendering its
+// content) read the same row. Today only the page route calls it.
+export const getPageByPath = cache((tenantId: string, path: string) =>
+  prisma.page.findUnique({ where: { tenantId_path: { tenantId, path } } })
+)
 
 export async function listPages(tenantId?: string) {
   return prisma.page.findMany({

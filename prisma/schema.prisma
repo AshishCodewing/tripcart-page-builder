@@ -61,6 +61,12 @@ model Page {
   parentId    String?
   parent      Page?         @relation("PageTree", fields: [parentId], references: [id])
   children    Page[]        @relation("PageTree")
+  // Optional LAYOUT/zone assignment (docs/reference/templates-followups.md
+  // §14, Approach A). Stored as a slug (not an FK) to inherit the
+  // tenant-first/global-fallback shadowing `loadTemplate` gives every
+  // template reference. null = the tenant default (Standard zone), which
+  // today renders the page self-contained.
+  layoutSlug  String?
   tenantId    String
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String

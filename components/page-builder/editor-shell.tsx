@@ -15,6 +15,7 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 import { columnsPlugin } from "@/lib/plugins/columns"
+import { contentSlotPlugin } from "@/lib/plugins/content-slot"
 import { CONVERT_OPEN_EVENT } from "@/lib/plugins/convert-to-template"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
@@ -111,7 +112,11 @@ function composedLayerLabel(
 const buildGjsOptions = (
   initialProjectData: ProjectData,
   persistDraft: (data: ProjectData) => Promise<void>,
-  templates: Template[]
+  templates: Template[],
+  // True only when editing a LAYOUT template — gates the draggable
+  // "Page content" slot block (a page/post can't host a slot). The
+  // content-slot *type* always registers so a LAYOUT's saved tree renders.
+  enableSlotBlock: boolean
 ): EditorConfig => ({
   height: "100%",
   // Seed the canvas from server-rendered data (`draftData ?? data`). With
@@ -351,6 +356,10 @@ const buildGjsOptions = (
     // fed to `projectData`), so a manual reload returns real content.
     tcRemoteStorage(persistDraft, initialProjectData),
     designSystemPlugin,
+    // content-slot registers after designSystemPlugin so its placeholder
+    // CSS can reference --tc--preset--* vars (same rationale as
+    // template-ref). The slot Block is gated to the LAYOUT editor.
+    contentSlotPlugin({ enableBlock: enableSlotBlock }),
     reactRendererPlugin.init({ components: patternComponents }),
     // gjsBlocksBasic ships its own column blocks (table-based by default,
     // `flexGrid: true` makes them flex). We replace those with columnsPlugin
@@ -646,13 +655,23 @@ function EditorShellInner({
     editorSaveStore.committed()
   }, [storageKey])
 
+  // Offer the "Page content" slot block only when authoring a LAYOUT.
+  const enableSlotBlock =
+    content.kind === "template" && content.template.kind === "LAYOUT"
+
   const gjsOptions = React.useMemo(
-    // buildGjsOptions only stashes `debouncedPersist` in the storage
-    // config; it never invokes it during render, so reading the refs it
-    // closes over here is safe.
-    // eslint-disable-next-line react-hooks/refs
-    () => buildGjsOptions(initialProjectData, debouncedPersist, templates),
-    [initialProjectData, debouncedPersist, templates]
+    () =>
+      buildGjsOptions(
+        initialProjectData,
+        // buildGjsOptions only stashes `debouncedPersist` in the storage
+        // config; it never invokes it during render, so reading the ref it
+        // closes over here is safe.
+        // eslint-disable-next-line react-hooks/refs
+        debouncedPersist,
+        templates,
+        enableSlotBlock
+      ),
+    [initialProjectData, debouncedPersist, templates, enableSlotBlock]
   )
 
   const onEditor = React.useCallback((editor: Editor) => {
