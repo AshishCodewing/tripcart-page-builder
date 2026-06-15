@@ -112,11 +112,6 @@ export async function loadTemplate(
  * the slug, so it's robust to arbitrary nesting; lax mode (the default)
  * swallows the structural mismatch on scalar members. Not tenant-scoped:
  * a global template's slug can be referenced from any tenant's content.
- *
- * Also probes `pages."layoutSlug"` so the §14 (Approach A) zone assignment
- * — which lives in a column, not the JSON `data` — blocks a slug rename
- * just like an in-data `template-ref` does. Plain text bind, not the jsonb
- * `vars`.
  */
 export async function templateRefExists(slug: string): Promise<boolean> {
   const vars = JSON.stringify({ s: slug })
@@ -133,9 +128,6 @@ export async function templateRefExists(slug: string): Promise<boolean> {
       OR EXISTS (
         SELECT 1 FROM "templates"
         WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)
-      )
-      OR EXISTS (
-        SELECT 1 FROM "pages" WHERE "layoutSlug" = ${slug}
       )
     ) AS "found"
   `
@@ -264,27 +256,20 @@ export async function resolvePageTree(
 }
 
 /**
- * Resolve a LAYOUT's chrome tree for Approach-A composition (§14 / Approach A
- * — see docs/reference/layout-render-fork.md). Loads the template at
- * `layoutSlug` (tenant-first / global fallback), then runs it through
- * `resolvePageTree` so the LAYOUT's own header/footer PART `template-ref`s
- * expand and their styles merge — exactly as for a page. The `content-slot`
- * node rides through untouched (it isn't a `template-ref`); the render layer
- * fills it with the page fragment via the renderer's `config.slotContent`.
+ * Resolve a template by id into a renderable `ProjectDefinition` — used for
+ * the site header/footer chrome a Tenant assigns (`Tenant.headerTemplateId`
+ * / `footerTemplateId`). Wraps the template's slim body into the project
+ * shape and runs it through `resolvePageTree` so any nested `template-ref`s
+ * (e.g. a logo PART inside the header) expand and their styles merge.
  *
- * Returns `null` when the layout is missing or has no root component, so the
- * caller renders the page bare (no chrome) instead of crashing.
- *
- * Does NOT splice page content here — that was the abandoned Approach B.
- * Composition happens at the React-layout level. Kind is not enforced:
- * `savePage` validates that `layoutSlug` points at a LAYOUT at assignment
- * time.
+ * Returns `null` when the template is missing or has no root component, so
+ * the layout can simply render no chrome for that slot.
  */
-export async function resolveLayoutChrome(
+export async function resolveTemplateChrome(
   tenantId: string,
-  layoutSlug: string
+  templateId: string
 ): Promise<ProjectDefinition | null> {
-  const tpl = await loadTemplate(tenantId, layoutSlug)
+  const tpl = await getTemplateById(templateId)
   if (!tpl) return null
 
   const body = tpl.data as TemplateBody | null

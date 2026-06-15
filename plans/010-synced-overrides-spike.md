@@ -1,5 +1,13 @@
 # Plan 010: Per-instance overrides on synced templates (§11) — design spike
 
+> **Note (2026-06-15): ignore the Approach-A / content-slot references.** This
+> plan mentions a "post-008 Approach-A `resolveNode` shape" with a
+> `content-slot` branch; Approach A was **reverted**, so `resolveNode` has no
+> such branch and there is no `content-slot`/`CONTENT_SLOT_TYPE`. Overrides
+> were always orthogonal to chrome (they live in the `template-ref` branch),
+> so the substance of this spike is unaffected — just disregard the
+> content-slot coordination notes.
+
 > **Executor instructions**: This is a DESIGN SPIKE — the deliverable is a
 > design document, not code. You may not modify any source file; your only
 > writable outputs are `docs/template-overrides-design.md` and the status

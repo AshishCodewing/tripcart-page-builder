@@ -3,10 +3,9 @@
 // document (that path is RenderProject/RenderPage). The wrapper's classes
 // ride a transparent host <div> so we stay inside the host page's <body>.
 //
-// This is the shared core behind two surfaces:
-//   - PagePreview (a page's own content fragment), and
-//   - the Approach-A LAYOUT chrome layout (the frame, with the page
-//     fragment injected at the `content-slot` via `config.slotContent`).
+// Shared by every surface that renders stored project JSON inline: the page
+// preview (`PagePreview`) and the site header/footer chrome rendered in the
+// preview layout.
 //
 // It is deliberately pure: it takes an already-prepared ProjectDefinition
 // and makes no decisions about protected-style filtering or empty-state UI —

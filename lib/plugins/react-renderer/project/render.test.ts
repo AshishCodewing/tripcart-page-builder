@@ -141,51 +141,6 @@ describe("RenderProject — registered React component", () => {
   })
 })
 
-describe("RenderProject — content-slot injection (Approach A)", () => {
-  const withSlot = (slotNode: Record<string, unknown>) => ({
-    pages: [
-      {
-        id: "home",
-        frames: [
-          {
-            component: {
-              type: "wrapper",
-              components: [
-                {
-                  tagName: "header",
-                  components: [{ type: "textnode", content: "CHROME" }],
-                },
-                slotNode,
-              ],
-            },
-          },
-        ],
-      },
-    ],
-  })
-
-  it("renders config.slotContent in place of a content-slot node", () => {
-    const html = render({
-      projectData: withSlot({ type: "content-slot" }),
-      config: { slotContent: createElement("main", null, "PAGE BODY") },
-    })
-    expect(html).toContain("CHROME")
-    expect(html).toContain("<main>PAGE BODY</main>")
-  })
-
-  it("renders nothing for a content-slot when no slotContent is supplied", () => {
-    const html = render({
-      projectData: withSlot({
-        type: "content-slot",
-        attributes: { id: "slot1" },
-      }),
-    })
-    expect(html).toContain("CHROME")
-    // The slot emits null — its own attributes never reach the DOM.
-    expect(html).not.toContain('id="slot1"')
-  })
-})
-
 describe("RenderProject — void + escaping", () => {
   it("renders an image node as a void <img> with no children", () => {
     const html = render({

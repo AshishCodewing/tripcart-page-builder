@@ -1,4 +1,15 @@
+import { draftMode } from "next/headers"
+import { notFound } from "next/navigation"
+
+import { resolveTemplateChrome } from "@/lib/cms/templates"
+import { filterProtectedStyles } from "@/lib/plugins/tc-storage-adapter"
+import { patternComponents } from "@/lib/plugins/patterns"
+import {
+  RenderProjectFragment,
+  type ProjectDefinition,
+} from "@/lib/plugins/react-renderer/project"
 import { prisma } from "@/lib/prisma"
+import type { ProjectData } from "grapesjs"
 
 // Shared layout for every preview route. Reads `tenantId` from the URL
 // segment (set by `/api/preview` when the editor launches a preview
@@ -17,9 +28,13 @@ import { prisma } from "@/lib/prisma"
 // component defaults so `var(--tc--preset--*)` references resolve
 // regardless of which preview route the user landed on.
 //
-// No draft-mode check here — the underlying pages each call
-// `draftMode()` and 404 themselves when it's off. The layout always
-// runs above them; emitting a stylesheet link on a 404 render is fine.
+// Single draft-mode gate for the whole preview subtree. Preview only
+// serves the editor draft, so a request without draft mode 404s here —
+// once, above everything. Nothing below (the zone layout, the page, the
+// blog routes) re-checks: a `notFound()` in a layout renders the
+// not-found boundary and skips this layout's children entirely, so a
+// non-draft request never resolves chrome or queries the page. Entry is
+// always via `/api/preview`, which enables draft and redirects in.
 export default async function PreviewLayout({
   children,
   params,
@@ -27,15 +42,34 @@ export default async function PreviewLayout({
   children: React.ReactNode
   params: Promise<{ tenantId: string }>
 }) {
+  const { isEnabled: isDraft } = await draftMode()
+  if (!isDraft) notFound()
+
   const { tenantId } = await params
 
   // Bad/stale tenant IDs land here too — skip the link rather than 404
   // the layout, since the page below will notFound() with the right
-  // context.
+  // context. Read the chrome assignments alongside the theme version.
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { themeVersion: true },
+    select: {
+      themeVersion: true,
+      headerTemplateId: true,
+      footerTemplateId: true,
+    },
   })
+
+  // Site chrome (the "site owns the frame" model): the header/footer are
+  // tenant-assigned templates rendered once here in the layout, so they
+  // persist across navigation (this layout segment is above the page/post
+  // routes and doesn't remount). null assignment / empty template → no
+  // chrome for that slot.
+  const header = tenant?.headerTemplateId
+    ? await resolveTemplateChrome(tenantId, tenant.headerTemplateId)
+    : null
+  const footer = tenant?.footerTemplateId
+    ? await resolveTemplateChrome(tenantId, tenant.footerTemplateId)
+    : null
 
   return (
     <>
@@ -46,7 +80,25 @@ export default async function PreviewLayout({
           precedence="default"
         />
       )}
+      {header && (
+        <RenderProjectFragment
+          projectData={
+            filterProtectedStyles(header as ProjectData) as ProjectDefinition
+          }
+          config={{ components: patternComponents }}
+          rootAttributes={{ "data-site-header": "true" }}
+        />
+      )}
       {children}
+      {footer && (
+        <RenderProjectFragment
+          projectData={
+            filterProtectedStyles(footer as ProjectData) as ProjectDefinition
+          }
+          config={{ components: patternComponents }}
+          rootAttributes={{ "data-site-footer": "true" }}
+        />
+      )}
     </>
   )
 }

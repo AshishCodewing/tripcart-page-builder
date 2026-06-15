@@ -1,5 +1,15 @@
 # Plan 008: LAYOUT chrome ownership — Approach A (site/route owns the frame)
 
+> **⚠️ ABANDONED / REVERTED (2026-06-15). Do not execute this plan.** Approach
+> A was built (schema `layoutSlug`, `proxy.ts`, `[zone]` routes,
+> `content-slot`, `resolveLayoutChrome`) and then fully reverted. The shipped
+> model is much simpler: **site chrome = two tenant-assigned templates**
+> (`Tenant.headerTemplateId` / `footerTemplateId`) rendered in
+> `app/preview/[tenantId]/layout.tsx` via `resolveTemplateChrome`; preview
+> routes follow next-wp structure (`pages/[...slug]`, `posts/[slug]`, …).
+> See the reversal notes in `docs/reference/templates-followups.md` §14 and
+> `docs/reference/layout-render-fork.md`. This plan is retained for history.
+
 > **Rewritten 2026-06-15 for Approach A.** This supersedes the prior
 > Approach-B version of this plan (each page baked the whole document;
 > render-time server-side tree-splice via `resolvePageWithLayout`). The
@@ -301,16 +311,29 @@ README row to `IN PROGRESS (Phase 1 done)`.
 
 ## Phase 2 — render restructure (GATED on Phase 0 memo)
 
-**DONE (2026-06-15).** `resolveLayoutChrome` (a thin `resolvePageTree` wrapper;
-`content-slot` rides through untouched, returns `null` on missing/empty zone)
-landed in `lib/cms/templates.ts` with 5 resolver tests; the A2 nested layout
-`app/preview/[tenantId]/[...slug]/layout.tsx` resolves the zone and renders
-`RenderProjectFragment` with the page as `config.slotContent`; `page.tsx`
-already rendered only the content fragment, so it was unchanged. **E2E
-smoke verified** (seeded LAYOUT + assigned page, draft mode): an assigned page
-composes `header → page content → footer` inside `[data-zone-root]`; an
-unassigned page renders bare (no chrome) — non-breaking confirmed. typecheck /
-lint / 151 tests green.
+**DONE (2026-06-15), then upgraded A2 → A1.** `resolveLayoutChrome` (a thin
+`resolvePageTree` wrapper; `content-slot` rides through untouched, returns
+`null` on missing/empty zone) landed in `lib/cms/templates.ts` with 5 resolver
+tests; `page.tsx` already rendered only the content fragment.
+
+The chrome layout shipped first as **A2** (`[...slug]/layout.tsx`) then was
+**replaced by A1 region routing** once three browser probes cleared it (see
+`docs/reference/layout-render-fork.md`): the A2 layout sits at the changing
+segment so it can't persist chrome state; A1 puts the zone layout *above* the
+page segment and rewrites clean URLs to it. As shipped:
+`proxy.ts` (Node runtime) rewrites `/preview/<t>/<path>` →
+`/preview/<t>/<zone>/<path>` (zone = `Page.layoutSlug`, `_self` sentinel for
+null); `app/preview/[tenantId]/[zone]/layout.tsx` resolves the zone chrome and
+injects the page via `config.slotContent`;
+`app/preview/[tenantId]/[zone]/[...slug]/page.tsx` renders the content
+fragment. **E2E smoke verified** (real CMS data + proxy): a clean URL composes
+`header → content → footer` under `[data-zone-root]` with the URL staying
+clean; an unassigned page → `_self` → bare (non-breaking). Persistence across
+same-zone navigation confirmed by probe (clean-URL rewrite preserves the zone
+layout's client state). typecheck / lint / 151 tests green.
+
+This delivers the §14 "persistent interactive chrome" benefit that the memo
+had originally deferred — the Phase-2 caveat is resolved.
 
 ### Step 2.1: Resolver — `resolveLayoutChrome` (test-first)
 

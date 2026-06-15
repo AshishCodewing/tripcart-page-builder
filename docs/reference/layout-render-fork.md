@@ -1,5 +1,20 @@
 # Layout render fork — Phase 0 spike memo (Approach A)
 
+> **⚠️ ABANDONED / REVERTED (2026-06-15). Historical record only.** The entire
+> Approach-A chrome model this memo designed — per-page `Page.layoutSlug`
+> zones, the region-routing `proxy.ts`, `[zone]` route layouts, the
+> `content-slot` component, `resolveLayoutChrome` — was built, verified, and
+> then **fully reverted**. We replaced it with a much simpler model:
+> **site chrome is two tenant-assigned templates** (`Tenant.headerTemplateId`
+> / `footerTemplateId`, FK → `Template`) rendered once in
+> `app/preview/[tenantId]/layout.tsx` via `resolveTemplateChrome`, with the
+> preview routes following next-wp structure (`pages/[...slug]`,
+> `posts/[slug]`, …). No zones, no proxy, no per-page layout assignment, no
+> content slot. Migration `20260615082506_replace_page_zone_with_tenant_chrome`
+> dropped `layoutSlug` and added the tenant settings. The probe findings below
+> (A2 can't persist; a rewrite can) remain technically valid but no longer
+> drive any shipped code.
+
 Decision memo for `plans/008-layout-content-slot.md` Phase 0. Resolves the two
 mechanics Phase 2 (the render restructure) is gated on:
 
@@ -18,23 +33,31 @@ pages is App-Router soft client navigation.
 
 ---
 
-## TL;DR (the decisions)
+## Status update (2026-06-15): A1 shipped (not deferred)
 
-- **Build A2 for the MVP** — a dynamic `app/preview/[tenantId]/[...slug]/layout.tsx`
-  that resolves the page's zone chrome and wraps `{children}`. It delivers
-  correct rendering and the instant-publish caching win. **It does NOT
-  persist interactive chrome state across navigation** (open cart drawer
-  survives a page change) — and per the reasoning below, it provably can't,
-  because the layout sits *at* the changing route segment.
-- **A1 (region routing) is the persistence follow-on**, sequenced only when a
-  persistent interactive chrome element (e.g. a cart drawer that stays open
-  across navigation) is actually demanded. A1 needs a rewrite layer mapping
-  page → zone so the zone layout sits *above* the changing segment.
+The original recommendation was "ship A2 now, defer A1." That flipped once two
+follow-up probes (below) showed A1's rewrite approach is both cheap and
+correct. **We built A1 directly:** a `proxy.ts` rewrites the clean URL
+`/preview/<t>/<path>` → `/preview/<t>/<zone>/<path>`, and the zone layout lives
+at the `[zone]` segment (above `[...slug]`), so chrome persists across
+same-zone navigation while the public URL stays clean. The intermediate A2
+layout (`[...slug]/layout.tsx`) was replaced. See "Implementation" at the
+bottom. The reasoning below is preserved as the decision record.
+
+## TL;DR (the decisions — as built)
+
+- **A1 region routing, shipped.** `proxy.ts` (Node runtime — `proxy.ts` always
+  is in Next 16) looks up `Page.layoutSlug` and rewrites to a zoned route;
+  `app/preview/[tenantId]/[zone]/{layout,[...slug]/page}.tsx` puts the chrome
+  layout *above* the page segment. Clean URLs + per-zone chrome + cross-nav
+  persistence within a zone; crossing zones swaps the frame.
+- **A2 was the fallback** (dynamic `[...slug]/layout.tsx`, no persistence) —
+  correct but the layout sits *at* the changing segment so it can't persist.
+  Built first, then superseded by A1 once the probes cleared it.
 - **The slot is the existing `content-slot` node + the renderer's
-  `config.slotContent`** (already built in the prep refactor). **No
-  `content-slot-boundary` type, and no `resolveNode` slot branch is needed.**
-  This shrinks Phase 2's resolver work to a thin `resolveLayoutChrome`
-  composer.
+  `config.slotContent`** (built in the prep refactor). **No
+  `content-slot-boundary` type, and no `resolveNode` slot branch.** Resolver
+  work is just the thin `resolveLayoutChrome` composer.
 
 ---
 
@@ -132,15 +155,54 @@ flips the whole fork:
 
 Record the observed result here when run:
 
-> **Probe result (2026-06-15, Next 16.2.9):** CONFIRMED — A2 does not persist.
-> Isolated route `app/probe/[...slug]/{layout,page,counter}.tsx`: a client
-> counter inside the co-located `[...slug]/layout.tsx`. On `/probe/a` the
-> counter was incremented to **3**; a `Link` soft-navigation to `/probe/b`
-> (the page content updated `path:a → path:b` without a full reload) reset the
-> counter to **0**. So the catch-all-co-located layout re-renders on the param
-> change and tears down its client state — exactly the predicted behavior.
-> A2 ships correct render + instant-publish; persistent interactive chrome
-> needs A1. Probe route deleted after the run.
+> **Probe 1 — A2 (2026-06-15, Next 16.2.9): CONFIRMED A2 does not persist.**
+> Client counter inside a co-located `[...slug]/layout.tsx`: incremented to
+> **3** on `/probe/a`; a `Link` soft-nav to `/probe/b` (content updated
+> without a reload) reset it to **0**. The catch-all-co-located layout
+> re-renders on the param change and tears down client state — as predicted.
+>
+> **Probe 2 — A1 topology (zone-segment layout): CONFIRMED persists in-zone,
+> swaps cross-zone.** Counter in a layout at the `[zone]` segment (parent of
+> `[...slug]`): `/probe/standard/a` (counter→3) → `/probe/standard/b` kept
+> **3** (same zone, layout preserved); → `/probe/checkout/c` reset to **0**
+> (zone changed, frame swapped). Exactly the desired behavior.
+>
+> **Probe 3 — A1 rewrite preservation: CONFIRMED a rewrite keeps the clean URL
+> AND preserves persistence.** `middleware` rewrote `/cprobe/a` and `/cprobe/b`
+> (clean URLs) → `/probe/standard/*`. Counter→2 on `/cprobe/a`, soft-nav to
+> `/cprobe/b` kept **2**, browser URL stayed `/cprobe/b`. So region routing
+> delivers clean URLs + persistence together — which is why we built A1
+> outright. All probe routes deleted after the runs.
+>
+> **E2E smoke (real CMS data + `proxy.ts`):** clean `/preview/<t>/about`
+> (page assigned `standard`) composed `SITE HEADER → ABOUT BODY → SITE FOOTER`
+> under `[data-zone-root="standard"]` with the URL staying clean; unassigned
+> `/preview/<t>/bare` → `_self` zone → rendered bare (no chrome). Torn down.
+
+## Implementation (as shipped)
+
+- **`proxy.ts`** (repo root, Node runtime) — matches `/preview/:tenantId/:path*`,
+  skips `blog`, looks up the zone via `getPageZone(tenantId, path)` (cheap —
+  `select: { layoutSlug }` only), and `NextResponse.rewrite`s to
+  `/preview/<tenantId>/<zone>/<path>`. `layoutSlug = null` → the `_self`
+  sentinel (`SELF_ZONE` in `lib/cms/pages.ts`; a leading-underscore value
+  `validateSlug` can never produce, so no collision with a real zone).
+- **`app/preview/[tenantId]/[zone]/layout.tsx`** — reads `zone` from params
+  (set by the rewrite, NOT a page lookup — that's what keeps it stable within
+  a zone), resolves chrome via `resolveLayoutChrome(tenantId, zone)`, renders
+  `RenderProjectFragment` with the page as `config.slotContent`. `_self` /
+  missing / non-draft → bare `{children}`.
+- **`app/preview/[tenantId]/[zone]/[...slug]/page.tsx`** — unchanged page
+  render (content fragment only); `zone` param ignored.
+- **Cost:** one extra cheap query per preview request (the proxy's
+  `getPageZone`) on top of the page's content read. The render-cache key for
+  chrome is `(tenantId, zone[, version])` — independent of the page.
+- **Known sharp edge:** manually typing an already-zoned URL
+  (`/preview/<t>/standard/about`) double-rewrites (the proxy treats `standard`
+  as path). Harmless in practice — browser URLs are always clean (the rewrite
+  is invisible; `/api/preview` redirects to the clean path). A guard could
+  skip rewriting when the first segment is a known zone, but zones are dynamic
+  so it's left as a noted edge.
 
 ---
 

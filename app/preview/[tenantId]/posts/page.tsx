@@ -1,19 +1,15 @@
 import Link from "next/link"
-import { draftMode } from "next/headers"
-import { notFound } from "next/navigation"
 
 import { prisma } from "@/lib/prisma"
 
 // Preview-only blog index, scoped to the tenant from the URL. Public
-// rendering happens elsewhere.
+// rendering happens elsewhere. Draft mode is gated once by
+// `[tenantId]/layout.tsx`, so no draft check here.
 export default async function BlogIndexPreview({
   params,
 }: {
   params: Promise<{ tenantId: string }>
 }) {
-  const { isEnabled: isDraft } = await draftMode()
-  if (!isDraft) notFound()
-
   const { tenantId } = await params
 
   const posts = await prisma.post.findMany({
@@ -40,7 +36,7 @@ export default async function BlogIndexPreview({
           {posts.map((post) => (
             <li key={post.id}>
               <Link
-                href={`/preview/${tenantId}/blog/${post.slug}`}
+                href={`/preview/${tenantId}/posts/${post.slug}`}
                 className="text-xl font-medium hover:underline"
               >
                 {post.title}

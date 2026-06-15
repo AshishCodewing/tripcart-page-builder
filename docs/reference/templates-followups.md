@@ -440,6 +440,19 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ## 14. LAYOUT chrome ownership — Approach A (the site/route owns the frame)
 
+> **⚠️ ABANDONED / REVERTED (2026-06-15). Historical record only.** Approach A
+> (per-page `Page.layoutSlug` zones + region-routing `proxy.ts` + `[zone]`
+> layouts + a `content-slot` component) was built and then fully reverted in
+> favor of a far simpler model: **site chrome = two tenant-assigned
+> templates** — `Tenant.headerTemplateId` / `footerTemplateId` (FK → Template)
+> rendered once in `app/preview/[tenantId]/layout.tsx` via
+> `resolveTemplateChrome`. Preview routes now follow next-wp structure
+> (`pages/[...slug]`, `posts/[slug]`, + `authors`/`categories`/`tags`). No
+> zones, no proxy, no per-page layout assignment, no content slot. Migration
+> `20260615082506_replace_page_zone_with_tenant_chrome` dropped `layoutSlug`
+> and added the tenant settings. Everything below is kept for history; do not
+> implement it.
+
 **Status: redesigned for Approach A (2026-06-15).** Supersedes the earlier Approach B design (kept below under "Superseded — the Approach B design" for the record). Not yet built. Plan: `plans/008-layout-content-slot.md` (rewritten for A).
 
 **What:** Make `kind: LAYOUT` behave like a WordPress *template* / a Next.js nested layout: a **persistent frame** (header, footer, any chrome) rendered by a layout segment, with the page's own content poured into a `content-slot` as React `children`. A Page's `data` stops being the whole top-to-bottom document and becomes only the **content fragment**. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page owns only the middle.
@@ -478,12 +491,12 @@ The work splits into three buckets. **Bucket 1 is no-regret** — it is needed u
 
 - **Reuses most of the resolver.** PART expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, `placeholder()` markers — all reused. What changes is the *shape of the result* (frame-with-boundary, rendered via `children`) and the *render path* (nested layout), not the per-node resolution.
 - **Missing/empty zone degrades gracefully.** Missing LAYOUT → page renders bare (its content, no chrome). LAYOUT with no `content-slot` → save-time warning in the LAYOUT editor (a frame with nowhere to host content is a misconfiguration under A, not just dropped content as under B).
-- **Persistent chrome is the headline benefit and the hardest part.** True cross-navigation persistence (A1) depends on the zone layout sitting above the changing segment. The MVP (A2) delivers correct rendering and instant publish without full state persistence; sequence A1 when the persistence capability is demanded.
+- **Persistent chrome — shipped via A1.** Cross-navigation persistence needs the zone layout above the changing page segment; that's achieved by `proxy.ts` rewriting clean URLs to a `[zone]/[...slug]` route. Verified: chrome (and its client state) survives same-zone navigation; crossing zones swaps the frame. (The simpler A2 — a layout co-located with `[...slug]` — was built first and superseded; it could not persist.)
 - **`Template.version` cache key.** When render-path caching lands (§1 notes), the resolved chrome keys on `(tenantId, zoneSlug, layoutVersion, …refSlugVersions)` — independent of the page, which is the whole point: a chrome edit invalidates one cache entry, not every page.
 
 ### Open questions (A)
 
-- **Render fork A1 vs A2** — start with A2 (dynamic nested layout) for MVP correctness; promote to A1 (region routing) when open-drawer-across-nav is actually required. Resolve in the plan-008 spike.
+- **Render fork A1 vs A2** — **RESOLVED + shipped (2026-06-15): A1 region routing.** Three browser probes showed A2 (dynamic `[...slug]/layout.tsx`) can't persist chrome state (it sits at the changing segment), while A1 (a `proxy.ts` rewrite to `[zone]/[...slug]`, zone layout above the page segment) preserves it across same-zone navigation with clean URLs. Built directly rather than shipping A2 first. See `docs/reference/layout-render-fork.md`.
 - **Posts** — fixed `single`-style zone (leaning) vs per-post choice. `wp-template-hierarchy.md` flags `singular` as the reserved slug that earns its keep first (posts are the one many-records-one-design type).
 - **Tenant default zone** — unassigned page → Standard zone (leaning) vs fully bare. A one-liner later: `page.layoutSlug ?? tenant.defaultZoneSlug`.
 

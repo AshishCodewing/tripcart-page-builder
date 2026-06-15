@@ -5,7 +5,7 @@
 import { createElement, type ElementType } from "react"
 import { attrsToReactProps } from "../attrs"
 import { getComponentId } from "./util"
-import { CONTENT_SLOT_TYPE, type RenderComponentProps } from "./types"
+import type { RenderComponentProps } from "./types"
 
 export const RenderComponent = (props: RenderComponentProps) => {
   const { component, config, children, parentId, index } = props
@@ -15,12 +15,6 @@ export const RenderComponent = (props: RenderComponentProps) => {
 
   // Text nodes serialize as plain strings; React renders them inline.
   if (type === "textnode") return content
-
-  // Approach-A content slot: a LAYOUT frame marks where page content pours
-  // in; we inject `config.slotContent` here (config reaches every node, so
-  // no marker threading). Renders nothing when no content is supplied —
-  // e.g. a LAYOUT shown standalone, or a stray slot in a normal page.
-  if (type === CONTENT_SLOT_TYPE) return config?.slotContent ?? null
 
   const cfgEntry = config?.components?.[type]
   const Tag = ((cfgEntry?.component as ElementType | undefined) ||

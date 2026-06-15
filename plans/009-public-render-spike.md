@@ -1,5 +1,14 @@
 # Plan 009: Public render path — design spike (how published pages actually get served)
 
+> **Note (2026-06-15): Approach-A references below are stale.** This plan was
+> reconciled to the Approach-A chrome design (`resolveLayoutChrome`, a `[zone]`
+> nested layout, region routing), which has since been **reverted**. The
+> shipped chrome model is tenant-level header/footer templates
+> (`Tenant.headerTemplateId`/`footerTemplateId`) rendered in
+> `app/preview/[tenantId]/layout.tsx`; preview routes are next-wp-style
+> (`pages/[...slug]`, `posts/[slug]`). When this spike runs, design the public
+> render around *that* model, not the zone/proxy machinery referenced here.
+
 > **Executor instructions**: This is a DESIGN SPIKE — the deliverable is a
 > design document, not code. You may not modify any source file; your only
 > writable outputs are `docs/public-render-design.md` and the status row in

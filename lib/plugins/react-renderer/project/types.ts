@@ -8,14 +8,6 @@ import type { CssRuleProperties } from "grapesjs"
 import type { RendererReactOptions } from "../types"
 import type { ComponentNode } from "./parser"
 
-// Component type a LAYOUT author drops to mark where page content pours in
-// (Approach A — docs/reference/templates-followups.md §14). The renderer
-// substitutes `config.slotContent` for this node. Defined here, in the
-// lowest render layer, so the resolver (lib/cms), the editor plugin, and the
-// renderer all share one string by importing *down* into the renderer (no
-// layering inversion, no grapesjs/prisma runtime dragged across).
-export const CONTENT_SLOT_TYPE = "content-slot"
-
 export interface Asset {
   type?: string
   src?: string

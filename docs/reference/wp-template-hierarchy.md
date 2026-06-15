@@ -1,16 +1,18 @@
 # WordPress Template Hierarchy — what it is, what we take, what we skip
 
-> **Update (2026-06-15): chrome ownership is now Approach A.** This doc's
-> central thesis is unchanged and reinforced — we do **not** build the deep
-> query-shape hierarchy; the Next.js App Router is our router. What changed is
-> *how a LAYOUT wraps content*: the earlier §14 "custom-template" design
-> (Approach B — each page bakes the whole document; the per-page template
-> dropdown) was superseded by Approach A (the route/site owns the chrome via a
-> persistent layout segment; a fixed **zone** menu, not a free per-page
-> dropdown). See `templates-followups.md` §14 and
-> `header-footer-architecture-options.md`. Two rows below read B-flavored —
-> the `content-slot` row still holds; "Custom templates (per-page dropdown)"
-> becomes "Zone assignment (fixed menu)". The rest of this doc stands.
+> **Update (2026-06-15, final): chrome is tenant-level, not per-page.** This
+> doc's central thesis stands and is reinforced — we do **not** build the deep
+> query-shape hierarchy; the Next.js App Router is our router. The chrome
+> *ownership* question churned (B per-page dropdown → A per-page "zones" +
+> proxy) and both elaborate designs were **reverted**. Final, shipped model:
+> **the site owns one header + one footer per tenant**, stored as
+> `Tenant.headerTemplateId` / `footerTemplateId` and rendered once in
+> `app/preview/[tenantId]/layout.tsx` (via `resolveTemplateChrome`). No
+> `content-slot`, no per-page assignment, no zones, no proxy. The "Mapping to
+> this builder" rows below that mention `content-slot` / per-page template
+> dropdowns / zones are **superseded** by this tenant-chrome model; the
+> hierarchy reasoning (what we skip and why) is unchanged. See
+> `templates-followups.md` §14 and `header-footer-architecture-options.md`.
 
 Decision/explainer doc (2026-06-12). Answers: "should the builder implement a
 WP-style template hierarchy?" Short version: **the full hierarchy, no — the

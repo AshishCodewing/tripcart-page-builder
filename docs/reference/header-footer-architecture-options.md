@@ -1,5 +1,16 @@
 # Header & Footer: Two Ways to Build It
 
+> **Outcome (2026-06-15).** We chose **A's spirit — the site owns the chrome** —
+> but in its **simplest form**: one header + one footer per tenant, rendered
+> once in the preview route layout. We did *not* build the elaborate version
+> of A (per-page "zones", a region-routing proxy, per-page layout assignment,
+> a content slot) — that was prototyped under "Approach A / §14" and fully
+> reverted as over-engineered. We also did not keep B (each page bakes the
+> whole document). Concretely: `Tenant.headerTemplateId` / `footerTemplateId`
+> point at header/footer templates, which `app/preview/[tenantId]/layout.tsx`
+> renders around the page. The A-vs-B comparison below is kept for context;
+> "Zones" remain a *possible future* extension, not something we built.
+
 Audience: product. Plain-language comparison of two architectures for shared
 headers/footers, written for the chrome-ownership decision. Technical
 counterpart: `wp-template-hierarchy.md` and `templates-followups.md` §14.

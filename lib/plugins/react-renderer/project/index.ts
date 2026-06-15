@@ -21,7 +21,6 @@ export {
   ProjectEditor,
   findComponentById,
 } from "./parser"
-export { CONTENT_SLOT_TYPE } from "./types"
 export type { RenderProjectFragmentProps } from "./render-fragment"
 export type {
   Asset,
