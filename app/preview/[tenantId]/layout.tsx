@@ -90,7 +90,8 @@ export default async function PreviewLayout({
             filterProtectedStyles(header as ProjectData) as ProjectDefinition
           }
           config={{ components: patternComponents }}
-          rootAttributes={{ "data-site-header": "true" }}
+          parentId="site-header"
+          bare
         />
       )}
       {children}
@@ -100,7 +101,8 @@ export default async function PreviewLayout({
             filterProtectedStyles(footer as ProjectData) as ProjectDefinition
           }
           config={{ components: patternComponents }}
-          rootAttributes={{ "data-site-footer": "true" }}
+          parentId="site-footer"
+          bare
         />
       )}
     </>

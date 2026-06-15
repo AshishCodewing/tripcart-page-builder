@@ -32,6 +32,7 @@ export default async function PagePreviewRoute({
     <PagePreview
       projectData={projectData}
       config={{ components: patternComponents }}
+      rootTag="main"
     />
   )
 }

@@ -14,6 +14,8 @@
 // strips any theme rules legacy publishes baked into `page.data` so
 // they don't override the layout's fresh tenant theme.
 
+import type { ElementType } from "react"
+
 import { filterProtectedStyles } from "@/lib/plugins/tc-storage-adapter"
 import {
   RenderProjectFragment,
@@ -27,9 +29,14 @@ interface Props {
   // Page row. Typed loosely because Prisma surfaces the column as `Json`.
   projectData: unknown
   config?: RendererReactOptions
+  // Host element for the content. Defaults to "div". The page route passes
+  // "main" so page content is the <main> landmark between header/footer; the
+  // blog-post route leaves it a div (the content already sits inside an
+  // <article>, where <main> is invalid).
+  rootTag?: ElementType
 }
 
-export function PagePreview({ projectData, config }: Props) {
+export function PagePreview({ projectData, config, rootTag = "div" }: Props) {
   if (!projectData || typeof projectData !== "object") {
     return <PreviewEmpty reason="No saved project data." />
   }
@@ -44,13 +51,13 @@ export function PagePreview({ projectData, config }: Props) {
 
   // The wrapper component maps to <body>; we're already inside the host
   // page's body, so the shared fragment renderer strips it and emits the
-  // page's children + CSS on a transparent host div.
+  // page's children + CSS on a host element carrying the wrapper's classes.
   return (
     <RenderProjectFragment
       projectData={filtered as ProjectDefinition}
       config={config}
-      rootAttributes={{ "data-page-preview-root": "true" }}
       parentId="preview"
+      rootTag={rootTag}
       emptyFallback={<PreviewEmpty reason="Project has no pages or frames." />}
     />
   )
