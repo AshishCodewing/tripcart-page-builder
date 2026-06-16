@@ -2,6 +2,8 @@
 // EditorShell + LeftPanel + canvas + chrome serve both Pages and Posts;
 // only the right panel field set and the top-bar preview path differ.
 
+import type { TemplateRefUsage } from "@/lib/cms/template-ref-usage"
+
 export type PageRecord = {
   id: string
   title: string
@@ -34,6 +36,9 @@ export type TemplateRecord = {
   synced: boolean
   // No status: templates have no publish lifecycle (see TopBarRight).
   updatedAt: Date
+  // How many pages/posts/templates reference this template's slug — drives
+  // the pre-delete confirmation warning in the right panel (§5).
+  refUsage: TemplateRefUsage
 }
 
 export type ParentOption = {

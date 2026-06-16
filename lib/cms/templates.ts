@@ -17,6 +17,7 @@ import type {
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
 import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
+import type { TemplateRefUsage } from "./template-ref-usage"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -132,6 +133,36 @@ export async function templateRefExists(slug: string): Promise<boolean> {
     ) AS "found"
   `
   return rows[0]?.found ?? false
+}
+
+/**
+ * Count how many `pages` / `posts` / `templates` reference `slug` via a
+ * `template-ref`. The richer sibling of `templateRefExists` — backs the
+ * slug-rename error message and the pre-delete confirmation in the editor
+ * (the §4/§5 "reference inventory"). Same recursive `jsonb_path_exists`
+ * probe per table, `COUNT(*)` instead of `EXISTS`. Not tenant-scoped (a
+ * global template's slug can be referenced from any tenant's content).
+ */
+export async function templateRefUsage(
+  slug: string
+): Promise<TemplateRefUsage> {
+  const vars = JSON.stringify({ s: slug })
+  const rows = await prisma.$queryRaw<
+    { pages: bigint; posts: bigint; templates: bigint }[]
+  >`
+    SELECT
+      (SELECT COUNT(*) FROM "pages"
+         WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "pages",
+      (SELECT COUNT(*) FROM "posts"
+         WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "posts",
+      (SELECT COUNT(*) FROM "templates"
+         WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "templates"
+  `
+  // Postgres COUNT(*) comes back as bigint → coerce to number.
+  const pages = Number(rows[0]?.pages ?? 0)
+  const posts = Number(rows[0]?.posts ?? 0)
+  const templates = Number(rows[0]?.templates ?? 0)
+  return { pages, posts, templates, total: pages + posts + templates }
 }
 
 // --- Resolver ----------------------------------------------------------

@@ -7,6 +7,7 @@ import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import {
   getTemplateById,
   listTemplates,
+  templateRefUsage,
   type TemplateBody,
 } from "@/lib/cms/templates"
 import { deleteTemplate, saveTemplate } from "@/lib/cms/template-actions"
@@ -28,9 +29,10 @@ export default async function EditTemplatePage({
   // Template blocks aren't surfaced when editing a global template
   // (no tenant context for `listTemplates`); resolve that case later
   // by exposing the global library as a separate block source.
-  const [tenantTheme, allTemplates] = await Promise.all([
+  const [tenantTheme, allTemplates, refUsage] = await Promise.all([
     tpl.tenantId ? getTenantTheme(tpl.tenantId) : Promise.resolve(defaultTheme),
     tpl.tenantId ? listTemplates(tpl.tenantId) : Promise.resolve([]),
+    templateRefUsage(tpl.slug),
   ])
   // Don't expose the template currently being edited as a draggable
   // block — dragging self would create a recursive `template-ref`
@@ -47,6 +49,7 @@ export default async function EditTemplatePage({
     area: tpl.area,
     synced: tpl.synced,
     updatedAt: tpl.updatedAt,
+    refUsage,
   }
 
   const saveAction = saveTemplate.bind(null, id)
