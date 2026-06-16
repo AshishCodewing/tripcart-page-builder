@@ -18,6 +18,12 @@ const VIEWS = {
     addLabel: "Add Pattern",
     kind: "PATTERN",
   },
+  parts: {
+    title: "Template parts",
+    description: "Reusable, area-tagged chrome (header, footer, sidebar…).",
+    addLabel: "Add Template Part",
+    kind: "PART",
+  },
 } as const
 
 type Props = {

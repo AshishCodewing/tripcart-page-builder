@@ -15,8 +15,9 @@ import {
 import {
   assertChromeSlug,
   slimTemplateProject,
-  templateRefExists,
+  templateRefUsage,
 } from "./templates"
+import { formatTemplateRefUsage } from "./template-ref-usage"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -80,10 +81,12 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
     if (clash) {
       throw new Error(`A template with slug "${slug}" already exists.`)
     }
-    if (await templateRefExists(existing.slug)) {
+    const usage = await templateRefUsage(existing.slug)
+    if (usage.total > 0) {
       throw new Error(
-        `Cannot rename "${existing.slug}" — it is referenced by existing ` +
-          `content. Remove those references before renaming.`
+        `Cannot rename "${existing.slug}" — it is referenced by ` +
+          `${formatTemplateRefUsage(usage)}. Remove those references before ` +
+          `renaming.`
       )
     }
   }
@@ -152,10 +155,11 @@ export type CreatedTemplate = {
  * the row keeps the schema-default `data = {}`, which the editor opens as
  * an empty canvas (see the template edit page's `data === {}` handling).
  *
- * `kind` is constrained to LAYOUT | PATTERN here — the only two surfaced
- * by the Library (PART chrome is authored elsewhere). Slug is derived
- * from the title and de-duplicated per tenant, mirroring
- * `createTemplateFromSelection`. Redirects to the editor on success.
+ * `kind` is one of LAYOUT | PATTERN | PART — each surfaced by a Library
+ * sub-page (Templates / Patterns / Template Parts). A PART requires an
+ * `area` and is synced by intent (schema). Slug is derived from the title
+ * and de-duplicated per tenant, mirroring `createTemplateFromSelection`.
+ * Redirects to the editor on success.
  */
 export async function createTemplate(
   tenantId: string,
@@ -165,18 +169,22 @@ export async function createTemplate(
 
   const title = String(form.get("title") ?? "").trim()
   const kindField = String(form.get("kind") ?? "").trim()
+  const areaField = String(form.get("area") ?? "").trim()
 
   if (!title) throw new Error("Title is required.")
-  if (kindField !== "LAYOUT" && kindField !== "PATTERN")
-    throw new Error("Kind must be LAYOUT or PATTERN.")
-  const kind = kindField as "LAYOUT" | "PATTERN"
+  if (kindField !== "LAYOUT" && kindField !== "PATTERN" && kindField !== "PART")
+    throw new Error("Kind must be LAYOUT, PATTERN, or PART.")
+  const kind = kindField as "LAYOUT" | "PATTERN" | "PART"
+  if (kind === "PART" && !areaField)
+    throw new Error("Area is required for PART templates.")
 
   const baseSlug = titleToSlug(title)
   if (!baseSlug)
     throw new Error("Title must contain at least one letter or number.")
   validateSlug(baseSlug)
-  // This path only creates LAYOUT/PATTERN, so a "Header"/"Footer" title would
-  // claim a reserved chrome slug as a non-PART — reject it.
+  // Reserved chrome slugs ("header"/"footer") are allowed only for PART —
+  // authoring a Part titled "Header" is the from-scratch way to define the
+  // site header (resolveChromeBySlug). A LAYOUT/PATTERN at those slugs throws.
   assertChromeSlug(baseSlug, kind)
   let slug = baseSlug
   let suffix = 2
@@ -191,7 +199,15 @@ export async function createTemplate(
   }
 
   const created = await prisma.template.create({
-    data: { tenantId, slug, title, kind },
+    // PARTs are area-tagged and synced by intent (schema); LAYOUT/PATTERN
+    // keep area null and the schema-default synced = false.
+    data: {
+      tenantId,
+      slug,
+      title,
+      kind,
+      ...(kind === "PART" ? { area: areaField, synced: true } : {}),
+    },
     select: { id: true },
   })
 

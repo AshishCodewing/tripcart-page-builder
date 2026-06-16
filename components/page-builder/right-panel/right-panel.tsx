@@ -4,7 +4,9 @@ import * as React from "react"
 import { useEditorMaybe } from "@grapesjs/react"
 import { Trash2 } from "lucide-react"
 
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 import { useIsClient } from "@/hooks/use-is-client"
+import { formatTemplateRefUsage } from "@/lib/cms/template-ref-usage"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -110,6 +112,28 @@ export default function RightPanel({ content, deleteAction }: Props) {
 
   const [activeTab, setActiveTab] = React.useState<string>(tabValue)
 
+  // Confirm before "Move to trash". For a template that's still referenced,
+  // spell out the reference count (§5) so the user knows what will break —
+  // deleting leaves `missing:<slug>` placeholders wherever it's used.
+  const deleteDescription =
+    content.kind === "template" && content.template.refUsage.total > 0
+      ? `This template is referenced by ${formatTemplateRefUsage(
+          content.template.refUsage
+        )}. Deleting it leaves a missing-template placeholder wherever it's ` +
+        `used. This can't be undone.`
+      : `Deleting this ${kindLabel.toLowerCase()} can't be undone.`
+
+  const { confirm, dialog } = useConfirmDialog({
+    title: `Move this ${kindLabel.toLowerCase()} to trash?`,
+    description: deleteDescription,
+    confirmText: "Move to trash",
+    destructive: true,
+  })
+
+  const handleDelete = React.useCallback(async () => {
+    if (await confirm()) await deleteAction()
+  }, [confirm, deleteAction])
+
   React.useEffect(() => {
     if (!editor) return
     const showBlock = () => setActiveTab("block")
@@ -207,9 +231,8 @@ export default function RightPanel({ content, deleteAction }: Props) {
 
         <SidebarFooter className="border-t">
           <Button
-            type="submit"
-            formAction={deleteAction}
-            formNoValidate
+            type="button"
+            onClick={() => void handleDelete()}
             variant="outline"
             size="sm"
             className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -217,6 +240,7 @@ export default function RightPanel({ content, deleteAction }: Props) {
             <Trash2 data-icon="inline-start" />
             Move to trash
           </Button>
+          {dialog}
         </SidebarFooter>
       </TabsContent>
 

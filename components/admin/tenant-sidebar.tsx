@@ -9,6 +9,7 @@ import {
   LayoutTemplateIcon,
   NewspaperIcon,
   PaletteIcon,
+  PanelTopIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -91,6 +92,12 @@ export function TenantSidebar({
           children: [
             { label: "All Patterns", href: `${base}/library/patterns` },
           ],
+        },
+        {
+          label: "Template Parts",
+          icon: PanelTopIcon,
+          base: `${base}/library`,
+          children: [{ label: "All Parts", href: `${base}/library/parts` }],
         },
       ],
     },
