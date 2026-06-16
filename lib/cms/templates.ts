@@ -255,6 +255,65 @@ export async function resolvePageTree(
   }
 }
 
+/**
+ * Slugs reserved for site chrome. A template at one of these slugs is the
+ * site header/footer (`resolveChromeBySlug`), so it may only be a PART —
+ * `assertChromeSlug` enforces that on create/rename so a Page-less Pattern or
+ * Layout can't accidentally become the site chrome.
+ */
+export const RESERVED_CHROME_SLUGS = ["header", "footer"] as const
+
+export function isReservedChromeSlug(slug: string): boolean {
+  return (RESERVED_CHROME_SLUGS as readonly string[]).includes(slug)
+}
+
+/**
+ * Guard for template create/rename: a reserved chrome slug ("header" /
+ * "footer") is only allowed on a PART template. Throws otherwise. Pass the
+ * resolved `kind` (string compare, so callers don't need the Prisma enum).
+ */
+export function assertChromeSlug(slug: string, kind: string): void {
+  if (isReservedChromeSlug(slug) && kind !== "PART") {
+    throw new Error(
+      `The slug "${slug}" is reserved for the site ${slug} and can only be ` +
+        `used by a Part template.`
+    )
+  }
+}
+
+/**
+ * Resolve a tenant's site chrome by reserved `slug` (e.g. "header" /
+ * "footer") into a renderable `ProjectDefinition`. This mirrors WordPress,
+ * which references template parts by slug (`wp:template-part {"slug":"header"}`);
+ * `loadTemplate` gives the same tenant-first / global-fallback shadowing WP's
+ * DB-over-theme parts have. (`Template.area` stays as classification metadata
+ * for the library UI — header/footer/general/navigation-overlay — but the
+ * lookup key is the slug.)
+ *
+ * The matched template's slim body is wrapped into the project shape and run
+ * through `resolvePageTree` so any nested `template-ref`s (e.g. a logo PART
+ * inside the header) expand and their styles merge. Returns `null` when no
+ * template with that slug exists (or it has no root), so the layout falls
+ * back to the code default.
+ */
+export async function resolveChromeBySlug(
+  tenantId: string,
+  slug: string
+): Promise<ProjectDefinition | null> {
+  const tpl = await loadTemplate(tenantId, slug)
+  if (!tpl) return null
+
+  const body = tpl.data as TemplateBody | null
+  const rawRoot = body?.component ?? body?.pages?.[0]?.frames?.[0]?.component
+  if (!rawRoot) return null
+
+  const project: ProjectDefinition = {
+    pages: [{ frames: [{ component: unwrapTemplateRoot(rawRoot) }] }],
+    styles: body?.styles ?? [],
+  }
+  return resolvePageTree(tenantId, project)
+}
+
 async function resolveNode(
   ctx: ResolveCtx,
   node: ComponentDefinition,

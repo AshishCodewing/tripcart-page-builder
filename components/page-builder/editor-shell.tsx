@@ -647,11 +647,16 @@ function EditorShellInner({
   }, [storageKey])
 
   const gjsOptions = React.useMemo(
-    // buildGjsOptions only stashes `debouncedPersist` in the storage
-    // config; it never invokes it during render, so reading the refs it
-    // closes over here is safe.
-    // eslint-disable-next-line react-hooks/refs
-    () => buildGjsOptions(initialProjectData, debouncedPersist, templates),
+    () =>
+      buildGjsOptions(
+        initialProjectData,
+        // buildGjsOptions only stashes `debouncedPersist` in the storage
+        // config; it never invokes it during render, so reading the ref it
+        // closes over here is safe.
+        // eslint-disable-next-line react-hooks/refs
+        debouncedPersist,
+        templates
+      ),
     [initialProjectData, debouncedPersist, templates]
   )
 

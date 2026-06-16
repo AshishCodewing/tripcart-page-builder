@@ -81,7 +81,10 @@ export type TemplateRow = {
   synced: boolean
   tenantId: string | null
   preview: string | null
-  updatedAt: Date
+  updatedAt: Date | null
+  // Code-defined pattern (from the pattern manifest), not a DB row: listed
+  // read-only — no edit/delete/select, source shows "Built-in".
+  builtin?: boolean
 }
 
 type Props = {
@@ -173,14 +176,15 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
             }
           />
         ),
-        cell: ({ row }) => (
-          <Checkbox
-            size="sm"
-            aria-label="Select row"
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-          />
-        ),
+        cell: ({ row }) =>
+          row.original.builtin ? null : (
+            <Checkbox
+              size="sm"
+              aria-label="Select row"
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+            />
+          ),
       },
       {
         accessorKey: "title",
@@ -195,46 +199,72 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
         ),
         cell: ({ row }) => {
           const t = row.original
-          return (
+          const thumb = (
+            <span className="flex aspect-video w-14 shrink-0 items-center justify-center overflow-hidden rounded border bg-muted/40">
+              {t.preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={t.preview}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-[9px] text-muted-foreground">—</span>
+              )}
+            </span>
+          )
+          const label = (
+            <span className="flex min-w-0 flex-col">
+              <span
+                className={cn(
+                  "truncate font-medium",
+                  !t.builtin && "hover:underline"
+                )}
+              >
+                {t.title}
+              </span>
+              <span className="truncate font-mono text-xs text-muted-foreground">
+                {t.slug}
+              </span>
+            </span>
+          )
+          // Built-ins are code-defined — no DB editor route to link to.
+          return t.builtin ? (
+            <div className="flex min-w-0 items-center gap-3">
+              {thumb}
+              {label}
+            </div>
+          ) : (
             <Link
               href={`/admin/templates/${t.id}/edit`}
               className="flex min-w-0 items-center gap-3"
             >
-              <span className="flex aspect-video w-14 shrink-0 items-center justify-center overflow-hidden rounded border bg-muted/40">
-                {t.preview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={t.preview}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-[9px] text-muted-foreground">—</span>
-                )}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate font-medium hover:underline">
-                  {t.title}
-                </span>
-                <span className="truncate font-mono text-xs text-muted-foreground">
-                  {t.slug}
-                </span>
-              </span>
+              {thumb}
+              {label}
             </Link>
           )
         },
       },
       {
         id: "source",
-        accessorFn: (row) => (row.tenantId === null ? "global" : "tenant"),
+        accessorFn: (row) =>
+          row.builtin ? "builtin" : row.tenantId === null ? "global" : "tenant",
         filterFn: includesValue,
         header: "Source",
-        cell: ({ getValue }) =>
-          getValue() === "global" ? (
+        cell: ({ getValue }) => {
+          const v = getValue()
+          if (v === "builtin")
+            return (
+              <Badge variant="secondary" fill="outline">
+                Built-in
+              </Badge>
+            )
+          return v === "global" ? (
             <Badge>Global</Badge>
           ) : (
             <Badge variant="secondary">Tenant</Badge>
-          ),
+          )
+        },
       },
       {
         accessorKey: "area",
@@ -255,8 +285,10 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
         filterFn: (row, id, value: string[]) =>
           !value?.length || value.includes(String(row.getValue(id))),
         header: "Synced",
-        cell: ({ getValue }) =>
-          getValue() ? (
+        cell: ({ row, getValue }) =>
+          row.original.builtin ? (
+            <span className="text-muted-foreground">—</span>
+          ) : getValue() ? (
             <Badge>Synced</Badge>
           ) : (
             <Badge variant="secondary">Unsynced</Badge>
@@ -264,7 +296,10 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
       },
       {
         accessorKey: "updatedAt",
-        sortingFn: "datetime",
+        // Null-safe (built-ins have no date → sort to the end).
+        sortingFn: (a, b) =>
+          (a.original.updatedAt?.getTime() ?? 0) -
+          (b.original.updatedAt?.getTime() ?? 0),
         header: ({ column }) => (
           <SortHeader
             label="Updated"
@@ -274,11 +309,14 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
             }
           />
         ),
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground">
-            {dateFmt.format(getValue() as Date)}
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const d = getValue() as Date | null
+          return (
+            <span className="text-muted-foreground">
+              {d ? dateFmt.format(d) : "—"}
+            </span>
+          )
+        },
       },
       {
         id: "actions",
@@ -286,6 +324,11 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
         enableHiding: false,
         cell: ({ row }) => {
           const t = row.original
+          // Built-ins are code-defined: nothing to edit/duplicate/delete here.
+          // To customize one, insert it on a page and use Convert to Template.
+          if (t.builtin) {
+            return <span className="sr-only">Built-in pattern</span>
+          }
           return (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -339,7 +382,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
       columnVisibility,
       rowSelection,
     },
-    enableRowSelection: true,
+    enableRowSelection: (row) => !row.original.builtin,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
@@ -398,6 +441,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           options={[
             { value: "tenant", label: "This tenant" },
             { value: "global", label: "Global library" },
+            { value: "builtin", label: "Built-in" },
           ]}
           selected={
             (table.getColumn("source")?.getFilterValue() as string[]) ?? []

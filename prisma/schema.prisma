@@ -34,22 +34,22 @@ enum TemplateKind {
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  domain    String?  @unique
+  id               String     @id @default(cuid())
+  name             String
+  slug             String     @unique
+  domain           String?    @unique
   // Tenant-wide brand theme — full Theme document as defined in
   // lib/theme/schema.ts. Empty `{}` means "use the bundled defaultTheme."
-  theme     Json     @default("{}")
+  theme            Json       @default("{}")
   // Monotonic counter bumped on every theme write. Embedded in the
   // compiled-theme CSS URL so each version is its own cache key, served
   // immutable — theme edits invalidate by URL change, not by purge.
-  themeVersion Int   @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  pages     Page[]
-  posts     Post[]
-  templates Template[]
+  themeVersion Int        @default(1)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  pages        Page[]
+  posts        Post[]
+  templates    Template[]
 
   @@map("tenants")
 }
@@ -145,34 +145,34 @@ model Tag {
 // Within a tenant, a row with the same slug as a global shadows it at
 // render — the renderer prefers the tenant row over the global fallback.
 model Template {
-  id          String        @id @default(cuid())
+  id               String       @id @default(cuid())
   // null = global library; non-null = tenant-scoped (can shadow global)
-  tenantId    String?
-  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  slug        String
-  kind        TemplateKind
+  tenantId         String?
+  tenant           Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug             String
+  kind             TemplateKind
   // Only set when kind = PART, e.g. "header" | "footer" | "sidebar".
   // Not enforced in the DB; the app layer should validate.
-  area        String?
+  area             String?
   // true = insert as `template-ref` (resolved at render, edits propagate)
   // false = copy the `data` subtree into the consuming Page on insert
   // The flag affects FUTURE inserts only; existing refs/copies are
   // unchanged when this toggles.
-  synced      Boolean       @default(false)
-  title       String
-  description String?
+  synced           Boolean      @default(false)
+  title            String
+  description      String?
   // GrapesJS subtree (styles + components) — same shape as a slice of
   // `Page.data.pages[].frames[].component`.
-  data        Json          @default("{}")
+  data             Json         @default("{}")
   // In-progress editor autosave, stored in the slim `{ component, styles }`
   // shape (same as `data`). null = no draft ahead of `data`. See Page.draftData.
-  draftData   Json?
+  draftData        Json?
   // Optional thumbnail URL for inserter UIs.
-  preview     String?
+  preview          String?
   // No publish lifecycle: a template reaches the public site only by
   // being inserted into a Page/Post, whose own status gates publication.
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@unique([tenantId, slug])
   @@index([tenantId, kind])
@@ -190,14 +190,14 @@ model Redirect {
 }
 
 model DocChunk {
-  id          String                       @id @default(cuid())
-  contentHash String                       @unique
+  id          String                      @id @default(cuid())
+  contentHash String                      @unique
   content     String
   headerPath  String
   kind        String
   tokenCount  Int
   embedding   Unsupported("vector(3072)")
-  createdAt   DateTime                     @default(now())
+  createdAt   DateTime                    @default(now())
 
   urls DocChunkUrl[]
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   MAX_PROJECT_BYTES,
   parseProjectPayload,
+  projectContainsTag,
   validateComponentPayload,
   validateProjectPayload,
 } from "@/lib/cms/project-payload"
@@ -12,6 +13,56 @@ const minimalProject = {
   pages: [{ frames: [{ component: { tagName: "div", components: [] } }] }],
   styles: [],
 }
+
+describe("projectContainsTag", () => {
+  it("is false when the tag is absent", () => {
+    expect(projectContainsTag(minimalProject, "main")).toBe(false)
+  })
+
+  it("detects a top-level tag (case-insensitive)", () => {
+    const project = {
+      pages: [
+        {
+          frames: [
+            {
+              component: {
+                type: "wrapper",
+                components: [{ tagName: "MAIN", components: [] }],
+              },
+            },
+          ],
+        },
+      ],
+    }
+    expect(projectContainsTag(project, "main")).toBe(true)
+  })
+
+  it("detects a deeply nested tag", () => {
+    const project = {
+      pages: [
+        {
+          frames: [
+            {
+              component: {
+                tagName: "div",
+                components: [
+                  { tagName: "section", components: [{ tagName: "main" }] },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    }
+    expect(projectContainsTag(project, "main")).toBe(true)
+  })
+
+  it("tolerates empty / malformed input", () => {
+    expect(projectContainsTag({}, "main")).toBe(false)
+    expect(projectContainsTag(null, "main")).toBe(false)
+    expect(projectContainsTag({ pages: [{}] }, "main")).toBe(false)
+  })
+})
 
 describe("validateProjectPayload", () => {
   it("accepts a realistic minimal project", () => {

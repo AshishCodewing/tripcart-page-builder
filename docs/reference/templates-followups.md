@@ -37,7 +37,8 @@ Tracks what still needs to land before the templates story is "complete." See `d
 - **§5 template delete + reference impact** — `deleteTemplate(id)` server action deletes the row, bumps `template:<slug>`, and redirects to the kind's Library route (PATTERN → patterns, LAYOUT/PART → templates; globals → `/admin/tenants`). Wired into the template editor's right-panel "Move to trash" (was a no-op). Per the resolved decision, delete is **unconditional** — refs aren't blocked; the resolver already renders a `missing:<slug>` placeholder for the now-deleted row, so refs degrade gracefully. **Deferred:** a pre-delete "reference inventory" view / ref-count warning (would build on `templateRefExists`). See §5.
 
 ### Pending
-- **LAYOUT content slot + page→layout assignment** — the change that makes `kind: LAYOUT` actually mean "WP template" (a page-shell with a content slot) rather than "big pattern". A page opts into a layout; its content is spliced into the layout's `content-slot` at render. Smallest WP-custom-template-style model (explicit per-page assignment, no template hierarchy). See §14. **This is the highest-leverage gap** — without it the three `TemplateKind`s are really "patterns, area-tagged patterns, and big patterns".
+
+- **Site chrome — SHIPPED (2026-06-15) as tenant header/footer templates, NOT Approach A.** The elaborate "LAYOUT = page-shell with a content slot" design (Approach A, §14) was built and then fully reverted (see §14's ABANDONED banner). What shipped instead: the site header/footer are templates at the reserved slugs `header`/`footer` (PART kind), resolved tenant-first/global-fallback by `resolveChromeBySlug` and rendered once in `app/preview/[tenantId]/layout.tsx`, with code defaults in `lib/plugins/parts/`. So PART now has a real job (chrome). **Still genuinely pending:** `kind: LAYOUT` is _not_ meaningfully different from a big PATTERN — there's no full-page-template-with-content-slot. That capability was deliberately deferred; revisit only if per-page page-shells are actually needed.
 - **Pattern categories** on Templates so the block inserter can filter by category beyond just kind — matches WP's pattern-category UX. See §10.
 - **Overrides on synced templates** — mark specific child components as per-instance-editable so a synced card layout can have a fixed structure with variable title/image. WP 6.6+ feature; closes a real gap in our synced model. See §11.
 - **Headless thumbnail generation for `Template.preview`** — replace the per-kind placeholder SVGs with real renders. See §12.
@@ -124,7 +125,7 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ## 4. Editable template metadata in the right panel
 
-**Status: shipped (2026-06-05).** `TemplateOnlyFields` (right-panel.tsx) now renders a controlled Kind `Select` (LAYOUT/PATTERN/PART — Area input appears only for PART) and a Synced `Switch`; title/slug stay the shared inputs at the top of the panel. `saveTemplate(id, form)` reads title/slug/kind/area/synced, falls back to existing values for missing fields, clears `area` for non-PART, and reads `synced` from the Base UI checkbox (`"on"` when checked). Slug rename policy = §4 option 1 (forbid): `validateSlug` + per-tenant uniqueness check + `templateRefExists(slug)` (a single recursive `jsonb_path_exists` probe across `pages`/`posts`/`templates`) — rename throws if any `template-ref` still points at the old slug. Cache tag bumped for old + new slug. **Not done (deferred):** bulk-rename (§4 option 2) that updates all referencing nodes instead of forbidding; surfacing the ref count in the error so the user knows *where* the refs are (the §5 "reference inventory" view would cover this). The original plan follows.
+**Status: shipped (2026-06-05).** `TemplateOnlyFields` (right-panel.tsx) now renders a controlled Kind `Select` (LAYOUT/PATTERN/PART — Area input appears only for PART) and a Synced `Switch`; title/slug stay the shared inputs at the top of the panel. `saveTemplate(id, form)` reads title/slug/kind/area/synced, falls back to existing values for missing fields, clears `area` for non-PART, and reads `synced` from the Base UI checkbox (`"on"` when checked). Slug rename policy = §4 option 1 (forbid): `validateSlug` + per-tenant uniqueness check + `templateRefExists(slug)` (a single recursive `jsonb_path_exists` probe across `pages`/`posts`/`templates`) — rename throws if any `template-ref` still points at the old slug. Cache tag bumped for old + new slug. **Not done (deferred):** bulk-rename (§4 option 2) that updates all referencing nodes instead of forbidding; surfacing the ref count in the error so the user knows _where_ the refs are (the §5 "reference inventory" view would cover this). The original plan follows.
 
 **What:** Replace the read-only badges in `TemplateOnlyFields` (right-panel.tsx) with real inputs for slug, kind, area, synced. Save through an expanded `saveTemplate` that accepts these fields.
 
@@ -210,11 +211,11 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ## 7. Inline resolved template content in the editor canvas
 
-**Status: shipped (2026-05-29), including styles.** `templateRefPlugin` became a factory `templateRefPlugin(templates)` that closes over the same `templates` list the editor already loads for §8. A `template-ref`'s `model.init()` looks the slug up in an in-memory map (tenant-first) and appends the resolved `data.component` as **locked, non-layerable** children inside `editor.UndoManager.skip(...)`. Cycle/runaway guard is a depth attribute (`data-tc-tpl-depth`) capped at `MAX_PREVIEW_DEPTH=8`. `model.toJSON` returns just `{ type, attributes }` so the inlined preview never reaches `page.data` (no save-path filtering needed). `onRender` shows the slug label only when there are no inlined children; placeholder chrome moved to a `:has(> .tc-template-ref__label)` CSS rule so a resolved ref is a transparent wrapper. **Styles (the deferred carry-over, now done):** each inlined template's `data.styles` (the §6 subtree slice) is injected into the **editor CSS model as protected rules** via the shared `applyTemplateStyles` helper (`lib/plugins/template-styles.ts`), and re-applied on `editor.on("load")` — exactly the pattern `designSystemPlugin` uses for the theme layer. *Why the model, not a detached `<style>`:* a first cut appended a standalone `<style>` to the canvas iframe to keep the rules out of `getProjectData()`, but that element lives outside GrapesJS' render lifecycle, so it vanished on reload / navigate-away-and-back (GrapesJS only re-renders **its own CSS model** into the canvas). Putting the rules in the model fixes that; `protected` keeps them out of saved page data (`filterProtectedStyles` / tc-local strip them), and `applyTemplateStyles`' dedupe skips any selector already present and only marks genuinely-new rules protected — so it never flips a page-owned rule to protected and loses it on save. The protected rules are stripped from storage on save and re-injected by the `load` handler on every mount, so they always reflect the current template. Serialized with the same `CssComposer` (`lib/plugins/react-renderer/project/parser.ts`) the preview/publish path uses — so the canvas matches the published render. Verified surviving navigate-away-and-back in the editor. The notes below are the original design sketch.
+**Status: shipped (2026-05-29), including styles.** `templateRefPlugin` became a factory `templateRefPlugin(templates)` that closes over the same `templates` list the editor already loads for §8. A `template-ref`'s `model.init()` looks the slug up in an in-memory map (tenant-first) and appends the resolved `data.component` as **locked, non-layerable** children inside `editor.UndoManager.skip(...)`. Cycle/runaway guard is a depth attribute (`data-tc-tpl-depth`) capped at `MAX_PREVIEW_DEPTH=8`. `model.toJSON` returns just `{ type, attributes }` so the inlined preview never reaches `page.data` (no save-path filtering needed). `onRender` shows the slug label only when there are no inlined children; placeholder chrome moved to a `:has(> .tc-template-ref__label)` CSS rule so a resolved ref is a transparent wrapper. **Styles (the deferred carry-over, now done):** each inlined template's `data.styles` (the §6 subtree slice) is injected into the **editor CSS model as protected rules** via the shared `applyTemplateStyles` helper (`lib/plugins/template-styles.ts`), and re-applied on `editor.on("load")` — exactly the pattern `designSystemPlugin` uses for the theme layer. _Why the model, not a detached `<style>`:_ a first cut appended a standalone `<style>` to the canvas iframe to keep the rules out of `getProjectData()`, but that element lives outside GrapesJS' render lifecycle, so it vanished on reload / navigate-away-and-back (GrapesJS only re-renders **its own CSS model** into the canvas). Putting the rules in the model fixes that; `protected` keeps them out of saved page data (`filterProtectedStyles` / tc-local strip them), and `applyTemplateStyles`' dedupe skips any selector already present and only marks genuinely-new rules protected — so it never flips a page-owned rule to protected and loses it on save. The protected rules are stripped from storage on save and re-injected by the `load` handler on every mount, so they always reflect the current template. Serialized with the same `CssComposer` (`lib/plugins/react-renderer/project/parser.ts`) the preview/publish path uses — so the canvas matches the published render. Verified surviving navigate-away-and-back in the editor. The notes below are the original design sketch.
 
 **What:** When a `template-ref` component is rendered on the editor canvas, fetch the referenced template's `data.pages[0].frames[0].component` and inline it as **locked** children of the placeholder, so editors see the real header/footer/pattern instead of just the slug label.
 
-**Why:** Today's canvas behavior intentionally renders only `<span>Template <strong>{slug}</strong></span>` (see `lib/plugins/template-ref.ts`, `view.onRender`). The doc-string flags this as MVP: *"A follow-up can fetch the resolved tree and inline it as locked children for a true preview."* Without it, a converted homepage hero collapses into a one-line placeholder in the editor, even though the preview/published render shows the full content — a confusing UX discontinuity.
+**Why:** Today's canvas behavior intentionally renders only `<span>Template <strong>{slug}</strong></span>` (see `lib/plugins/template-ref.ts`, `view.onRender`). The doc-string flags this as MVP: _"A follow-up can fetch the resolved tree and inline it as locked children for a true preview."_ Without it, a converted homepage hero collapses into a one-line placeholder in the editor, even though the preview/published render shows the full content — a confusing UX discontinuity.
 
 **Scope:**
 
@@ -241,7 +242,7 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 **What:** At editor init, call `listTemplates(tenantId)` and register each template as a GrapesJS Block via `editor.Blocks.add(...)`. Users then drag templates from the sidebar onto the canvas the same way they drag the built-in hero / column / pattern blocks.
 
-**Why:** Today templates are *invisible from the canvas*. The only entry points are the convert-to-template dropdown (creates a new template from selection) and the URL `/admin/templates/[id]/edit`. There's no drag-from-sidebar UX. Hero-block (`lib/plugins/patterns/hero-block/hero-block.tsx`) does drag-and-drop, thumbnails, search, and category filtering for free by registering via `editor.Blocks.add` — the same primitive can surface templates. This is the single biggest "use GrapesJS the way GrapesJS wants" win on the table and unblocks the symbols-demo sidebar UX without any of its plugin overhead.
+**Why:** Today templates are _invisible from the canvas_. The only entry points are the convert-to-template dropdown (creates a new template from selection) and the URL `/admin/templates/[id]/edit`. There's no drag-from-sidebar UX. Hero-block (`lib/plugins/patterns/hero-block/hero-block.tsx`) does drag-and-drop, thumbnails, search, and category filtering for free by registering via `editor.Blocks.add` — the same primitive can surface templates. This is the single biggest "use GrapesJS the way GrapesJS wants" win on the table and unblocks the symbols-demo sidebar UX without any of its plugin overhead.
 
 **Scope:**
 
@@ -261,13 +262,14 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
     })
   }
   ```
+
 - Re-register on `cacheTags.template(slug)` invalidation OR refetch when the editor regains focus, so newly-created templates appear without a full page reload.
 - After `createTemplateFromSelection` returns, register the new block immediately so the user can drag a second copy without reloading.
 - Pick a sensible default thumbnail. The Template row already has an optional `preview: String?` column — populate it (server-side render → screenshot, or hand-drawn SVG per kind for v1).
 
 **Design notes:**
 
-- For synced templates, the block's `content` is a static placeholder (just the ref). Dragging always produces the same node; the resolver does the heavy lifting at render. No re-registration needed when the template *content* changes — only when its metadata does (label, kind, area).
+- For synced templates, the block's `content` is a static placeholder (just the ref). Dragging always produces the same node; the resolver does the heavy lifting at render. No re-registration needed when the template _content_ changes — only when its metadata does (label, kind, area).
 - For unsynced templates, the block's `content` snapshots the current template body at the moment of block registration. If a user edits the template, **existing dropped copies on pages don't change** (that's the unsynced semantic), but the BLOCK ENTRY itself goes stale. Listen for `tpl save` and re-register the block so the next drag inserts the latest body.
 - Once this lands, the convert-to-template flow can stop calling `selected.replaceWith({...})` directly and instead drop the newly-created block via `editor.runCommand('block:drag-start', { block })` (or just notify the user "your template is in the sidebar"). Either way, the synced-swap and the regular drag use the same code path.
 - Search and categories come from the Block Manager UI for free; no custom panel needed.
@@ -302,6 +304,7 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
   )
   WHERE jsonb_typeof(data->'pages') = 'array';
   ```
+
   Idempotent guard via `WHERE` so re-running is safe.
 
 - `saveTemplate(id, form)`: parse the editor's `ProjectDefinition` from the form (as today), then extract `{ component: project.pages[0].frames[0].component, styles: project.styles ?? [] }` before the Prisma update.
@@ -314,6 +317,7 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
     styles: tpl.data.styles,
   }
   ```
+
 - `resolvePageTree` (`lib/cms/templates.ts`): replace `tplData?.pages?.[0]?.frames?.[0]?.component` with `tplData?.component`. Also adjust the `empty:<slug>` placeholder check accordingly.
 - TypeScript: introduce a `TemplateBody = { component: ComponentDefinition; styles: Rule[] }` alias and re-type `tpl.data as TemplateBody` everywhere we read it.
 
@@ -438,54 +442,89 @@ Order below is "what unblocks what." Reorder as priorities shift. **Sequence not
 
 ---
 
-## 14. LAYOUT content slot + page→layout assignment ("a real template")
+## 14. LAYOUT chrome ownership — Approach A (the site/route owns the frame)
 
-**Status: planned (2026-06-09).** Design captured; not yet built.
+> **⚠️ ABANDONED / REVERTED (2026-06-15). Historical record only.** Approach A
+> (per-page `Page.layoutSlug` zones + region-routing `proxy.ts` + `[zone]`
+> layouts + a `content-slot` component) was built and then fully reverted in
+> favor of a far simpler model: **site chrome = two tenant-assigned
+> templates** — `Tenant.headerTemplateId` / `footerTemplateId` (FK → Template)
+> rendered once in `app/preview/[tenantId]/layout.tsx` via
+> `resolveTemplateChrome`. Preview routes now follow next-wp structure
+> (`pages/[...slug]`, `posts/[slug]`, + `authors`/`categories`/`tags`). No
+> zones, no proxy, no per-page layout assignment, no content slot. Migration
+> `20260615082506_replace_page_zone_with_tenant_chrome` dropped `layoutSlug`
+> and added the tenant settings. Everything below is kept for history; do not
+> implement it.
 
-**What:** Make `kind: LAYOUT` behave like a WordPress *template* instead of just another referenceable blob. Two pieces: (a) a `content-slot` component that a LAYOUT author drops where page content belongs, and (b) an optional per-page layout assignment so a Page's `data` becomes a *fragment* spliced into the chosen LAYOUT's slot at render. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page only owns the middle.
+**Status: redesigned for Approach A (2026-06-15).** Supersedes the earlier Approach B design (kept below under "Superseded — the Approach B design" for the record). Not yet built. Plan: `plans/008-layout-content-slot.md` (rewritten for A).
 
-**Why:** Today every `Page.data` is the **entire** top-to-bottom document — header, content, footer baked into one row. Templates reach the page only by being *pulled in* by a `template-ref` inside that data (content→template). WordPress is the inversion: a template is the blueprint that reserves a hole (`<!-- wp:post-content /-->`) and the page's content pours *into* it (template→content). Without a content slot, `LAYOUT` is mechanically identical to `PATTERN` — there is nothing that makes it a page-shell. This section adds the slot + the inversion, which is the single thing that makes `LAYOUT` mean what "template" means in WP. See `docs/reference/templates.md` and the WP Themes Handbook (theme-structure / template-parts, in the RAG — [[reference_wp_themes_handbook_rag]]) for the model.
+**What:** Make `kind: LAYOUT` behave like a WordPress _template_ / a Next.js nested layout: a **persistent frame** (header, footer, any chrome) rendered by a layout segment, with the page's own content poured into a `content-slot` as React `children`. A Page's `data` stops being the whole top-to-bottom document and becomes only the **content fragment**. Header/footer come from the LAYOUT's own `template-ref` PARTs (already works); the page owns only the middle.
 
-**Design fork (resolved):** We build WP's **custom-template** model (explicit per-page assignment via a dropdown), NOT the full **template hierarchy** (auto-matching `404`/`archive`/`single`/… to templates by query shape). Hierarchy can layer on later by *computing* `layoutSlug` from route shape instead of reading it from a column — same resolver, different source. Explicit assignment is the smaller, correct MVP.
+**Why we switched B → A:** Under the old Approach B, each `Page.data` baked the entire document (header + content + footer) and the render path composed it server-side by splicing the page tree into the layout's slot — producing one complete document per page, re-sent whole on every navigation. Approach A inverts ownership: the **site/route owns the chrome**, the page owns only its content, and chrome persists across navigation (open cart drawers / menus survive a page change; a header edit publishes instantly instead of forcing every page to refresh its baked copy). The product rationale, the zones model, and the asymmetry that drove the call ("A's perf wins can be added to B later, but B's per-page-chrome freedom can never be added to A") live in `docs/reference/header-footer-architecture-options.md`. The technical through-line — _"we already have a template hierarchy: the Next.js App Router"_ — is in `docs/reference/wp-template-hierarchy.md`; A leans **into** that thesis: a LAYOUT maps to a layout segment, not to a blob the resolver splices.
 
-**Non-breaking by construction:** a Page with `layoutSlug = null` renders byte-identical to today (its `data` is still the whole document). Only pages that opt in become fragments.
+**Zones, not free per-page layouts.** Under A the framework cannot let a page reach out and hide its own frame; instead the _site_ can have a small, **product-shipped** set of frames ("zones"): **Standard** (tenant header/footer), **Checkout** (slim logo-only header, no nav), **Bare** (no chrome). A page chooses _which zone_ it belongs to from a fixed menu — it cannot invent "this one page with a different header." Each zone is still tenant-editable (it's a LAYOUT template). Adding a zone is a product/engineering change, not a user action. This is the one capability A trades away vs B (arbitrary per-page chrome), recovered for the common cases (checkout, chrome-less landing) via the curated zone list.
 
-**Scope — five touches:**
+### Scope (A)
 
-1. **Schema — one nullable column.** `Page.layoutSlug String?`. Slug not FK-id, to inherit the tenant-first/global-fallback shadowing `loadTemplate` already gives every other reference. `null` = self-contained (today). Migration backfills nothing (default null).
-   - Addendum: extend `templateRefExists(slug)` to also probe this column (`OR EXISTS (SELECT 1 FROM "pages" WHERE "layoutSlug" = $s)`) so the §4 slug-rename guard covers layout assignments, not just JSON `data-slug` refs.
+The work splits into three buckets. **Bucket 1 is no-regret** — it is needed under A or B and can land first. **Bucket 2 is the A-specific render restructure** (the real cost). **Bucket 3 is the A-specific cleanup** that B never required.
 
-2. **Slot component** — `const CONTENT_SLOT_TYPE = "content-slot"`. A ~20-line plugin cloned from `lib/plugins/template-ref.ts`: a locked, non-deletable component labeled "Page content", registered as one Block draggable **only in the LAYOUT editor** (gate by content-kind, like the §8 inserter context question). This is the only new editor surface needed for correct rendering. (One slot per layout — matches WP, which allows one `post-content` per template.)
+**Bucket 1 — no-regret foundation (build first):**
 
-3. **Resolver** (`lib/cms/templates.ts`) — two additions:
-   - Add `slot?: ComponentDefinition` to `ResolveCtx`. In `resolveNode`, before the `template-ref` branch: `if (node.type === CONTENT_SLOT_TYPE) return ctx.slot ?? placeholder("empty-slot")`.
-   - New composer `resolvePageWithLayout(tenantId, page)` that wraps the existing path:
-     1. `resolvePageTree(tenantId, page.data)` → resolved page content (parts/refs/styles as today).
-     2. if `!page.layoutSlug` → return that unchanged (today's behavior).
-     3. `loadTemplate(tenantId, page.layoutSlug)`; bail to bare page if missing → page still renders.
-     4. resolve the layout tree with `ctx.slot = pageRoot` — `resolveNode` expands the layout's own header/footer PART refs with zero new code and drops the page content at the slot.
-     5. merge styles: page styles + page-template styles (already in the resolvedPage) + layout styles + layout-part styles, in cascade order.
-   - The page content is **already resolved** before it reaches the slot, so the splice is pure — no re-resolution, no double-expansion.
+1. **`content-slot` component** — `const CONTENT_SLOT_TYPE = "content-slot"`. A ~20-line plugin cloned from `lib/plugins/template-ref.ts`: a locked component labeled "Page content", registered as one Block draggable **only in the LAYOUT editor**. Marks where page content pours in. One slot per layout (matches WP `post-content`). Identical under A and B — only its _rendering_ differs (A: React `children` boundary; B: server-side tree splice).
+2. **LAYOUT template editing** — already shipped (§3/§4). A LAYOUT author drops header PART + `content-slot` + footer PART and saves. Untouched.
+3. **Zone assignment data** — a column on `Page` recording which zone/LAYOUT a page uses (working name `layoutSlug String?`, `null` = the tenant default/Standard zone). Slug not FK-id, to inherit tenant-first/global-fallback shadowing. Extend `templateRefExists(slug)` to also probe this column (`OR EXISTS (SELECT 1 FROM "pages" WHERE "layoutSlug" = $s)`) so the §4 slug-rename guard covers zone assignments.
 
-4. **Render call-site** — swap `resolvePageTree(tenantId, page.data)` → `resolvePageWithLayout(tenantId, page)` in `app/preview/[tenantId]/[...slug]/page.tsx:42` (and `select` `layoutSlug` in the page query). Same hook in the eventual published render path and in the blog-post route if posts should support layouts too (decide separately — posts may want a fixed `single`-style layout rather than per-post choice).
+**Bucket 2 — render-path restructure (the A core; design spike):**
 
-5. **Layout-assignment UI** — a "Layout" `Select` in the page editor right panel, populated from `listTemplatesByKind(tenantId, "LAYOUT")` (read already exists): `None` + each LAYOUT. Writes `Page.layoutSlug` through the existing page save action. Do this last; touches 1–4 are fully testable with a hand-set `layoutSlug`.
+4. **Resolver reshape — chrome resolves to a frame with a children-boundary, not a merged document.** In `resolveNode`, add the slot branch: when `node.type === CONTENT_SLOT_TYPE`, emit a **boundary marker** (e.g. `placeholder("content-slot")` or a dedicated `{ type: "content-slot-boundary" }`) rather than splicing resolved page content. A new composer `resolveLayoutChrome(tenantId, layoutSlug)` resolves _only_ the LAYOUT's tree (its header/footer PART refs expand with zero new code via the existing `template-ref` branch; styles merge as today) and returns the frame with the slot boundary intact. The page's content fragment is resolved **separately** (`resolvePageTree(tenantId, page.data)` unchanged) and the React renderer drops it at the boundary as `children`. _The B-era `resolvePageWithLayout` single-merged-tree composer is not used under A_ — composition happens at the React-layout level, not by tree merge.
+5. **Render-path restructure** — `app/preview/[tenantId]/[...slug]` gains a layout segment that renders the resolved chrome around `{children}`; the page renders only its content fragment. **Design fork to resolve in the spike:**
+   - **A2 (MVP target):** a dynamic `app/preview/[tenantId]/[...slug]/layout.tsx` reads `(tenantId, path)`, loads the page's zone, resolves the chrome, and wraps `{children}`. Simplest; gets correct render + instant-publish + the data migration. Cross-navigation _state_ persistence (drawers staying open) is partial because the per-path layout re-renders server-side on path change.
+   - **A1 (persistence follow-on / "region navigation"):** encode the zone in the route (route groups or a rewrite) so the zone layout sits **above** the changing `[...slug]` segment and stays mounted across same-zone navigations — this is what buys true open-drawer-across-nav. Heavier; defer until the state-persistence capability is actually needed.
+   - Mirror the same restructure in the eventual public render path and in the blog-post route (posts likely get a fixed `single`-style zone rather than per-post choice — open question).
 
-**Design notes:**
+**Bucket 3 — A-specific surfaces:**
 
-- **Reuses everything.** Part expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, the `placeholder()` markers — all reused untouched. The net new logic is the slot branch (3 lines) + the composer (~25 lines).
-- **Editor inline preview deferred.** The canvas still shows only the page fragment, not the surrounding layout chrome. A §7-style inline-resolve could later show the layout around the page in-editor, but it is NOT needed for correct rendering — the composition happens server-side at render.
-- **Missing/empty layout degrades gracefully.** Missing layout → page renders bare (its own content, no chrome). Layout with no `content-slot` → page content is dropped (renders `empty-slot` placeholder nowhere to put it); consider a save-time warning in the LAYOUT editor that a layout without a slot can't host content.
-- **Cycle surface.** A LAYOUT could in principle reference a `template-ref` whose template is itself a LAYOUT containing a slot — the existing `visiting` cycle guard + `MAX_DEPTH` already cover pathological nesting; the slot itself can't recurse (it's filled with already-resolved content).
-- **`Template.version` cache key.** When render-path caching lands (see §1 design notes), the composed result keys on `(tenantId, pageId, layoutSlug, layoutVersion, …refSlugVersions)`. Out of scope here.
+> **No data migration.** The earlier B→A plan budgeted a step to _extract chrome out of existing `Page.data`_ (the one thing that made A not non-breaking). That step is **removed**: existing page data is disposable, and the chrome audit (`scripts/audit-page-chrome.ts`, run 2026-06-15) confirmed **0 pages pull chrome via shared PART templates** — chrome is baked raw per page, so there is nothing cleanly extractable anyway. Existing pages are reset rather than migrated. The corollary: the **zone library bootstraps empty** — there are no existing shared header/footer PARTs to promote into zones, so authoring the first zone LAYOUT is a real build step, not a backfill.
 
-**Open questions:**
+6. **Seed the Standard zone LAYOUT — the first concrete artifact.** Because the zone library starts empty, the first visible build step is to author a LAYOUT (header PART + `content-slot` + footer PART) and make it the tenant default/Standard zone. This is the no-regret authoring flow (Bucket 1) exercised end-to-end; it replaces what would have been a migration.
+7. **Editor inline preview — now in-scope, not deferred.** Under B the canvas could keep showing only the page fragment. Under A the author needs to see the page _inside its frame_ (the §7-style inline-resolve, applied to the chrome). Per `wp-template-hierarchy.md`'s "UX lesson": the chrome shown around the page must be **visibly not-editable-here**, with an explicit "Edit template" jump — same discipline as the locked `template-ref`.
+8. **Zone-assignment UI** — a "Layout / Zone" `Select` in the page editor right panel, populated from the fixed zone set (each a LAYOUT via `listTemplatesByKind(tenantId, "LAYOUT")`). Writes the zone column through the existing page save action.
 
-- Do Posts get layout assignment too, or a fixed `single`-style layout? (Leaning: posts share the mechanism but default to a tenant-configured post layout rather than per-post choice.)
-- Should an unassigned page fall back to a tenant default LAYOUT (a soft step toward hierarchy), or stay fully self-contained? (Leaning: stay self-contained for MVP; a tenant-default is a one-line change later — `page.layoutSlug ?? tenant.defaultLayoutSlug`.)
-- Multiple named slots (WP doesn't have these; some builders do)? Out of scope — one slot.
+### Design notes (A)
 
-**Estimated size:** small. 1 migration (one column), ~25 lines in `templates.ts`, a ~20-line slot plugin, a 1-line call-site swap, one right-panel `Select`. Everything load-bearing is reuse.
+- **Reuses most of the resolver.** PART expansion, per-slug style dedupe, cycle/depth guards (`MAX_DEPTH`), tenant→global shadowing, `placeholder()` markers — all reused. What changes is the _shape of the result_ (frame-with-boundary, rendered via `children`) and the _render path_ (nested layout), not the per-node resolution.
+- **Missing/empty zone degrades gracefully.** Missing LAYOUT → page renders bare (its content, no chrome). LAYOUT with no `content-slot` → save-time warning in the LAYOUT editor (a frame with nowhere to host content is a misconfiguration under A, not just dropped content as under B).
+- **Persistent chrome — shipped via A1.** Cross-navigation persistence needs the zone layout above the changing page segment; that's achieved by `proxy.ts` rewriting clean URLs to a `[zone]/[...slug]` route. Verified: chrome (and its client state) survives same-zone navigation; crossing zones swaps the frame. (The simpler A2 — a layout co-located with `[...slug]` — was built first and superseded; it could not persist.)
+- **`Template.version` cache key.** When render-path caching lands (§1 notes), the resolved chrome keys on `(tenantId, zoneSlug, layoutVersion, …refSlugVersions)` — independent of the page, which is the whole point: a chrome edit invalidates one cache entry, not every page.
+
+### Open questions (A)
+
+- **Render fork A1 vs A2** — **RESOLVED + shipped (2026-06-15): A1 region routing.** Three browser probes showed A2 (dynamic `[...slug]/layout.tsx`) can't persist chrome state (it sits at the changing segment), while A1 (a `proxy.ts` rewrite to `[zone]/[...slug]`, zone layout above the page segment) preserves it across same-zone navigation with clean URLs. Built directly rather than shipping A2 first. See `docs/reference/layout-render-fork.md`.
+- **Posts** — fixed `single`-style zone (leaning) vs per-post choice. `wp-template-hierarchy.md` flags `singular` as the reserved slug that earns its keep first (posts are the one many-records-one-design type).
+- **Tenant default zone** — unassigned page → Standard zone (leaning) vs fully bare. A one-liner later: `page.layoutSlug ?? tenant.defaultZoneSlug`.
+
+**Estimated size:** medium (was "small" under B; was briefly "medium-to-large" when a data migration was in scope — that step is removed, see Bucket 3). Bucket 1 is small (slot plugin + column). Bucket 2 (resolver reshape + nested-layout render path) is the real cost — a render-path restructure, not a 1-line call-site swap. Bucket 3 is authoring + UI, no migration. The codebase is already largely A-shaped: `PagePreview` already renders the page as a content _fragment_ (strips the wrapper), `RenderComponent` already has a `children` prop, and `app/preview/[tenantId]/layout.tsx` is already a persistent composing layer — so the slot→`children` injection is ~3 lines via the renderer config. See `plans/008-layout-content-slot.md`.
+
+---
+
+### Superseded — the Approach B design (for the record)
+
+> Kept verbatim because parts of it (the `content-slot` plugin, the `templateRefExists` extension, the zone/layout column) carry over to A as the no-regret foundation. **The load-bearing piece — `resolvePageWithLayout`, the single-merged-tree server-side splice — is NOT used under A.** Do not implement from this section; it documents the path not taken.
+
+**B — What:** an optional per-page layout assignment so a Page's `data` becomes a _fragment_ spliced into the chosen LAYOUT's slot **at render, server-side**. **B was non-breaking by construction:** a Page with `layoutSlug = null` rendered byte-identical to today.
+
+**B — Design fork (resolved under B, now reopened by the A switch):** B built WP's **custom-template** model (explicit per-page assignment via a dropdown), NOT the full template hierarchy. A keeps explicit assignment but constrains it to a fixed _zone_ menu (above).
+
+**B — The five touches were:**
+
+1. Schema — `Page.layoutSlug String?` + `templateRefExists` addendum. _(Carries to A — Bucket 1.3.)_
+2. Slot component — `content-slot` plugin. _(Carries to A — Bucket 1.1; rendering differs.)_
+3. Resolver — `slot?: ComponentDefinition` on `ResolveCtx`; slot branch `return ctx.slot ?? placeholder("empty-slot")`; **`resolvePageWithLayout(tenantId, page)`** that resolved the page, then resolved the layout with `ctx.slot = pageRoot` to splice the already-resolved page content into the slot, merging styles in cascade order. _(Does NOT carry — A renders chrome with a `children` boundary instead of splicing a merged tree.)_
+4. Render call-site — one-line swap `resolvePageTree` → `resolvePageWithLayout` in `app/preview/[tenantId]/[...slug]/page.tsx`. _(Replaced under A by the nested-layout restructure — Bucket 2.5.)_
+5. Layout-assignment UI — a "Layout" `Select` (free per-LAYOUT). _(Carries to A as a constrained zone `Select` — Bucket 3.8.)_
+
+**B — design notes worth keeping:** the cycle surface (a LAYOUT referencing a LAYOUT) is covered by the existing `visiting` + `MAX_DEPTH` guards under either approach; missing/empty layout degrades gracefully under either.
 
 ---
 
@@ -547,15 +586,15 @@ Plugin source is in the RAG (`reference_grapesjs_symbols_plugin_rag.md`) for fut
 
 Captured for when we resume each task:
 
-| Question | Pending decision |
-|---|---|
-| Where does the convert-to-template modal live? | shadcn Dialog in the React shell (preferred) vs. GrapesJS Modal API. Leaning shadcn for consistency. |
-| Default `kind` and `synced` when converting any selection? | Leaning `kind: PATTERN, synced: false` — matches WP's default and keeps reuse-on-by-default off until the user opts in. |
-| Slug rename policy when refs exist? | **Resolved + shipped (2026-06-05):** forbid (option 1) via `templateRefExists`. Bulk-rename (option 2) deferred. |
-| Delete behavior when refs exist? | **Resolved + shipped (2026-06-05):** allow delete; refs render `missing:<slug>` placeholders. Inventory view deferred. |
-| `Template.version: Int` for cache keys? | Add when we wire render-path caching. Mirror the theme system's `themeVersion` pattern. |
-| Special slugs (`home` / `404` / etc.) renderer mapping? | Spec'd in `docs/reference/templates.md`; build alongside the render-path integration. |
-| Cross-tenant publish ("install this from tenant A to tenant B")? | Out of scope for MVP. Would need many-to-many or copy-on-install. |
+| Question                                                         | Pending decision                                                                                                        |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Where does the convert-to-template modal live?                   | shadcn Dialog in the React shell (preferred) vs. GrapesJS Modal API. Leaning shadcn for consistency.                    |
+| Default `kind` and `synced` when converting any selection?       | Leaning `kind: PATTERN, synced: false` — matches WP's default and keeps reuse-on-by-default off until the user opts in. |
+| Slug rename policy when refs exist?                              | **Resolved + shipped (2026-06-05):** forbid (option 1) via `templateRefExists`. Bulk-rename (option 2) deferred.        |
+| Delete behavior when refs exist?                                 | **Resolved + shipped (2026-06-05):** allow delete; refs render `missing:<slug>` placeholders. Inventory view deferred.  |
+| `Template.version: Int` for cache keys?                          | Add when we wire render-path caching. Mirror the theme system's `themeVersion` pattern.                                 |
+| Special slugs (`home` / `404` / etc.) renderer mapping?          | Spec'd in `docs/reference/templates.md`; build alongside the render-path integration.                                   |
+| Cross-tenant publish ("install this from tenant A to tenant B")? | Out of scope for MVP. Would need many-to-many or copy-on-install.                                                       |
 
 ---
 

@@ -1,5 +1,13 @@
 # Plan 010: Per-instance overrides on synced templates (§11) — design spike
 
+> **Note (2026-06-15): ignore the Approach-A / content-slot references.** This
+> plan mentions a "post-008 Approach-A `resolveNode` shape" with a
+> `content-slot` branch; Approach A was **reverted**, so `resolveNode` has no
+> such branch and there is no `content-slot`/`CONTENT_SLOT_TYPE`. Overrides
+> were always orthogonal to chrome (they live in the `template-ref` branch),
+> so the substance of this spike is unaffected — just disregard the
+> content-slot coordination notes.
+
 > **Executor instructions**: This is a DESIGN SPIKE — the deliverable is a
 > design document, not code. You may not modify any source file; your only
 > writable outputs are `docs/template-overrides-design.md` and the status
@@ -19,9 +27,9 @@
 - **Priority**: P3 (direction — maintainer-selected)
 - **Effort**: M (spike; the build that follows is M–L per §11)
 - **Risk**: LOW (no code changes)
-- **Depends on**: none strictly; SHOULD follow plans/008-layout-content-slot.md (both extend `resolveNode` — design against its post-008 shape)
+- **Depends on**: none strictly; SHOULD follow plans/008-layout-content-slot.md (both extend `resolveNode` — design against its post-008 shape). **008 is now Approach A**: it adds a `content-slot` *boundary* branch to `resolveNode` (before the `template-ref` branch). Overrides are **orthogonal** — they apply *inside* the `template-ref` branch on ref expansion, which A does not touch. The only coordination is that the slot branch is a new sibling in the same function; keep merge order clean (008 first). See `docs/reference/templates-followups.md` §14.
 - **Category**: direction
-- **Planned at**: commit `ae527df`, 2026-06-11
+- **Planned at**: commit `ae527df`, 2026-06-11 (reconciled to Approach A 2026-06-15)
 
 ## Why this matters
 
@@ -95,7 +103,9 @@ Specify exactly, with JSON examples:
 
 ### Step 2: Resolver application spec
 
-Spec the change to `resolveNode`'s ref branch (post-008 shape):
+Spec the change to `resolveNode`'s ref branch (post-008 Approach-A shape —
+the `content-slot` boundary branch sits before the ref branch but does not
+interact with overrides):
 parse `data-overrides` once per ref; while resolving the template subtree,
 match nodes carrying `data-tc-binding`; apply the override per kind
 (text → replace `components`/`content` of that node; attribute → merge into
@@ -164,7 +174,10 @@ the future build plan will implement.
 
 - The build plan that follows should land after plan 008 (both edit
   `resolveNode`; 008 first keeps merge order clean) and depends on plan 001
-  for the resolver test harness.
+  for the resolver test harness. Under Approach A the canvas editing surface
+  overrides hook into (§7 locked inlined `template-ref` children) is
+  **unchanged** — A restructures chrome/LAYOUT rendering, not ref inlining —
+  so the Step 3 UX spec stands as written.
 - If plan 004 landed, the `data-overrides` JSON-in-attribute should be
   covered by `validateComponentPayload`'s passthrough (no schema change
   expected — confirm in the build plan).

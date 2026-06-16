@@ -68,7 +68,7 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
 // Open the preview endpoint, which enables draft mode and redirects into
 // the tenant-scoped preview tree.
 const previewHref = (tenantId: string, slug: string) =>
-  `/api/preview?path=${encodeURIComponent(`/blog/${slug}`)}&tenantId=${tenantId}`
+  `/api/preview?path=${encodeURIComponent(`/posts/${slug}`)}&tenantId=${tenantId}`
 
 export function PostsDataTable({ tenantId, items }: Props) {
   // TanStack Table mutates its `table` object in place rather than returning a

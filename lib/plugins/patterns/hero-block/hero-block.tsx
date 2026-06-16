@@ -10,6 +10,7 @@
 import type { CSSProperties } from "react"
 import type { Component, Editor } from "grapesjs"
 import { processReactElements } from "@/lib/plugins/react-renderer"
+import { heroDescriptors } from "@/lib/plugins/patterns/manifest"
 
 type HeroProp = "heroHeight" | "heroAlign" | "heroBg" | "heroVariant"
 type HeroVariant = "default" | "minimal" | "announce"
@@ -322,15 +323,11 @@ export const registerHeroBlock = (editor: Editor): void => {
   // Three blocks share one component type. Each pre-seeds `heroVariant`, so
   // the JSX builder produces a different child tree per block.
 
-  const heroBlocks: Array<{
-    id: string
-    label: string
-    variant: HeroVariant
-    media: string
-  }> = [
-    {
-      id: "tc-hero",
-      label: "Hero",
+  // Editor-only per-block data (variant + inserter thumbnail), keyed by block
+  // id. Display metadata (id/label/category) comes from the shared
+  // `heroDescriptors` so the editor inserter and the library can't drift.
+  const heroExtras: Record<string, { variant: HeroVariant; media: string }> = {
+    "tc-hero": {
       variant: "default",
       media: `
         <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
@@ -344,9 +341,7 @@ export const registerHeroBlock = (editor: Editor): void => {
         </svg>
       `,
     },
-    {
-      id: "tc-hero-minimal",
-      label: "Hero · Minimal",
+    "tc-hero-minimal": {
       variant: "minimal",
       media: `
         <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
@@ -356,9 +351,7 @@ export const registerHeroBlock = (editor: Editor): void => {
         </svg>
       `,
     },
-    {
-      id: "tc-hero-announce",
-      label: "Hero · Announce",
+    "tc-hero-announce": {
       variant: "announce",
       media: `
         <svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
@@ -369,12 +362,13 @@ export const registerHeroBlock = (editor: Editor): void => {
         </svg>
       `,
     },
-  ]
+  }
 
-  heroBlocks.forEach(({ id, label, variant, media }) => {
-    editor.Blocks.add(id, {
-      label,
-      category: "Sections",
+  heroDescriptors.forEach((d) => {
+    const { variant, media } = heroExtras[d.id]
+    editor.Blocks.add(d.id, {
+      label: d.label,
+      category: d.category,
       attributes: { "data-pattern": "true" },
       activate: true,
       resetId: true,

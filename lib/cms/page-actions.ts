@@ -13,7 +13,7 @@ import {
   validateSlug,
   validateTopLevelSlug,
 } from "./path"
-import { parseProjectPayload } from "./project-payload"
+import { parseProjectPayload, projectContainsTag } from "./project-payload"
 
 export async function createPage(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
@@ -56,6 +56,15 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   let data: object | undefined = undefined
   if (typeof dataField === "string" && dataField.length) {
     data = parseProjectPayload(dataField)
+    // The page route renders this content inside a <main> landmark, so the
+    // content itself must not contain a <main> (nested/duplicate <main> is
+    // invalid HTML). Belt-and-suspenders against an imported/pasted <main>.
+    if (projectContainsTag(data, "main")) {
+      throw new Error(
+        "Page content can't contain a <main> element — the page is already " +
+          "rendered inside one. Use a <section> or <div> instead."
+      )
+    }
   }
 
   validateSlug(newSlug)

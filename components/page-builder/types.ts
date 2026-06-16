@@ -80,15 +80,16 @@ export const contentStatus = (
 }
 
 // Canonical preview paths the chrome surfaces in the top-bar dropdown +
-// preview button. Pages live at the root, posts under /blog/<slug>.
-// Templates have no public render path — the top-bar hides the preview
-// button via `hasPreview`.
+// preview button. The preview tree mirrors next-wp: pages under
+// /pages/<path>, posts under /posts/<slug> (relative to /preview/<tenantId>,
+// which `/api/preview` prepends). Templates have no public render path —
+// the top-bar hides the preview button via `hasPreview`.
 export const previewPath = (content: EditorContent): string => {
   switch (content.kind) {
     case "page":
-      return `/${content.page.path}`
+      return `/pages/${content.page.path}`
     case "post":
-      return `/blog/${content.post.slug}`
+      return `/posts/${content.post.slug}`
     case "template":
       return ""
   }

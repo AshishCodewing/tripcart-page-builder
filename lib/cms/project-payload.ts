@@ -70,6 +70,34 @@ export function parseProjectPayload(raw: string, label = "project"): object {
 }
 
 /**
+ * Does any component in the project's tree render with the given `tagName`?
+ * Case-insensitive; walks every page → frame → component subtree. Used to
+ * guard reserved landmark elements — e.g. page content must not contain a
+ * `<main>`, since the page route already renders it inside a `<main>`
+ * (nested/duplicate landmarks are invalid HTML).
+ */
+export function projectContainsTag(project: unknown, tagName: string): boolean {
+  const target = tagName.toLowerCase()
+  const walk = (node: unknown): boolean => {
+    if (!node || typeof node !== "object") return false
+    const n = node as { tagName?: unknown; components?: unknown }
+    if (typeof n.tagName === "string" && n.tagName.toLowerCase() === target) {
+      return true
+    }
+    return Array.isArray(n.components) && n.components.some(walk)
+  }
+  const p = project as {
+    pages?: Array<{ frames?: Array<{ component?: unknown }> }>
+  }
+  for (const page of p?.pages ?? []) {
+    for (const frame of page?.frames ?? []) {
+      if (walk(frame?.component)) return true
+    }
+  }
+  return false
+}
+
+/**
  * Validate a single component subtree (the convert-to-template flow posts
  * `cmp.toJSON()` rather than a full project). Rejects arrays, null, and
  * primitives — a subtree is one component object.

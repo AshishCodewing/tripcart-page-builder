@@ -29,6 +29,7 @@
 // `--tc--preset--color--primary-foreground`, `--tc--preset--color--border`).
 
 import type { Component, Editor } from "grapesjs"
+import { cardDescriptors } from "@/lib/plugins/patterns/manifest"
 
 type CardProp = "cardTrack" | "cardTheme"
 type CardComponent = Component & { applyCardTheme: () => void }
@@ -380,11 +381,13 @@ export const registerCardBlocks = (editor: Editor): void => {
 
   // ── Block registrations ───────────────────────────────────────────────
   // Each Block targets one of the extended types. No Block targets
-  // `tc-card-base` — it's an internal behavior carrier.
+  // `tc-card-base` — it's an internal behavior carrier. id/label/category
+  // come from the shared descriptors so editor + library can't drift.
+  const [featureCard, statCard, quoteCard] = cardDescriptors
 
-  editor.Blocks.add("tc-card-feature", {
-    label: "Card · Feature",
-    category: "Cards",
+  editor.Blocks.add(featureCard.id, {
+    label: featureCard.label,
+    category: featureCard.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,
@@ -400,9 +403,9 @@ export const registerCardBlocks = (editor: Editor): void => {
     `,
   })
 
-  editor.Blocks.add("tc-card-stat", {
-    label: "Card · Stat",
-    category: "Cards",
+  editor.Blocks.add(statCard.id, {
+    label: statCard.label,
+    category: statCard.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,
@@ -418,9 +421,9 @@ export const registerCardBlocks = (editor: Editor): void => {
     `,
   })
 
-  editor.Blocks.add("tc-card-quote", {
-    label: "Card · Quote",
-    category: "Cards",
+  editor.Blocks.add(quoteCard.id, {
+    label: quoteCard.label,
+    category: quoteCard.category,
     attributes: { "data-pattern": "true" },
     activate: true,
     resetId: true,

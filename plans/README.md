@@ -16,7 +16,7 @@ your row when done.
 | 005 | Theme schema single source of truth (Zod-derived types) | P3 | M | 001 | DONE |
 | 006 | RAG side-project decoupling — investigate & recommend | P3 | M | — | DONE (memo: docs/rag-decoupling-decision.md — recommends (b), fold into 007) |
 | 007 | Repo hygiene batch (README, strays, deps, env docs, guard) | P3 | S | — | DONE (strays pre-deleted in 626459f; includes 006's RAG-dep move) |
-| 008 | LAYOUT content slot + page→layout assignment (§14) | P2 | M | 001 | TODO |
+| 008 | LAYOUT chrome ownership — Approach A (site/route owns frame, §14) | P2 | M | 001 | REVERTED (2026-06-15: Approach A — `layoutSlug` zones + `proxy.ts` region routing + `[zone]` layouts + `content-slot` — was built then fully reverted. Replaced by tenant-assigned header/footer templates (`Tenant.headerTemplateId`/`footerTemplateId`) rendered in `app/preview/[tenantId]/layout.tsx`; preview routes now next-wp-style `pages/[...slug]` + `posts/[slug]`. See §14 / layout-render-fork.md reversal notes. Plan retained for history) |
 | 009 | Public render path — design spike | P2 | M | — (read 008) | TODO |
 | 010 | Synced-template per-instance overrides (§11) — design spike | P3 | M | after 008 ideally | TODO |
 | 011 | Characterization tests for react-renderer pure modules | P2 | M | 001 | DONE |

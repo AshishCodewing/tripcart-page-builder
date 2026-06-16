@@ -165,7 +165,7 @@ This list is intentionally short. Add new reserved slugs sparingly — each one 
 
 ## The `template-ref` component type
 
-Not yet implemented. Sketch only.
+**Shipped** — see `lib/plugins/template-ref.ts` and `templates-followups.md` §7 for what actually landed (the implementation diverges from this sketch in places; the followups doc is authoritative). Original sketch kept below for context.
 
 ```ts
 editor.Components.addType("template-ref", {
