@@ -209,12 +209,19 @@ export default function RightPanel({ content, deleteAction }: Props) {
                   pattern="[a-z0-9\-]+"
                   required
                   inputSize="sm"
-                  disabled={isPublished}
+                  disabled={isPublished || content.kind === "template"}
                 />
-                {isPublished && (
+                {content.kind === "template" ? (
                   <p className="text-xs text-muted-foreground">
-                    Move to draft to rename.
+                    A template&apos;s slug is fixed — rename it with the Title
+                    above.
                   </p>
+                ) : (
+                  isPublished && (
+                    <p className="text-xs text-muted-foreground">
+                      Move to draft to rename.
+                    </p>
+                  )
                 )}
               </div>
 
@@ -308,55 +315,36 @@ function PostOnlyFields({ content }: { content: PostContent }) {
 // button posts them all; `saveTemplate` reads + validates them. Kind is
 // controlled so the Area field can show only for PART templates.
 function TemplateOnlyFields({ content }: { content: TemplateContent }) {
-  const { kind, area, synced } = content.template
-  const [selectedKind, setSelectedKind] =
-    React.useState<TemplateContent["template"]["kind"]>(kind)
+  const { kind, synced } = content.template
+  // Controlled, not `defaultChecked`: Base UI reads an uncontrolled Switch's
+  // default only once, so if `synced` settles after the first render the
+  // toggle desyncs from the row (and a save can silently flip it). See the
+  // synced round-trip verification — controlled state keeps it stable.
+  const [syncedOn, setSyncedOn] = React.useState(synced)
+
+  // Kind, area, and slug are fixed after creation — like WP, the right panel
+  // only lets you rename a template (the shared Title field). Changing kind or
+  // area is a re-author, not an edit, and a slug rename would break every
+  // reference; both are intentionally not surfaced here.
+  //
+  // Sync is the one remaining PATTERN/LAYOUT choice (ref vs. copy on insert).
+  // PARTs are always by-reference (synced by intent — see `saveTemplate`),
+  // like a WP template part, so no toggle: it would only ever flip a part to a
+  // meaningless "unsynced" state.
+  if (kind === "PART") return null
 
   return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="kind" className="text-xs">
-          Kind
-        </Label>
-        <Select
-          name="kind"
-          value={selectedKind}
-          onValueChange={(value) =>
-            setSelectedKind(value as TemplateContent["template"]["kind"])
-          }
-        >
-          <SelectTrigger id="kind" size="sm" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="LAYOUT">Layout</SelectItem>
-            <SelectItem value="PATTERN">Pattern</SelectItem>
-            <SelectItem value="PART">Part</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedKind === "PART" && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="area" className="text-xs">
-            Area
-          </Label>
-          <Input
-            id="area"
-            name="area"
-            defaultValue={area ?? ""}
-            placeholder="header, footer, sidebar…"
-            inputSize="sm"
-          />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-3">
-        <Label htmlFor="synced" className="text-xs">
-          Synced
-        </Label>
-        <Switch id="synced" name="synced" defaultChecked={synced} size="sm" />
-      </div>
-    </>
+    <div className="flex items-center justify-between gap-3">
+      <Label htmlFor="synced" className="text-xs">
+        Synced
+      </Label>
+      <Switch
+        id="synced"
+        name="synced"
+        checked={syncedOn}
+        onCheckedChange={setSyncedOn}
+        size="sm"
+      />
+    </div>
   )
 }

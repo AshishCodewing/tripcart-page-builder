@@ -21,6 +21,8 @@ your row when done.
 | 010 | Synced-template per-instance overrides (§11) — design spike | P3 | M | after 008 ideally | DONE — BUILD DEFERRED (2026-06-16: maintainer parked the build; synced/unsynced modes suffice for now. Design memo stands for whenever it's greenlit: docs/template-overrides-design.md — binding decl `data-tc-binding`(+kind/attr) on template children, `data-overrides` JSON on the ref (persists free via existing `toJSON`); resolver applies via a scoped `applyBindings` walk that stops at nested refs; v1 kinds text+attribute (rich deferred); ships v0 form-based override panel before v1 in-canvas. No `Template.data`/payload-schema change needed) |
 | 011 | Characterization tests for react-renderer pure modules | P2 | M | 001 | DONE |
 | 012 | Public render path — build (host-routed published pages) | P2 | L | 009 (design), 008 (shipped chrome) | DEFERRED (2026-06-16: scope is the page builder, not serving the live site. Plan stands ready to execute whenever public rendering is greenlit) |
+| 013 | User-authored single-post templates (content-slot + dynamic fields) | P2 | L | multi-header Pieces 1–2 (shipped) | NOT STARTED (2026-06-16: "Option C" design approved; reserved `single` LAYOUT slug + server-side post-field binding. Phased: data+binding+render → editor authoring → assignment/per-post) |
+| 014 | Chrome assignment UI (multi-header Piece 3) | P2 | M | Pieces 1–2 (shipped) | NOT STARTED (2026-06-16: per-segment header/footer Select panel over the shipped `ChromeAssignment` model; extend rename guard. No migration) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale).

@@ -27,6 +27,7 @@ import {
   ListFilterIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  RotateCcwIcon,
   SearchIcon,
   Settings2Icon,
   Trash2Icon,
@@ -35,6 +36,8 @@ import {
 import { cn } from "@/lib/utils"
 import {
   bulkDeleteTemplates,
+  customizeDefaultPart,
+  duplicateDefaultPart,
   duplicateTemplate,
 } from "@/lib/cms/template-actions"
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
@@ -85,11 +88,22 @@ export type TemplateRow = {
   // Code-defined pattern (from the pattern manifest), not a DB row: listed
   // read-only — no edit/delete/select, source shows "Built-in".
   builtin?: boolean
+  // Synthetic default chrome row (no DB row yet): source shows "Default",
+  // the only action is "Customize" (→ `customizeDefaultPart`). `id` is a
+  // `default:<slug>` sentinel; `slug` is the reserved chrome slug.
+  isDefault?: boolean
+  // Real DB row shadowing a reserved chrome slug: its destructive action is
+  // "Reset to default" (delete → revert to the code part), not "Delete".
+  isChrome?: boolean
 }
 
 type Props = {
   items: TemplateRow[]
   emptyLabel: string
+  // Parts are always synced by intent (a template part is a by-reference
+  // include), so the Parts library hides the Synced column + filter. Patterns
+  // and layouts keep it (ref vs. copy is a real choice there).
+  showSynced?: boolean
 }
 
 const dateFmt = new Intl.DateTimeFormat("en-US", {
@@ -108,7 +122,11 @@ const includesValue = <T,>(
   return filterValue.includes(row.getValue(id) as T)
 }
 
-export function TemplatesDataTable({ items, emptyLabel }: Props) {
+export function TemplatesDataTable({
+  items,
+  emptyLabel,
+  showSynced = true,
+}: Props) {
   // TanStack Table mutates its `table` object in place rather than returning a
   // fresh reference, which breaks React's immutability rules: React Compiler
   // would memoize reads off `table` into stale UI. The directive opts this
@@ -136,6 +154,15 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
     destructive: true,
   })
 
+  const { confirm: confirmReset, dialog: resetDialog } = useConfirmDialog({
+    title: "Reset to default?",
+    description:
+      "This discards your customizations and reverts to the built-in default part.",
+    confirmText: "Reset",
+    cancelText: "Cancel",
+    destructive: true,
+  })
+
   const runDelete = React.useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) return
@@ -159,6 +186,44 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
     [router]
   )
 
+  // Edit a synthetic default chrome row — materializes the DB part (shadowing
+  // the code default) and navigates into the editor (the action redirects).
+  const runCustomize = React.useCallback(
+    (tenantId: string | null, slug: string) => {
+      if (!tenantId) return
+      startTransition(async () => {
+        await customizeDefaultPart(tenantId, slug)
+      })
+    },
+    []
+  )
+
+  // Duplicate a synthetic default into an independent part (non-reserved
+  // slug) — stays on the listing, so refresh to surface the new row.
+  const runDuplicateDefault = React.useCallback(
+    (tenantId: string | null, slug: string) => {
+      if (!tenantId) return
+      startTransition(async () => {
+        await duplicateDefaultPart(tenantId, slug)
+        router.refresh()
+      })
+    },
+    [router]
+  )
+
+  // Reset a customized chrome part to its code default — delete the row so
+  // `resolveChromeBySlug` falls back to `defaultHeader`/`defaultFooter`.
+  const runReset = React.useCallback(
+    async (id: string) => {
+      if (!(await confirmReset())) return
+      startTransition(async () => {
+        await bulkDeleteTemplates([id])
+        router.refresh()
+      })
+    },
+    [confirmReset, router]
+  )
+
   const columns = React.useMemo<ColumnDef<TemplateRow>[]>(
     () => [
       {
@@ -177,7 +242,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           />
         ),
         cell: ({ row }) =>
-          row.original.builtin ? null : (
+          row.original.builtin || row.original.isDefault ? null : (
             <Checkbox
               size="sm"
               aria-label="Select row"
@@ -218,7 +283,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
               <span
                 className={cn(
                   "truncate font-medium",
-                  !t.builtin && "hover:underline"
+                  !t.builtin && !t.isDefault && "hover:underline"
                 )}
               >
                 {t.title}
@@ -228,8 +293,9 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
               </span>
             </span>
           )
-          // Built-ins are code-defined — no DB editor route to link to.
-          return t.builtin ? (
+          // Built-ins and synthetic defaults have no DB editor route to link
+          // to — customize a default from the row actions menu.
+          return t.builtin || t.isDefault ? (
             <div className="flex min-w-0 items-center gap-3">
               {thumb}
               {label}
@@ -248,11 +314,23 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
       {
         id: "source",
         accessorFn: (row) =>
-          row.builtin ? "builtin" : row.tenantId === null ? "global" : "tenant",
+          row.isDefault
+            ? "default"
+            : row.builtin
+              ? "builtin"
+              : row.tenantId === null
+                ? "global"
+                : "tenant",
         filterFn: includesValue,
         header: "Source",
         cell: ({ getValue }) => {
           const v = getValue()
+          if (v === "default")
+            return (
+              <Badge variant="secondary" fill="outline">
+                Default
+              </Badge>
+            )
           if (v === "builtin")
             return (
               <Badge variant="secondary" fill="outline">
@@ -279,21 +357,25 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           )
         },
       },
-      {
-        accessorKey: "synced",
-        // Filter values arrive as the strings "true" / "false".
-        filterFn: (row, id, value: string[]) =>
-          !value?.length || value.includes(String(row.getValue(id))),
-        header: "Synced",
-        cell: ({ row, getValue }) =>
-          row.original.builtin ? (
-            <span className="text-muted-foreground">—</span>
-          ) : getValue() ? (
-            <Badge>Synced</Badge>
-          ) : (
-            <Badge variant="secondary">Unsynced</Badge>
-          ),
-      },
+      ...(showSynced
+        ? ([
+            {
+              accessorKey: "synced",
+              // Filter values arrive as the strings "true" / "false".
+              filterFn: (row, id, value: string[]) =>
+                !value?.length || value.includes(String(row.getValue(id))),
+              header: "Synced",
+              cell: ({ row, getValue }) =>
+                row.original.builtin ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : getValue() ? (
+                  <Badge>Synced</Badge>
+                ) : (
+                  <Badge variant="secondary">Unsynced</Badge>
+                ),
+            },
+          ] as ColumnDef<TemplateRow>[])
+        : []),
       {
         accessorKey: "updatedAt",
         // Null-safe (built-ins have no date → sort to the end).
@@ -329,6 +411,42 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
           if (t.builtin) {
             return <span className="sr-only">Built-in pattern</span>
           }
+          // Synthetic default chrome row (not yet customized): Edit shadows
+          // the code default and opens the editor; Duplicate forks it into an
+          // independent part. No Reset (nothing customized yet), no Delete (no
+          // row to delete) — mirrors WP's pre-built template part actions.
+          if (t.isDefault) {
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Actions"
+                    />
+                  }
+                >
+                  <MoreHorizontalIcon className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => runCustomize(t.tenantId, t.slug)}
+                  >
+                    <PencilIcon />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => runDuplicateDefault(t.tenantId, t.slug)}
+                  >
+                    <CopyIcon />
+                    Duplicate
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          }
           return (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -343,7 +461,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
               >
                 <MoreHorizontalIcon className="size-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="min-w-40">
                 <DropdownMenuItem
                   render={<Link href={`/admin/templates/${t.id}/edit`} />}
                 >
@@ -355,20 +473,40 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
                   Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => void runDelete([t.id])}
-                >
-                  <Trash2Icon />
-                  Delete
-                </DropdownMenuItem>
+                {/* Customized chrome reverts to the code default rather than
+                    deleting outright — the part always exists, just file- or
+                    DB-backed (the WP transparent-shadow model). */}
+                {t.isChrome ? (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => void runReset(t.id)}
+                  >
+                    <RotateCcwIcon />
+                    Reset to default
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => void runDelete([t.id])}
+                  >
+                    <Trash2Icon />
+                    Delete
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )
         },
       },
     ],
-    [runDelete, runDuplicate]
+    [
+      runDelete,
+      runDuplicate,
+      runCustomize,
+      runDuplicateDefault,
+      runReset,
+      showSynced,
+    ]
   )
 
   // eslint-disable-next-line react-hooks/incompatible-library -- intentional "use no memo" opt-out (see above)
@@ -450,19 +588,23 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
             table.getColumn("source")?.setFilterValue(v.length ? v : undefined)
           }
         />
-        <FacetedFilter
-          label="Synced"
-          options={[
-            { value: "true", label: "Synced" },
-            { value: "false", label: "Unsynced" },
-          ]}
-          selected={
-            (table.getColumn("synced")?.getFilterValue() as string[]) ?? []
-          }
-          onChange={(v) =>
-            table.getColumn("synced")?.setFilterValue(v.length ? v : undefined)
-          }
-        />
+        {showSynced && (
+          <FacetedFilter
+            label="Synced"
+            options={[
+              { value: "true", label: "Synced" },
+              { value: "false", label: "Unsynced" },
+            ]}
+            selected={
+              (table.getColumn("synced")?.getFilterValue() as string[]) ?? []
+            }
+            onChange={(v) =>
+              table
+                .getColumn("synced")
+                ?.setFilterValue(v.length ? v : undefined)
+            }
+          />
+        )}
         {areaOptions.length > 0 && (
           <FacetedFilter
             label="Area"
@@ -653,6 +795,7 @@ export function TemplatesDataTable({ items, emptyLabel }: Props) {
       </div>
 
       {dialog}
+      {resetDialog}
     </div>
   )
 }
