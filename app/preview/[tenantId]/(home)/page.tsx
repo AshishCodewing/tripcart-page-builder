@@ -9,8 +9,10 @@ import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/typ
 // Tenant home / front page (`/preview/<tenantId>`). The front page is the
 // Page at the reserved path "home" (one per tenant — see lib/cms/path.ts);
 // other pages live under /pages/<path>. Same render contract as the page
-// route: content only, wrapped in the site chrome by `[tenantId]/layout.tsx`,
-// which also owns the draft gate + theme link.
+// route: content only, wrapped in the "home" segment chrome by the sibling
+// `(home)/layout.tsx`. The draft gate + theme link live in the preview root
+// layout. Lives in the `(home)` route group so it can have its own chrome
+// layout distinct from `pages/` and `posts/` (the URL stays `/preview/<id>`).
 export default async function TenantHomePreview({
   params,
 }: {

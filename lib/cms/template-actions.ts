@@ -14,10 +14,12 @@ import {
 } from "./project-payload"
 import {
   assertChromeSlug,
+  isReservedChromeSlug,
   slimTemplateProject,
   templateRefUsage,
 } from "./templates"
 import { formatTemplateRefUsage } from "./template-ref-usage"
+import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -52,15 +54,24 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       ? kindField
       : existing.kind
 
-  // Area only applies to PART; cleared otherwise.
+  // Area is no longer editable from the right panel (like WP, only the title
+  // is renamed there), so the editor form omits it — preserve the existing
+  // value. When a caller does submit `area` (e.g. the create dialog), keep the
+  // old behavior: apply it for PART, clear it otherwise.
   const areaField = form.get("area")
   const area =
-    kind === "PART" && typeof areaField === "string" && areaField.trim()
-      ? areaField.trim()
-      : null
+    typeof areaField === "string"
+      ? kind === "PART" && areaField.trim()
+        ? areaField.trim()
+        : null
+      : existing.area
 
-  // Base UI Switch posts "on" when checked, nothing when unchecked.
-  const synced = form.get("synced") === "on"
+  // PARTs are synced by intent (a template part is always a by-reference
+  // include, like WP — editing it propagates; it is never "unsynced"), so
+  // never downgrade one. Matches `createTemplate`, which seeds PART synced.
+  // For LAYOUT/PATTERN the Base UI Switch posts "on" when checked, nothing
+  // when unchecked.
+  const synced = kind === "PART" ? true : form.get("synced") === "on"
 
   const slugField = form.get("slug")
   const slug =
@@ -213,6 +224,109 @@ export async function createTemplate(
 
   updateTag(cacheTags.template(slug))
   redirect(`/admin/templates/${created.id}/edit`)
+}
+
+/**
+ * Customize a code-default site chrome part (transparent shadow — the WP
+ * model). The Parts library lists "Header"/"Footer" even when no DB row
+ * exists, seeded from `defaultHeader`/`defaultFooter`. Editing one calls
+ * this: it materializes a tenant PART at the reserved slug, pre-filled with
+ * the code default's tree, and opens the editor. From then on
+ * `resolveChromeBySlug` serves this row instead of the code default; deleting
+ * it ("Reset to default", via `bulkDeleteTemplates`) reverts to the code
+ * default. Idempotent — if the row already exists, just opens it.
+ */
+export async function customizeDefaultPart(
+  tenantId: string,
+  slug: string
+): Promise<void> {
+  if (!tenantId) throw new Error("Tenant is required.")
+  if (!isReservedChromeSlug(slug))
+    throw new Error(`"${slug}" is not a default chrome part.`)
+
+  // Idempotent: a concurrent create or an already-customized part just opens.
+  const existing = await prisma.template.findUnique({
+    where: { tenantId_slug: { tenantId, slug } },
+    select: { id: true },
+  })
+  if (existing) redirect(`/admin/templates/${existing.id}/edit`)
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true },
+  })
+  const siteName = tenant?.name ?? ""
+  const project =
+    slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
+
+  const created = await prisma.template.create({
+    data: {
+      tenantId,
+      slug,
+      title: slug === "header" ? "Header" : "Footer",
+      kind: "PART",
+      area: slug,
+      synced: true,
+      data: slimTemplateProject(project) as object,
+    },
+    select: { id: true },
+  })
+
+  updateTag(cacheTags.template(slug))
+  redirect(`/admin/templates/${created.id}/edit`)
+}
+
+/**
+ * Duplicate a code-default chrome part into an independent PART — backs the
+ * "Duplicate" action on the synthetic Header/Footer rows. Unlike
+ * `customizeDefaultPart` (which shadows the reserved slug), this creates a
+ * new part at a NON-reserved slug (`header-copy`, deduped) seeded from the
+ * code default's tree, so it is a standalone part (Edit/Duplicate/Delete, no
+ * Reset) rather than the site chrome. Stays on the listing — the caller
+ * refreshes; no redirect.
+ */
+export async function duplicateDefaultPart(
+  tenantId: string,
+  slug: string
+): Promise<void> {
+  if (!tenantId) throw new Error("Tenant is required.")
+  if (!isReservedChromeSlug(slug))
+    throw new Error(`"${slug}" is not a default chrome part.`)
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true },
+  })
+  const siteName = tenant?.name ?? ""
+  const project =
+    slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
+
+  const baseSlug = `${slug}-copy`
+  let newSlug = baseSlug
+  let suffix = 2
+  while (
+    await prisma.template.findFirst({
+      where: { tenantId, slug: newSlug },
+      select: { id: true },
+    })
+  ) {
+    newSlug = `${baseSlug}-${suffix}`
+    suffix++
+  }
+
+  await prisma.template.create({
+    data: {
+      tenantId,
+      slug: newSlug,
+      title: `${slug === "header" ? "Header" : "Footer"} (copy)`,
+      kind: "PART",
+      area: slug,
+      synced: true,
+      data: slimTemplateProject(project) as object,
+    },
+  })
+
+  updateTag(cacheTags.template(newSlug))
 }
 
 export async function createTemplateFromSelection(
