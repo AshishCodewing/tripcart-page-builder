@@ -21,7 +21,7 @@ export default async function TenantPostsPage({
   const posts = await listAllPosts(id)
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 p-6">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">Posts</h1>
         <span className="text-sm text-muted-foreground">

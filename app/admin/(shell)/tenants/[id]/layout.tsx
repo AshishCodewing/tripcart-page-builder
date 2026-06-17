@@ -32,7 +32,7 @@ export default async function TenantLayout({
         <header className="flex h-12 items-center gap-2 border-b px-3">
           <SidebarTrigger />
         </header>
-        <div className="p-6">{children}</div>
+        {children}
       </SidebarInset>
     </SidebarProvider>
   )
