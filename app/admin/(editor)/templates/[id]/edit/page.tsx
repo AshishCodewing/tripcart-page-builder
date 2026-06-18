@@ -3,6 +3,10 @@ import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
 import type { TemplateRecord } from "@/components/page-builder/types"
+import {
+  getPartChromeAssignments,
+  getSegmentsOwnedByOtherParts,
+} from "@/lib/cms/chrome"
 import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import {
   getTemplateById,
@@ -45,6 +49,32 @@ export default async function EditTemplatePage({
   // just confuse users.
   const templates = allTemplates.filter((t) => t.id !== tpl.id)
 
+  // Which templates this part is the chrome for — seeds the right-panel
+  // "Used on" multi-select. Only tenant-scoped header/footer PARTs can be
+  // assigned (chrome assignment is per-tenant; globals have no owning tenant).
+  const isChromePart =
+    tpl.kind === "PART" &&
+    !!tpl.tenantId &&
+    (tpl.area === "header" || tpl.area === "footer")
+  const chromeHierarchy =
+    isChromePart && tpl.tenantId
+      ? await getPartChromeAssignments(
+          tpl.tenantId,
+          tpl.area as "header" | "footer",
+          tpl.slug
+        )
+      : []
+  // Segments other parts already own — annotates the "Used on" picker so
+  // selecting one reads as a reassignment, not a silent steal.
+  const chromeTaken =
+    isChromePart && tpl.tenantId
+      ? await getSegmentsOwnedByOtherParts(
+          tpl.tenantId,
+          tpl.area as "header" | "footer",
+          tpl.slug
+        )
+      : {}
+
   const record: TemplateRecord = {
     id: tpl.id,
     title: tpl.title,
@@ -55,6 +85,8 @@ export default async function EditTemplatePage({
     synced: tpl.synced,
     updatedAt: tpl.updatedAt,
     refUsage,
+    chromeHierarchy,
+    chromeTaken,
   }
 
   const saveAction = saveTemplate.bind(null, id)

@@ -11,7 +11,7 @@ export type TemplateHierarchyEntry = {
   description: string
 }
 
-export const TEMPLATE_HIERARCHY: TemplateHierarchyEntry[] = [
+export const TEMPLATE_HIERARCHY = [
   {
     slug: "archive",
     title: "All Archives",
@@ -58,10 +58,19 @@ export const TEMPLATE_HIERARCHY: TemplateHierarchyEntry[] = [
     description:
       "Displays a single post on your website unless a custom template has been applied to that post or a dedicated template exists.",
   },
-]
+] as const satisfies readonly TemplateHierarchyEntry[]
+
+// The set of valid hierarchy slugs as a literal union — used to type the
+// chrome assignment key (a part is assigned to one or more of these) and to
+// validate slugs posted from the Part editor's assignment multi-select.
+export type TemplateHierarchySlug = (typeof TEMPLATE_HIERARCHY)[number]["slug"]
 
 export function getHierarchyEntry(
   slug: string
 ): TemplateHierarchyEntry | undefined {
   return TEMPLATE_HIERARCHY.find((e) => e.slug === slug)
+}
+
+export function isHierarchySlug(value: string): value is TemplateHierarchySlug {
+  return TEMPLATE_HIERARCHY.some((e) => e.slug === value)
 }

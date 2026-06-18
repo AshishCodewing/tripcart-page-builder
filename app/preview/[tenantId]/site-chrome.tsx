@@ -1,6 +1,7 @@
 import type { ProjectData } from "grapesjs"
 
-import { resolveSegmentChrome, type ChromeSegment } from "@/lib/cms/chrome"
+import { resolveSegmentChrome } from "@/lib/cms/chrome"
+import type { TemplateHierarchySlug } from "@/lib/cms/template-hierarchy"
 import { patternComponents } from "@/lib/plugins/patterns"
 import {
   RenderProjectFragment,
@@ -24,7 +25,7 @@ export async function SiteChrome({
   children,
 }: {
   tenantId: string
-  segment: ChromeSegment
+  segment: TemplateHierarchySlug
   children: React.ReactNode
 }) {
   const { header, footer } = await resolveSegmentChrome(tenantId, segment)

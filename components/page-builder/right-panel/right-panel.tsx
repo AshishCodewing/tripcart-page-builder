@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react"
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 import { useIsClient } from "@/hooks/use-is-client"
 import { formatTemplateRefUsage } from "@/lib/cms/template-ref-usage"
+import { ChromeAssignmentSelect } from "@/components/page-builder/right-panel/chrome-assignment-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -315,7 +316,8 @@ function PostOnlyFields({ content }: { content: PostContent }) {
 // button posts them all; `saveTemplate` reads + validates them. Kind is
 // controlled so the Area field can show only for PART templates.
 function TemplateOnlyFields({ content }: { content: TemplateContent }) {
-  const { kind, synced } = content.template
+  const { kind, synced, area, tenantId, chromeHierarchy, chromeTaken } =
+    content.template
   // Controlled, not `defaultChecked`: Base UI reads an uncontrolled Switch's
   // default only once, so if `synced` settles after the first render the
   // toggle desyncs from the row (and a save can silently flip it). See the
@@ -327,11 +329,22 @@ function TemplateOnlyFields({ content }: { content: TemplateContent }) {
   // area is a re-author, not an edit, and a slug rename would break every
   // reference; both are intentionally not surfaced here.
   //
-  // Sync is the one remaining PATTERN/LAYOUT choice (ref vs. copy on insert).
-  // PARTs are always by-reference (synced by intent — see `saveTemplate`),
-  // like a WP template part, so no toggle: it would only ever flip a part to a
-  // meaningless "unsynced" state.
-  if (kind === "PART") return null
+  // A PART has no Synced toggle (it is always by-reference — see `saveTemplate`).
+  // Instead, a header/footer PART surfaces its chrome assignment: which
+  // template-hierarchy templates render it. Only tenant-scoped parts can be
+  // assigned (chrome assignment is per-tenant), so globals show nothing.
+  if (kind === "PART") {
+    if (tenantId && (area === "header" || area === "footer")) {
+      return (
+        <ChromeAssignmentSelect
+          area={area}
+          initial={chromeHierarchy}
+          taken={chromeTaken}
+        />
+      )
+    }
+    return null
+  }
 
   return (
     <div className="flex items-center justify-between gap-3">
