@@ -414,7 +414,9 @@ export async function duplicateBuiltinPattern(
   })
 
   updateTag(cacheTags.template(slug))
-  redirect(`/admin/templates/${created.id}/edit?seed=${encodeURIComponent(blockId)}`)
+  redirect(
+    `/admin/templates/${created.id}/edit?seed=${encodeURIComponent(blockId)}`
+  )
 }
 
 export async function createTemplateFromSelection(

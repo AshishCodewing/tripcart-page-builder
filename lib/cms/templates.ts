@@ -18,6 +18,7 @@ import type {
 } from "@/lib/plugins/react-renderer/project/types"
 import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
 import type { TemplateRefUsage } from "./template-ref-usage"
+import { getHierarchyEntry } from "./template-hierarchy"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -296,6 +297,20 @@ export const RESERVED_CHROME_SLUGS = ["header", "footer"] as const
 
 export function isReservedChromeSlug(slug: string): boolean {
   return (RESERVED_CHROME_SLUGS as readonly string[]).includes(slug)
+}
+
+/**
+ * Whether a DB row at this `(kind, slug)` shadows a code/hierarchy default —
+ * i.e. deleting it reverts to that default rather than removing it outright (so
+ * its destructive action is "Reset to default", not "Delete"). True for chrome
+ * PARTs (header/footer) and for LAYOUTs sitting at a template-hierarchy slug
+ * (a customized "Pages"/"404"/… template — the WP "Clear customizations"
+ * model). Drives the `"shadow"` row origin; see `template-capabilities.ts`.
+ */
+export function isDefaultShadowSlug(kind: string, slug: string): boolean {
+  if (kind === "PART") return isReservedChromeSlug(slug)
+  if (kind === "LAYOUT") return Boolean(getHierarchyEntry(slug))
+  return false
 }
 
 /**

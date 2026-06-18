@@ -40,6 +40,10 @@ import {
   duplicateDefaultPart,
   duplicateTemplate,
 } from "@/lib/cms/template-actions"
+import {
+  resolveCapabilities,
+  type RowOrigin,
+} from "@/lib/cms/template-capabilities"
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -79,16 +83,11 @@ export type TemplateRow = {
   tenantId: string | null
   preview: string | null
   updatedAt: Date | null
-  // Code-defined pattern (from the pattern manifest), not a DB row: listed
-  // read-only — no edit/delete/select, source shows "Built-in".
-  builtin?: boolean
-  // Synthetic default chrome row (no DB row yet): source shows "Default",
-  // the only action is "Customize" (→ `customizeDefaultPart`). `id` is a
-  // `default:<slug>` sentinel; `slug` is the reserved chrome slug.
-  isDefault?: boolean
-  // Real DB row shadowing a reserved chrome slug: its destructive action is
-  // "Reset to default" (delete → revert to the code part), not "Delete".
-  isChrome?: boolean
+  // Provenance of the row — drives every edit/duplicate/delete decision via
+  // `resolveCapabilities` (see `lib/cms/template-capabilities.ts`). `builtin`
+  // and `default` rows have no DB id (built-ins use a manifest id; defaults a
+  // `default:<slug>` sentinel); `chrome`/`user` are real DB rows.
+  origin: RowOrigin
 }
 
 type Props = {
@@ -101,10 +100,6 @@ type Props = {
   // include), so the Parts library hides the Synced column + filter. Patterns
   // and layouts keep it (ref vs. copy is a real choice there).
   showSynced?: boolean
-  // Templates (LAYOUT) are edit/add only — duplicating or deleting a layout
-  // isn't allowed. Gating these off also removes row selection + bulk delete.
-  canDuplicate?: boolean
-  canDelete?: boolean
 }
 
 // Single-string cell value against a set of selected options.
@@ -122,8 +117,6 @@ export function TemplatesDataTable({
   emptyLabel,
   tenantId,
   showSynced = true,
-  canDuplicate = true,
-  canDelete = true,
 }: Props) {
   // TanStack Table mutates its `table` object in place rather than returning a
   // fresh reference, which breaks React's immutability rules: React Compiler
@@ -153,7 +146,7 @@ export function TemplatesDataTable({
   const { confirm: confirmReset, dialog: resetDialog } = useConfirmDialog({
     title: "Reset to default?",
     description:
-      "This discards your customizations and reverts to the built-in default part.",
+      "This discards your customizations and reverts to the default.",
     confirmText: "Reset",
     cancelText: "Cancel",
     destructive: true,
@@ -225,8 +218,10 @@ export function TemplatesDataTable({
     [router]
   )
 
-  // Reset a customized chrome part to its code default — delete the row so
-  // `resolveChromeBySlug` falls back to `defaultHeader`/`defaultFooter`.
+  // Reset a customized default ("shadow" row) — delete the DB row so the slug
+  // falls back to its code/hierarchy default (chrome part reverts to
+  // `defaultHeader`/`defaultFooter`; a hierarchy template reverts to its
+  // synthetic "Default" placeholder).
   const runReset = React.useCallback(
     async (id: string) => {
       if (!(await confirmReset())) return
@@ -247,9 +242,9 @@ export function TemplatesDataTable({
       {
         id: "source",
         accessorFn: (row) =>
-          row.isDefault
+          row.origin === "default"
             ? "default"
-            : row.builtin
+            : row.origin === "builtin"
               ? "builtin"
               : row.tenantId === null
                 ? "global"
@@ -288,8 +283,12 @@ export function TemplatesDataTable({
       globalFilter,
       rowSelection,
     },
+    // Selectable iff the row can be hard-deleted — bulk delete only operates on
+    // those. Shadow rows revert to their default ("Reset") rather than delete,
+    // so they're excluded; built-ins and synthetic defaults aren't selectable.
     enableRowSelection: (row) =>
-      canDelete && !row.original.builtin && !row.original.isDefault,
+      resolveCapabilities(row.original.origin, row.original.kind)
+        .destructive === "delete",
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
@@ -322,6 +321,11 @@ export function TemplatesDataTable({
     .getFilteredSelectedRowModel()
     .rows.map((r) => r.original.id)
   const selectedCount = selectedIds.length
+  // Whether any row on this tab can be selected — drives the selected-count
+  // line (hidden on edit-only tabs like Templates where nothing is selectable).
+  const hasSelectable = table
+    .getFilteredRowModel()
+    .rows.some((r) => r.getCanSelect())
 
   if (items.length === 0) {
     return <p className="p-6 text-sm text-muted-foreground">{emptyLabel}</p>
@@ -411,8 +415,6 @@ export function TemplatesDataTable({
               key={row.id}
               row={row}
               showSynced={showSynced}
-              canDuplicate={canDuplicate}
-              canDelete={canDelete}
               onDuplicate={runDuplicate}
               onDuplicateBuiltin={runDuplicateBuiltin}
               onCustomize={runCustomize}
@@ -431,7 +433,7 @@ export function TemplatesDataTable({
       {/* Pagination — hidden when there are fewer than 10 items. */}
       {table.getFilteredRowModel().rows.length >= 10 && (
         <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background p-6">
-          {canDelete ? (
+          {hasSelectable ? (
             <p className="text-sm text-muted-foreground">
               {selectedCount} of {table.getFilteredRowModel().rows.length}{" "}
               item(s) selected.
@@ -515,13 +517,13 @@ export function TemplatesDataTable({
 }
 
 function SourceBadge({ row }: { row: TemplateRow }) {
-  if (row.isDefault)
+  if (row.origin === "default")
     return (
       <Badge variant="secondary" fill="outline">
         Default
       </Badge>
     )
-  if (row.builtin)
+  if (row.origin === "builtin")
     return (
       <Badge variant="secondary" fill="outline">
         Built-in
@@ -537,8 +539,6 @@ function SourceBadge({ row }: { row: TemplateRow }) {
 function TemplateCard({
   row,
   showSynced,
-  canDuplicate,
-  canDelete,
   onDuplicate,
   onDuplicateBuiltin,
   onCustomize,
@@ -548,8 +548,6 @@ function TemplateCard({
 }: {
   row: Row<TemplateRow>
   showSynced: boolean
-  canDuplicate: boolean
-  canDelete: boolean
   onDuplicate: (id: string) => void
   onDuplicateBuiltin: (blockId: string) => void
   onCustomize: (
@@ -562,11 +560,12 @@ function TemplateCard({
   onDelete: (id: string) => void
 }) {
   const t = row.original
-  const selectable = canDelete && !t.builtin && !t.isDefault
+  const caps = resolveCapabilities(t.origin, t.kind)
+  const selectable = row.getCanSelect()
   const selected = row.getIsSelected()
-  // Built-ins and synthetic defaults have no DB editor route to link to —
-  // customize a default from the actions menu instead.
-  const linkable = !t.builtin && !t.isDefault
+  // Only rows that open the editor directly (`edit: "link"`) get a link;
+  // built-ins and synthetic defaults are customized from the actions menu.
+  const linkable = caps.edit === "link"
 
   const preview = (
     <span className="flex aspect-4/3 w-full items-center justify-center overflow-hidden rounded-t-xl border-b bg-muted/40">
@@ -652,8 +651,7 @@ function TemplateCard({
               </Badge>
             )}
             {showSynced &&
-              !t.builtin &&
-              !t.isDefault &&
+              (t.origin === "user" || t.origin === "shadow") &&
               (t.synced ? (
                 <Badge>Synced</Badge>
               ) : (
@@ -664,8 +662,6 @@ function TemplateCard({
 
         <TemplateCardActions
           t={t}
-          canDuplicate={canDuplicate}
-          canDelete={canDelete}
           onDuplicate={onDuplicate}
           onDuplicateBuiltin={onDuplicateBuiltin}
           onCustomize={onCustomize}
@@ -680,8 +676,6 @@ function TemplateCard({
 
 function TemplateCardActions({
   t,
-  canDuplicate,
-  canDelete,
   onDuplicate,
   onDuplicateBuiltin,
   onCustomize,
@@ -690,8 +684,6 @@ function TemplateCardActions({
   onDelete,
 }: {
   t: TemplateRow
-  canDuplicate: boolean
-  canDelete: boolean
   onDuplicate: (id: string) => void
   onDuplicateBuiltin: (blockId: string) => void
   onCustomize: (
@@ -703,75 +695,15 @@ function TemplateCardActions({
   onReset: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  // Built-ins are code-defined and read-only — but a built-in PATTERN can be
-  // duplicated into an editable tenant copy (the WP "Copy to My Patterns"
-  // model). The copy lands as a normal pattern (edit/duplicate/delete). Other
-  // built-in kinds stay read-only.
-  if (t.builtin) {
-    if (t.kind === "PATTERN" && canDuplicate) {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Actions"
-              />
-            }
-          >
-            <MoreHorizontalIcon className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onDuplicateBuiltin(t.slug)}>
-              <CopyIcon />
-              Duplicate
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    }
+  // Every menu item is derived from the central capability matrix — the same
+  // rules the server actions enforce. See `lib/cms/template-capabilities.ts`.
+  const caps = resolveCapabilities(t.origin, t.kind)
+
+  // Nothing actionable (e.g. a code-defined non-pattern built-in): read-only.
+  if (!caps.edit && !caps.duplicate && !caps.destructive) {
     return <span className="sr-only">Built-in</span>
   }
-  // Synthetic default chrome row (not yet customized): Edit shadows the code
-  // default and opens the editor; Duplicate forks it into an independent
-  // part. No Reset (nothing customized yet), no Delete (no row to delete) —
-  // mirrors WP's pre-built template part actions.
-  if (t.isDefault) {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Actions"
-            />
-          }
-        >
-          <MoreHorizontalIcon className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => onCustomize(t.tenantId, t.slug, t.kind)}
-          >
-            <PencilIcon />
-            Edit
-          </DropdownMenuItem>
-          {canDuplicate && (
-            <DropdownMenuItem
-              onClick={() => onDuplicateDefault(t.tenantId, t.slug)}
-            >
-              <CopyIcon />
-              Duplicate
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -787,45 +719,74 @@ function TemplateCardActions({
         <MoreHorizontalIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
-        <DropdownMenuItem
-          render={<Link href={`/admin/templates/${t.id}/edit`} />}
-        >
-          <PencilIcon />
-          Edit
-        </DropdownMenuItem>
-        {canDuplicate && (
+        {/* Edit: a `link` row opens the editor directly; a `customize` row
+            materializes its shadowed default first (the action redirects). */}
+        {caps.edit === "link" && (
+          <DropdownMenuItem
+            render={<Link href={`/admin/templates/${t.id}/edit`} />}
+          >
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+        )}
+        {caps.edit === "customize" && (
+          <DropdownMenuItem
+            onClick={() => onCustomize(t.tenantId, t.slug, t.kind)}
+          >
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+        )}
+
+        {/* Duplicate: clone a DB row, fork a synthetic default, or copy a
+            built-in pattern into an editable tenant pattern. */}
+        {caps.duplicate === "row" && (
           <DropdownMenuItem onClick={() => onDuplicate(t.id)}>
             <CopyIcon />
             Duplicate
           </DropdownMenuItem>
         )}
-        {/* Customized chrome reverts to the code default rather than deleting
-            outright — the part always exists, just file- or DB-backed (the WP
-            transparent-shadow model). */}
-        {canDelete &&
-          (t.isChrome ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onReset(t.id)}
-              >
-                <RotateCcwIcon />
-                Reset to default
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onDelete(t.id)}
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </>
-          ))}
+        {caps.duplicate === "default" && (
+          <DropdownMenuItem
+            onClick={() => onDuplicateDefault(t.tenantId, t.slug)}
+          >
+            <CopyIcon />
+            Duplicate
+          </DropdownMenuItem>
+        )}
+        {caps.duplicate === "builtin" && (
+          <DropdownMenuItem onClick={() => onDuplicateBuiltin(t.slug)}>
+            <CopyIcon />
+            Duplicate
+          </DropdownMenuItem>
+        )}
+
+        {/* Destructive: a customized chrome part reverts to its code default
+            (transparent shadow) rather than being deleted outright. */}
+        {caps.destructive === "reset" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onReset(t.id)}
+            >
+              <RotateCcwIcon />
+              Reset to default
+            </DropdownMenuItem>
+          </>
+        )}
+        {caps.destructive === "delete" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDelete(t.id)}
+            >
+              <Trash2Icon />
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

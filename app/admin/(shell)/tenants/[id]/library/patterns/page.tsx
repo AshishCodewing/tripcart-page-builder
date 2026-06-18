@@ -23,7 +23,7 @@ export default async function LibraryPatternsPage({
     tenantId: null,
     preview: null,
     updatedAt: null,
-    builtin: true,
+    origin: "builtin",
   }))
 
   const rows = await listTemplatesByKind(id, "PATTERN")
@@ -37,7 +37,7 @@ export default async function LibraryPatternsPage({
     tenantId: t.tenantId,
     preview: t.preview,
     updatedAt: t.updatedAt,
-    builtin: false,
+    origin: "user",
   }))
 
   return (
