@@ -1,4 +1,4 @@
-import { listTemplatesByKind } from "@/lib/cms/templates"
+import { isDefaultShadowSlug, listTemplatesByKind } from "@/lib/cms/templates"
 import { TEMPLATE_HIERARCHY } from "@/lib/cms/template-hierarchy"
 import { TemplatesDataTable, type TemplateRow } from "../templates-data-table"
 
@@ -20,6 +20,9 @@ export default async function LibraryTemplatesPage({
     tenantId: t.tenantId,
     preview: t.preview,
     updatedAt: t.updatedAt,
+    // A LAYOUT at a hierarchy slug is a customized default ("shadow" → Reset to
+    // default); any other LAYOUT is a user-created template ("user" → Delete).
+    origin: isDefaultShadowSlug(t.kind, t.slug) ? "shadow" : "user",
   }))
 
   // List every hierarchy type that isn't authored yet as a "Default"
@@ -40,20 +43,17 @@ export default async function LibraryTemplatesPage({
       tenantId: id,
       preview: null,
       updatedAt: null,
-      // Editable (materializes a tenant LAYOUT), but not duplicable/deletable.
-      isDefault: true,
+      origin: "default",
     })
   }
 
-  // Templates are edit + add only — no duplicate, no delete (a built-in row
-  // edits into a tenant template; reverting is a future "clear customizations").
+  // Capabilities (edit / duplicate / reset-or-delete) are derived per row from
+  // its origin by `resolveCapabilities`, so this page just lists the rows.
   return (
     <TemplatesDataTable
       items={[...items, ...synthetic]}
       emptyLabel="No templates yet."
       tenantId={id}
-      canDuplicate={false}
-      canDelete={false}
     />
   )
 }

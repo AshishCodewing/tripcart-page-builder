@@ -1,4 +1,4 @@
-import { listTemplatesByKind } from "@/lib/cms/templates"
+import { isDefaultShadowSlug, listTemplatesByKind } from "@/lib/cms/templates"
 import { TemplatesDataTable, type TemplateRow } from "../templates-data-table"
 
 export default async function LibraryPartsPage({
@@ -18,9 +18,9 @@ export default async function LibraryPartsPage({
     tenantId: t.tenantId,
     preview: t.preview,
     updatedAt: t.updatedAt,
-    // Real DB row at a reserved chrome slug = a customized default; its
-    // delete action becomes "Reset to default" (reverts to the code part).
-    isChrome: t.slug === "header" || t.slug === "footer",
+    // A DB row at a reserved chrome slug is a customized default ("shadow"):
+    // its destructive action is "Reset to default" rather than delete.
+    origin: isDefaultShadowSlug(t.kind, t.slug) ? "shadow" : "user",
   }))
 
   // Transparent-shadow model (WP): always list the default Header/Footer.
@@ -40,7 +40,7 @@ export default async function LibraryPartsPage({
       tenantId: id,
       preview: null,
       updatedAt: null,
-      isDefault: true,
+      origin: "default",
     })
   }
 
