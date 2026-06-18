@@ -16,7 +16,7 @@ import type {
   ProjectDefinition,
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
-import { text, wrapPart } from "./shared"
+import { wrapPart } from "./shared"
 
 const HEADER_STYLES: Rule[] = [
   {
@@ -64,11 +64,15 @@ const HEADER_STYLES: Rule[] = [
   },
 ]
 
+// A nav link is itself an editable `text` component (not a plain <a> wrapping
+// a textnode) — see the `text` helper in ./shared for why a bare textnode
+// leaf breaks the drag sorter.
 const navLink = (label: string): ComponentDefinition => ({
+  type: "text",
   tagName: "a",
   attributes: { href: "#" },
   classes: ["tc-default-header__link"],
-  components: [text(label)],
+  content: label,
 })
 
 export function defaultHeader(siteName: string): ProjectDefinition {
@@ -82,10 +86,11 @@ export function defaultHeader(siteName: string): ProjectDefinition {
           classes: ["tc-default-header__inner"],
           components: [
             {
+              type: "text",
               tagName: "a",
               attributes: { href: "/" },
               classes: ["tc-default-header__brand"],
-              components: [text(siteName)],
+              content: siteName,
             },
             {
               tagName: "nav",
