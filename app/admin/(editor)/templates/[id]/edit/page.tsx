@@ -16,10 +16,15 @@ import { defaultTheme } from "@/lib/tokens"
 
 export default async function EditTemplatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  // `?seed=<blockId>` is set by `duplicateBuiltinPattern`: the shell inserts
+  // that built-in pattern block on load so a blank copy captures its content.
+  searchParams: Promise<{ seed?: string }>
 }) {
   const { id } = await params
+  const { seed } = await searchParams
   const tpl = await getTemplateById(id)
   if (!tpl) notFound()
 
@@ -79,6 +84,7 @@ export default async function EditTemplatePage({
       saveAction={saveAction}
       deleteAction={deleteAction}
       templates={templates}
+      seedBlockId={seed}
     />
   )
 }

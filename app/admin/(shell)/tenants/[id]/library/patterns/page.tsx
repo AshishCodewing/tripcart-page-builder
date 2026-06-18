@@ -44,6 +44,7 @@ export default async function LibraryPatternsPage({
     <TemplatesDataTable
       items={[...dbItems, ...builtins]}
       emptyLabel="No patterns yet."
+      tenantId={id}
     />
   )
 }

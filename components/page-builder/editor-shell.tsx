@@ -4,6 +4,7 @@ import * as React from "react"
 import GjsEditor, { Canvas } from "@grapesjs/react"
 import {
   grapesjs,
+  type ComponentDefinition,
   type Editor,
   type EditorConfig,
   type ProjectData,
@@ -443,6 +444,13 @@ type Props = {
    * there's no tenant context.
    */
   templates: Template[]
+  /**
+   * Built-in pattern block id to insert once on load (set via `?seed=` by
+   * `duplicateBuiltinPattern`). Lets a blank tenant pattern capture a built-in
+   * pattern's content — which only exists editor-side. Only seeds when the
+   * canvas is empty, so reloading the seeded URL won't double-insert.
+   */
+  seedBlockId?: string
 }
 
 export default function EditorShell(props: Props) {
@@ -469,9 +477,13 @@ function EditorShellInner({
   saveAction,
   deleteAction,
   templates,
+  seedBlockId,
 }: Props) {
   const { open: leftOpen, setOpen: setLeftOpen } = useLeftPanel()
   const editorRef = React.useRef<Editor | null>(null)
+  // Stable for the mount (derived from `?seed=`); read inside the `[]`-dep
+  // `onEditor` callback via a ref, matching the other refs read there.
+  const seedBlockIdRef = React.useRef(seedBlockId)
   const router = useRouter()
 
   // Convert-to-template UI state. The plugin fires CONVERT_OPEN_EVENT
@@ -685,6 +697,22 @@ function EditorShellInner({
     attachTracking(editor)
 
     editor.on("update", () => editorSaveStore.markDirty())
+
+    // Seed a built-in pattern's content into a freshly-duplicated blank
+    // pattern (see `duplicateBuiltinPattern`). Built-in block content is only
+    // available editor-side, so we insert it here on load. Guard on an empty
+    // canvas so reloading the `?seed=` URL after the copy has content is a
+    // no-op (no double-insert). Appending fires `update` → markDirty →
+    // autosave persists the captured tree (+ the block's CSS).
+    editor.on("load", () => {
+      const blockId = seedBlockIdRef.current
+      if (!blockId) return
+      const wrapper = editor.getWrapper()
+      if (!wrapper || wrapper.components().length > 0) return
+      const block = editor.Blocks.get(blockId)
+      if (!block) return
+      wrapper.append(block.get("content") as ComponentDefinition)
+    })
 
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
     // The plugin emits this event with the ref's slug; we resolve the

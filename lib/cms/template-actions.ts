@@ -19,6 +19,8 @@ import {
   templateRefUsage,
 } from "./templates"
 import { formatTemplateRefUsage } from "./template-ref-usage"
+import { getHierarchyEntry } from "./template-hierarchy"
+import { BUILTIN_PATTERNS } from "@/lib/plugins/patterns/manifest"
 import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
 
 /**
@@ -277,6 +279,46 @@ export async function customizeDefaultPart(
 }
 
 /**
+ * Edit a template-hierarchy default (transparent shadow — the WP model, the
+ * LAYOUT analog of `customizeDefaultPart`). The Templates library lists every
+ * hierarchy type ("Pages", "Single Posts", "Page: 404", …) even when no DB
+ * row exists. Editing one calls this: it materializes a tenant-scoped LAYOUT
+ * at the hierarchy slug and opens the editor. Unlike the chrome parts there is
+ * no code-defined body to seed from, so the row starts blank (`data = {}`,
+ * which the editor opens as an empty canvas — same as `createTemplate`).
+ * Idempotent: an already-materialized row just opens.
+ */
+export async function customizeDefaultLayout(
+  tenantId: string,
+  slug: string
+): Promise<void> {
+  if (!tenantId) throw new Error("Tenant is required.")
+  const entry = getHierarchyEntry(slug)
+  if (!entry) throw new Error(`"${slug}" is not a template-hierarchy default.`)
+
+  // Idempotent: a concurrent create or an already-customized layout just opens.
+  const existing = await prisma.template.findUnique({
+    where: { tenantId_slug: { tenantId, slug } },
+    select: { id: true },
+  })
+  if (existing) redirect(`/admin/templates/${existing.id}/edit`)
+
+  const created = await prisma.template.create({
+    data: {
+      tenantId,
+      slug,
+      title: entry.title,
+      kind: "LAYOUT",
+      description: entry.description,
+    },
+    select: { id: true },
+  })
+
+  updateTag(cacheTags.template(slug))
+  redirect(`/admin/templates/${created.id}/edit`)
+}
+
+/**
  * Duplicate a code-default chrome part into an independent PART — backs the
  * "Duplicate" action on the synthetic Header/Footer rows. Unlike
  * `customizeDefaultPart` (which shadows the reserved slug), this creates a
@@ -327,6 +369,52 @@ export async function duplicateDefaultPart(
   })
 
   updateTag(cacheTags.template(newSlug))
+}
+
+/**
+ * Duplicate a code-defined built-in pattern into an editable tenant PATTERN
+ * (the WP "Duplicate" / "Copy to My Patterns" action — built-in patterns are
+ * read-only, but a copy is a full user pattern). Built-in pattern *content*
+ * lives in editor-only modules (it's produced by `processReactElements`, which
+ * needs a live editor), so it can't be copied server-side. We instead create a
+ * blank tenant PATTERN and open the editor with `?seed=<blockId>`; the shell
+ * inserts that built-in block on load, capturing its content (and CSS) on the
+ * first autosave. The new row is immediately a normal pattern — edit /
+ * duplicate / delete all apply.
+ */
+export async function duplicateBuiltinPattern(
+  tenantId: string,
+  blockId: string
+): Promise<void> {
+  if (!tenantId) throw new Error("Tenant is required.")
+  const descriptor = BUILTIN_PATTERNS.find((p) => p.id === blockId)
+  if (!descriptor) throw new Error(`"${blockId}" is not a built-in pattern.`)
+
+  const baseSlug = `${blockId}-copy`
+  let slug = baseSlug
+  let suffix = 2
+  while (
+    await prisma.template.findFirst({
+      where: { tenantId, slug },
+      select: { id: true },
+    })
+  ) {
+    slug = `${baseSlug}-${suffix}`
+    suffix++
+  }
+
+  const created = await prisma.template.create({
+    data: {
+      tenantId,
+      slug,
+      title: `${descriptor.label} (copy)`,
+      kind: "PATTERN",
+    },
+    select: { id: true },
+  })
+
+  updateTag(cacheTags.template(slug))
+  redirect(`/admin/templates/${created.id}/edit?seed=${encodeURIComponent(blockId)}`)
 }
 
 export async function createTemplateFromSelection(

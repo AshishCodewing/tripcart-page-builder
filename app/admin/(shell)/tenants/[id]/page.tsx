@@ -19,7 +19,7 @@ export default async function TenantSettingsPage({
   const deleteAction = deleteTenant.bind(null, id)
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">{tenant.name}</h1>
         <p className="font-mono text-xs text-muted-foreground">

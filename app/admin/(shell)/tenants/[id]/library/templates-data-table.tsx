@@ -34,7 +34,9 @@ import {
 import { cn } from "@/lib/utils"
 import {
   bulkDeleteTemplates,
+  customizeDefaultLayout,
   customizeDefaultPart,
+  duplicateBuiltinPattern,
   duplicateDefaultPart,
   duplicateTemplate,
 } from "@/lib/cms/template-actions"
@@ -70,6 +72,7 @@ export type TemplateRow = {
   id: string
   title: string
   slug: string
+  description?: string | null
   kind: "LAYOUT" | "PATTERN" | "PART"
   area: string | null
   synced: boolean
@@ -91,10 +94,17 @@ export type TemplateRow = {
 type Props = {
   items: TemplateRow[]
   emptyLabel: string
+  // The tenant whose Library this is — the scope a built-in pattern is
+  // duplicated into (built-in rows themselves carry `tenantId: null`).
+  tenantId: string
   // Parts are always synced by intent (a template part is a by-reference
   // include), so the Parts library hides the Synced column + filter. Patterns
   // and layouts keep it (ref vs. copy is a real choice there).
   showSynced?: boolean
+  // Templates (LAYOUT) are edit/add only — duplicating or deleting a layout
+  // isn't allowed. Gating these off also removes row selection + bulk delete.
+  canDuplicate?: boolean
+  canDelete?: boolean
 }
 
 // Single-string cell value against a set of selected options.
@@ -110,7 +120,10 @@ const includesValue = <T,>(
 export function TemplatesDataTable({
   items,
   emptyLabel,
+  tenantId,
   showSynced = true,
+  canDuplicate = true,
+  canDelete = true,
 }: Props) {
   // TanStack Table mutates its `table` object in place rather than returning a
   // fresh reference, which breaks React's immutability rules: React Compiler
@@ -169,16 +182,34 @@ export function TemplatesDataTable({
     [router]
   )
 
-  // Edit a synthetic default chrome row — materializes the DB part (shadowing
-  // the code default) and navigates into the editor (the action redirects).
+  // Edit a synthetic default row — materializes the DB row (shadowing the
+  // code/hierarchy default) and navigates into the editor (the action
+  // redirects). Branches by kind: a PART shadows the reserved chrome slug, a
+  // LAYOUT materializes the template-hierarchy type.
   const runCustomize = React.useCallback(
-    (tenantId: string | null, slug: string) => {
+    (tenantId: string | null, slug: string, kind: TemplateRow["kind"]) => {
       if (!tenantId) return
       startTransition(async () => {
-        await customizeDefaultPart(tenantId, slug)
+        if (kind === "LAYOUT") {
+          await customizeDefaultLayout(tenantId, slug)
+        } else {
+          await customizeDefaultPart(tenantId, slug)
+        }
       })
     },
     []
+  )
+
+  // Duplicate a built-in (code-defined) pattern into an editable tenant
+  // pattern. The action creates a blank row and redirects into the editor with
+  // `?seed=<blockId>`, which inserts the built-in block's content on load.
+  const runDuplicateBuiltin = React.useCallback(
+    (blockId: string) => {
+      startTransition(async () => {
+        await duplicateBuiltinPattern(tenantId, blockId)
+      })
+    },
+    [tenantId]
   )
 
   // Duplicate a synthetic default into an independent part (non-reserved
@@ -258,7 +289,7 @@ export function TemplatesDataTable({
       rowSelection,
     },
     enableRowSelection: (row) =>
-      !row.original.builtin && !row.original.isDefault,
+      canDelete && !row.original.builtin && !row.original.isDefault,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
@@ -293,15 +324,15 @@ export function TemplatesDataTable({
   const selectedCount = selectedIds.length
 
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground p-6">{emptyLabel}</p>
+    return <p className="p-6 text-sm text-muted-foreground">{emptyLabel}</p>
   }
 
   const rows = table.getRowModel().rows
 
   return (
-    <div className="space-y-3 p-6">
+    <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 px-6">
         <InputGroup className="max-w-xs">
           <InputGroupAddon align="inline-start">
             <SearchIcon />
@@ -374,13 +405,16 @@ export function TemplatesDataTable({
 
       {/* Grid */}
       {rows.length ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 px-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {rows.map((row) => (
             <TemplateCard
               key={row.id}
               row={row}
               showSynced={showSynced}
+              canDuplicate={canDuplicate}
+              canDelete={canDelete}
               onDuplicate={runDuplicate}
+              onDuplicateBuiltin={runDuplicateBuiltin}
               onCustomize={runCustomize}
               onDuplicateDefault={runDuplicateDefault}
               onReset={runReset}
@@ -394,79 +428,85 @@ export function TemplatesDataTable({
         </div>
       )}
 
-      {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {selectedCount} of {table.getFilteredRowModel().rows.length} item(s)
-          selected.
-        </p>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Per page</span>
-            <Select
-              value={String(table.getState().pagination.pageSize)}
-              onValueChange={(v) => table.setPageSize(Number(v))}
-            >
-              <SelectTrigger size="sm" className="w-[4.5rem]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 50, 100].map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <span className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount() || 1}
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="First page"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronsLeftIcon className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Previous page"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeftIcon className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Next page"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRightIcon className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Last page"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronsRightIcon className="size-4" />
-            </Button>
+      {/* Pagination — hidden when there are fewer than 10 items. */}
+      {table.getFilteredRowModel().rows.length >= 10 && (
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background p-6">
+          {canDelete ? (
+            <p className="text-sm text-muted-foreground">
+              {selectedCount} of {table.getFilteredRowModel().rows.length}{" "}
+              item(s) selected.
+            </p>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Per page</span>
+              <Select
+                value={String(table.getState().pagination.pageSize)}
+                onValueChange={(v) => table.setPageSize(Number(v))}
+              >
+                <SelectTrigger size="sm" className="w-[4.5rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-sm text-muted-foreground">
+              Page {table.getState().pagination.pageIndex + 1} of{" "}
+              {table.getPageCount() || 1}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="First page"
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <ChevronsLeftIcon className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Previous page"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <ChevronLeftIcon className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Next page"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                <ChevronRightIcon className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Last page"
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+              >
+                <ChevronsRightIcon className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {dialog}
       {resetDialog}
@@ -497,7 +537,10 @@ function SourceBadge({ row }: { row: TemplateRow }) {
 function TemplateCard({
   row,
   showSynced,
+  canDuplicate,
+  canDelete,
   onDuplicate,
+  onDuplicateBuiltin,
   onCustomize,
   onDuplicateDefault,
   onReset,
@@ -505,14 +548,21 @@ function TemplateCard({
 }: {
   row: Row<TemplateRow>
   showSynced: boolean
+  canDuplicate: boolean
+  canDelete: boolean
   onDuplicate: (id: string) => void
-  onCustomize: (tenantId: string | null, slug: string) => void
+  onDuplicateBuiltin: (blockId: string) => void
+  onCustomize: (
+    tenantId: string | null,
+    slug: string,
+    kind: TemplateRow["kind"]
+  ) => void
   onDuplicateDefault: (tenantId: string | null, slug: string) => void
   onReset: (id: string) => void
   onDelete: (id: string) => void
 }) {
   const t = row.original
-  const selectable = !t.builtin && !t.isDefault
+  const selectable = canDelete && !t.builtin && !t.isDefault
   const selected = row.getIsSelected()
   // Built-ins and synthetic defaults have no DB editor route to link to —
   // customize a default from the actions menu instead.
@@ -537,7 +587,7 @@ function TemplateCard({
     <Card
       size="sm"
       data-state={selected ? "selected" : undefined}
-      className="relative gap-0 data-[size=sm]:py-0 data-[size=sm]:gap-0 data-[state=selected]:ring-2 data-[state=selected]:ring-primary"
+      className="relative gap-0 data-[size=sm]:gap-0 data-[size=sm]:py-0 data-[state=selected]:ring-2 data-[state=selected]:ring-primary"
     >
       {/* Selection checkbox — overlay on the preview, revealed on hover or
           when selected. Built-ins / synthetic defaults aren't selectable. */}
@@ -589,6 +639,11 @@ function TemplateCard({
           <span className="truncate font-mono text-xs text-muted-foreground">
             {t.slug}
           </span>
+          {t.description && (
+            <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
+              {t.description}
+            </p>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <SourceBadge row={t} />
             {t.area && (
@@ -597,6 +652,8 @@ function TemplateCard({
               </Badge>
             )}
             {showSynced &&
+              !t.builtin &&
+              !t.isDefault &&
               (t.synced ? (
                 <Badge>Synced</Badge>
               ) : (
@@ -607,7 +664,10 @@ function TemplateCard({
 
         <TemplateCardActions
           t={t}
+          canDuplicate={canDuplicate}
+          canDelete={canDelete}
           onDuplicate={onDuplicate}
+          onDuplicateBuiltin={onDuplicateBuiltin}
           onCustomize={onCustomize}
           onDuplicateDefault={onDuplicateDefault}
           onReset={onReset}
@@ -620,23 +680,59 @@ function TemplateCard({
 
 function TemplateCardActions({
   t,
+  canDuplicate,
+  canDelete,
   onDuplicate,
+  onDuplicateBuiltin,
   onCustomize,
   onDuplicateDefault,
   onReset,
   onDelete,
 }: {
   t: TemplateRow
+  canDuplicate: boolean
+  canDelete: boolean
   onDuplicate: (id: string) => void
-  onCustomize: (tenantId: string | null, slug: string) => void
+  onDuplicateBuiltin: (blockId: string) => void
+  onCustomize: (
+    tenantId: string | null,
+    slug: string,
+    kind: TemplateRow["kind"]
+  ) => void
   onDuplicateDefault: (tenantId: string | null, slug: string) => void
   onReset: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  // Built-ins are code-defined: nothing to edit/duplicate/delete here.
-  // To customize one, insert it on a page and use Convert to Template.
+  // Built-ins are code-defined and read-only — but a built-in PATTERN can be
+  // duplicated into an editable tenant copy (the WP "Copy to My Patterns"
+  // model). The copy lands as a normal pattern (edit/duplicate/delete). Other
+  // built-in kinds stay read-only.
   if (t.builtin) {
-    return <span className="sr-only">Built-in pattern</span>
+    if (t.kind === "PATTERN" && canDuplicate) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Actions"
+              />
+            }
+          >
+            <MoreHorizontalIcon className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onDuplicateBuiltin(t.slug)}>
+              <CopyIcon />
+              Duplicate
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+    return <span className="sr-only">Built-in</span>
   }
   // Synthetic default chrome row (not yet customized): Edit shadows the code
   // default and opens the editor; Duplicate forks it into an independent
@@ -658,16 +754,20 @@ function TemplateCardActions({
           <MoreHorizontalIcon className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onCustomize(t.tenantId, t.slug)}>
+          <DropdownMenuItem
+            onClick={() => onCustomize(t.tenantId, t.slug, t.kind)}
+          >
             <PencilIcon />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onDuplicateDefault(t.tenantId, t.slug)}
-          >
-            <CopyIcon />
-            Duplicate
-          </DropdownMenuItem>
+          {canDuplicate && (
+            <DropdownMenuItem
+              onClick={() => onDuplicateDefault(t.tenantId, t.slug)}
+            >
+              <CopyIcon />
+              Duplicate
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     )
@@ -693,28 +793,39 @@ function TemplateCardActions({
           <PencilIcon />
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDuplicate(t.id)}>
-          <CopyIcon />
-          Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        {canDuplicate && (
+          <DropdownMenuItem onClick={() => onDuplicate(t.id)}>
+            <CopyIcon />
+            Duplicate
+          </DropdownMenuItem>
+        )}
         {/* Customized chrome reverts to the code default rather than deleting
             outright — the part always exists, just file- or DB-backed (the WP
             transparent-shadow model). */}
-        {t.isChrome ? (
-          <DropdownMenuItem variant="destructive" onClick={() => onReset(t.id)}>
-            <RotateCcwIcon />
-            Reset to default
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => onDelete(t.id)}
-          >
-            <Trash2Icon />
-            Delete
-          </DropdownMenuItem>
-        )}
+        {canDelete &&
+          (t.isChrome ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onReset(t.id)}
+              >
+                <RotateCcwIcon />
+                Reset to default
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDelete(t.id)}
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </>
+          ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )
