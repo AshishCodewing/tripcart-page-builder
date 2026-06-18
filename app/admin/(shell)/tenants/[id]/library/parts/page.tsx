@@ -48,6 +48,7 @@ export default async function LibraryPartsPage({
     <TemplatesDataTable
       items={[...synthetic, ...items]}
       emptyLabel="No template parts yet."
+      tenantId={id}
       showSynced={false}
     />
   )
