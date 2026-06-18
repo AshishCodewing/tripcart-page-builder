@@ -39,6 +39,15 @@ export type TemplateRecord = {
   // How many pages/posts/templates reference this template's slug — drives
   // the pre-delete confirmation warning in the right panel (§5).
   refUsage: TemplateRefUsage
+  // Template-hierarchy slugs this part is currently the chrome for (the
+  // "Used on" assignment). Only populated for tenant-scoped header/footer
+  // PARTs; empty otherwise. Seeds the Part-settings assignment multi-select.
+  chromeHierarchy: string[]
+  // Segments currently owned by *another* part in this area, keyed to that
+  // part's title. Annotates the "Used on" picker so the user knows selecting
+  // one reassigns it away from the named part. Empty unless this is a
+  // tenant-scoped header/footer PART.
+  chromeTaken: Record<string, string>
 }
 
 export type ParentOption = {

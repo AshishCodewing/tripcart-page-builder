@@ -19,7 +19,7 @@ import {
   templateRefUsage,
 } from "./templates"
 import { formatTemplateRefUsage } from "./template-ref-usage"
-import { getHierarchyEntry } from "./template-hierarchy"
+import { getHierarchyEntry, isHierarchySlug } from "./template-hierarchy"
 import { BUILTIN_PATTERNS } from "@/lib/plugins/patterns/manifest"
 import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
 
@@ -135,6 +135,52 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
 
   updateTag(cacheTags.template(existing.slug))
   if (slugChanged) updateTag(cacheTags.template(slug))
+
+  // Chrome assignment ("Used on" — §Part editor). The right panel submits the
+  // hierarchy slugs this header/footer part should be the chrome for, plus a
+  // marker so non-editor callers (which omit the field) never reconcile. We
+  // reconcile by the part's own slug against its area's column; assignment is
+  // per-tenant, so globals (tenantId IS NULL) and non-header/footer areas are
+  // skipped. Editing the part is the only write path for ChromeAssignment.
+  if (
+    kind === "PART" &&
+    existing.tenantId &&
+    (area === "header" || area === "footer") &&
+    form.get("chromeHierarchyPresent") === "1"
+  ) {
+    const tenantId = existing.tenantId
+    const selected = form
+      .getAll("chromeHierarchy")
+      .filter((v): v is string => typeof v === "string")
+      .filter(isHierarchySlug)
+
+    const isHeader = area === "header"
+    const setData = isHeader ? { headerSlug: slug } : { footerSlug: slug }
+    const clearData = isHeader ? { headerSlug: null } : { footerSlug: null }
+    const notSelected =
+      selected.length > 0 ? { segment: { notIn: selected } } : {}
+
+    await prisma.$transaction([
+      // Set this part as the chrome for each selected template.
+      ...selected.map((segment) =>
+        prisma.chromeAssignment.upsert({
+          where: { tenantId_segment: { tenantId, segment } },
+          create: { tenantId, segment, ...setData },
+          update: setData,
+        })
+      ),
+      // Drop templates that pointed here but are no longer selected back to
+      // the fallback chain (clear only this part's column).
+      prisma.chromeAssignment.updateMany({
+        where: { tenantId, ...setData, ...notSelected },
+        data: clearData,
+      }),
+      // Tidy rows that no longer assign either a header or a footer.
+      prisma.chromeAssignment.deleteMany({
+        where: { tenantId, headerSlug: null, footerSlug: null },
+      }),
+    ])
+  }
 }
 
 /**

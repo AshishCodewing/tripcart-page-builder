@@ -11,9 +11,10 @@ import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/typ
 // per-tenant compound key `(tenantId, path)`.
 //
 // The page renders only its own content; the site header/footer chrome is
-// rendered once in `[tenantId]/layout.tsx`. Draft mode + the theme link are
-// also handled by that layout (it is the single draft gate), so neither is
-// re-checked here. Public rendering happens in a separate deployment.
+// rendered by the enclosing `(single)/layout.tsx` (the "page" hierarchy slug).
+// Draft mode + the theme link are handled by `[tenantId]/layout.tsx` (the
+// single draft gate), so neither is re-checked here. Public rendering happens
+// in a separate deployment.
 export default async function PagePreviewRoute({
   params,
 }: {
