@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma"
 import {
-  assertChromeSlug,
+  assertReservedSlug,
   isReservedChromeSlug,
   resolvePageTree,
   slimTemplateProject,
@@ -191,19 +191,28 @@ describe("reserved chrome slugs", () => {
     expect(isReservedChromeSlug("header-2")).toBe(false)
   })
 
-  it("allows a reserved chrome slug only on a PART", () => {
-    expect(() => assertChromeSlug("header", "PART")).not.toThrow()
-    expect(() => assertChromeSlug("footer", "PART")).not.toThrow()
+  it("allows a reserved slug only on its required kind", () => {
+    expect(() => assertReservedSlug("header", "PART")).not.toThrow()
+    expect(() => assertReservedSlug("footer", "PART")).not.toThrow()
+    // Every template-hierarchy slug is reserved for LAYOUT.
+    for (const slug of ["single", "page", "archive", "home", "404", "search"]) {
+      expect(() => assertReservedSlug(slug, "LAYOUT")).not.toThrow()
+    }
   })
 
-  it("rejects a reserved chrome slug on a non-PART", () => {
-    expect(() => assertChromeSlug("header", "PATTERN")).toThrow(/reserved/)
-    expect(() => assertChromeSlug("footer", "LAYOUT")).toThrow(/reserved/)
+  it("rejects a reserved slug on the wrong kind", () => {
+    expect(() => assertReservedSlug("header", "PATTERN")).toThrow(/reserved/)
+    expect(() => assertReservedSlug("footer", "LAYOUT")).toThrow(/reserved/)
+    // Hierarchy slugs are LAYOUT-only — a PART/PATTERN can't shadow the route.
+    expect(() => assertReservedSlug("single", "PART")).toThrow(/reserved/)
+    expect(() => assertReservedSlug("page", "PATTERN")).toThrow(/reserved/)
+    expect(() => assertReservedSlug("archive", "PART")).toThrow(/reserved/)
+    expect(() => assertReservedSlug("404", "PATTERN")).toThrow(/reserved/)
   })
 
   it("ignores non-reserved slugs regardless of kind", () => {
-    expect(() => assertChromeSlug("about", "PATTERN")).not.toThrow()
-    expect(() => assertChromeSlug("header-2", "PATTERN")).not.toThrow()
+    expect(() => assertReservedSlug("about", "PATTERN")).not.toThrow()
+    expect(() => assertReservedSlug("header-2", "PATTERN")).not.toThrow()
   })
 })
 

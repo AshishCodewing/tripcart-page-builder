@@ -29,6 +29,7 @@ import {
   templateRefPlugin,
 } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
+import { postFieldsPlugin } from "@/lib/plugins/post-fields"
 import { useRouter } from "next/navigation"
 import { Component as ComponentIcon } from "lucide-react"
 import type { Component } from "grapesjs"
@@ -112,7 +113,10 @@ function composedLayerLabel(
 const buildGjsOptions = (
   initialProjectData: ProjectData,
   persistDraft: (data: ProjectData) => Promise<void>,
-  templates: Template[]
+  templates: Template[],
+  // Post-field blocks (Post Title / Featured Image / Date / Content slot) are
+  // draggable only when authoring a single-post LAYOUT — see `allowPostFields`.
+  options: { allowPostFields: boolean }
 ): EditorConfig => ({
   height: "100%",
   // Seed the canvas from server-rendered data (`draftData ?? data`). With
@@ -376,6 +380,10 @@ const buildGjsOptions = (
     // so the `template-ref` component type is known when the block
     // content `{ type: "template-ref", ... }` resolves.
     templateBlocksPlugin(templates),
+    // Single-post field blocks. The four types always register (so a stored
+    // `single` LAYOUT re-identifies its nodes); the draggable blocks appear
+    // only when editing a LAYOUT (`allowPostFields`).
+    postFieldsPlugin({ enabled: options.allowPostFields }),
     styleFilterPlugin,
     styleBgPlugin,
   ],
@@ -658,6 +666,11 @@ function EditorShellInner({
     editorSaveStore.committed()
   }, [storageKey])
 
+  // Post-field blocks belong only in a single-post LAYOUT editor — page,
+  // post, pattern, and part editors never expose them.
+  const allowPostFields =
+    content.kind === "template" && content.template.kind === "LAYOUT"
+
   const gjsOptions = React.useMemo(
     () =>
       buildGjsOptions(
@@ -667,9 +680,10 @@ function EditorShellInner({
         // closes over here is safe.
         // eslint-disable-next-line react-hooks/refs
         debouncedPersist,
-        templates
+        templates,
+        { allowPostFields }
       ),
-    [initialProjectData, debouncedPersist, templates]
+    [initialProjectData, debouncedPersist, templates, allowPostFields]
   )
 
   const onEditor = React.useCallback((editor: Editor) => {

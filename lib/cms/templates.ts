@@ -18,7 +18,7 @@ import type {
 } from "@/lib/plugins/react-renderer/project/types"
 import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
 import type { TemplateRefUsage } from "./template-ref-usage"
-import { getHierarchyEntry } from "./template-hierarchy"
+import { TEMPLATE_HIERARCHY, getHierarchyEntry } from "./template-hierarchy"
 
 export async function getTemplateById(id: string) {
   return prisma.template.findUnique({ where: { id } })
@@ -290,13 +290,33 @@ export async function resolvePageTree(
 /**
  * Slugs reserved for site chrome. A template at one of these slugs is the
  * site header/footer (`resolveChromeBySlug`), so it may only be a PART —
- * `assertChromeSlug` enforces that on create/rename so a Page-less Pattern or
+ * `assertReservedSlug` enforces that on create/rename so a Page-less Pattern or
  * Layout can't accidentally become the site chrome.
  */
 export const RESERVED_CHROME_SLUGS = ["header", "footer"] as const
 
 export function isReservedChromeSlug(slug: string): boolean {
   return (RESERVED_CHROME_SLUGS as readonly string[]).includes(slug)
+}
+
+/**
+ * Slugs reserved for a specific template kind. The render path binds these by
+ * slug regardless of kind, so authoring the wrong kind at one of them would
+ * silently mis-bind. `assertReservedSlug` forbids it on create/rename.
+ *
+ *   - `header` / `footer` → PART (the site chrome — `resolveChromeBySlug`).
+ *   - every `TEMPLATE_HIERARCHY` slug (`page`, `single`, `archive`, `404`, …)
+ *     → LAYOUT (the WP-style template the route resolves; `single` is the
+ *     single-post template, Plan 013). A hierarchy slug is materialized as a
+ *     LAYOUT by `customizeDefaultLayout`, so reserving it to LAYOUT keeps a
+ *     stray PART/PATTERN from shadowing the route's template.
+ */
+export const RESERVED_SLUG_KINDS: Record<string, "PART" | "LAYOUT"> = {
+  header: "PART",
+  footer: "PART",
+  ...Object.fromEntries(
+    TEMPLATE_HIERARCHY.map((entry) => [entry.slug, "LAYOUT" as const])
+  ),
 }
 
 /**
@@ -314,15 +334,17 @@ export function isDefaultShadowSlug(kind: string, slug: string): boolean {
 }
 
 /**
- * Guard for template create/rename: a reserved chrome slug ("header" /
- * "footer") is only allowed on a PART template. Throws otherwise. Pass the
- * resolved `kind` (string compare, so callers don't need the Prisma enum).
+ * Guard for template create/rename: a slug reserved for a specific kind (see
+ * `RESERVED_SLUG_KINDS` — `header`/`footer` → PART, `single` → LAYOUT) may only
+ * be used by that kind. Throws otherwise. Pass the resolved `kind` as a string
+ * (so callers don't need the Prisma enum).
  */
-export function assertChromeSlug(slug: string, kind: string): void {
-  if (isReservedChromeSlug(slug) && kind !== "PART") {
+export function assertReservedSlug(slug: string, kind: string): void {
+  const required = RESERVED_SLUG_KINDS[slug]
+  if (required && kind !== required) {
+    const noun = required === "PART" ? "Part" : "Layout"
     throw new Error(
-      `The slug "${slug}" is reserved for the site ${slug} and can only be ` +
-        `used by a Part template.`
+      `The slug "${slug}" is reserved and can only be used by a ${noun} template.`
     )
   }
 }
