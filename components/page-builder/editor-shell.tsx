@@ -29,7 +29,10 @@ import {
   templateRefPlugin,
 } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
-import { postFieldsPlugin } from "@/lib/plugins/post-fields"
+import {
+  DEFAULT_SINGLE_POST_SEED,
+  postFieldsPlugin,
+} from "@/lib/plugins/post-fields"
 import { useRouter } from "next/navigation"
 import { Component as ComponentIcon } from "lucide-react"
 import type { Component } from "grapesjs"
@@ -726,6 +729,26 @@ function EditorShellInner({
       const block = editor.Blocks.get(blockId)
       if (!block) return
       wrapper.append(block.get("content") as ComponentDefinition)
+    })
+
+    // Seed a brand-new single-post LAYOUT (reserved slug "single") with the
+    // dynamic field blocks so the author opens onto a starter arrangement
+    // instead of a blank canvas. Same empty-wrapper guard + append-fires-
+    // autosave pattern as the `?seed=` path above. The four post-field types
+    // are always registered (postFieldsPlugin), so the typed defs resolve.
+    // ("single" mirrors SINGLE_POST_SLUG in post-template.ts — kept literal
+    // here to avoid pulling that server module's prisma deps into the bundle.)
+    editor.on("load", () => {
+      const c = contentRef.current
+      if (
+        c.kind !== "template" ||
+        c.template.kind !== "LAYOUT" ||
+        c.template.slug !== "single"
+      )
+        return
+      const wrapper = editor.getWrapper()
+      if (!wrapper || wrapper.components().length > 0) return
+      wrapper.append(DEFAULT_SINGLE_POST_SEED as object[])
     })
 
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
