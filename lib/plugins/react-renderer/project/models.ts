@@ -10,6 +10,7 @@ import type {
   FrameDefinition,
   PageDefinition,
 } from "./types"
+import { normalizeClasses, resolveTagName } from "./component-mapper"
 
 export class ComponentNode {
   private data: ComponentDefinition
@@ -26,16 +27,10 @@ export class ComponentNode {
     return this.data.type || "default"
   }
 
-  // Map GrapesJS component types to their canonical HTML tag. Anything not in
-  // the map falls back to the persisted `tagName`, then empty string.
+  // Map GrapesJS component types to their canonical HTML tag (see
+  // ./component-mapper).
   get tagName(): string {
-    const t = this.type
-    if (t === "svg") return "svg"
-    if (t === "image") return "img"
-    if (t === "linkBox" || t === "link") return "a"
-    if (t === "head") return "head"
-    if (t === "wrapper") return "body"
-    return this.data.tagName || ""
+    return resolveTagName(this.type, this.data.tagName)
   }
 
   get isVoid(): boolean {
@@ -73,9 +68,7 @@ export class ComponentNode {
 
   // `data.classes` may carry plain strings or `{ name, ... }` objects.
   get classes(): string[] {
-    return (this.data.classes || []).map((c) =>
-      typeof c === "string" ? c : c.name
-    )
+    return normalizeClasses(this.data.classes)
   }
 }
 

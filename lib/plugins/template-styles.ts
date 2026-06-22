@@ -32,6 +32,10 @@
 import type { Editor } from "grapesjs"
 import type { Rule } from "@/lib/plugins/react-renderer/project/types"
 import { CssComposer } from "@/lib/plugins/react-renderer/project/parser"
+import {
+  getAtRule,
+  selectorsToString,
+} from "@/lib/plugins/react-renderer/project/css-helpers"
 
 const ruleKey = (selectors: string, atRule: string): string =>
   `${selectors}|${atRule}`
@@ -43,10 +47,6 @@ export function applyTemplateStyles(
 ): void {
   if (!Array.isArray(styles) || styles.length === 0) return
 
-  // `selectorsToString` / `getAtRule` don't depend on the constructor
-  // rules, so one throwaway composer serves as the serializer + key
-  // builder for every rule.
-  const composer = new CssComposer(styles)
   const existing = new Set(
     editor.Css.getRules().map((r) =>
       ruleKey(r.selectorsToString(), r.getAtRule())
@@ -54,10 +54,7 @@ export function applyTemplateStyles(
   )
 
   const fresh = styles.filter(
-    (r) =>
-      !existing.has(
-        ruleKey(composer.selectorsToString(r), composer.getAtRule(r))
-      )
+    (r) => !existing.has(ruleKey(selectorsToString(r), getAtRule(r)))
   )
   if (fresh.length === 0) return
 
