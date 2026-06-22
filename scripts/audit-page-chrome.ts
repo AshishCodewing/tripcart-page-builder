@@ -92,19 +92,53 @@ type PageReport = {
   hasContentSlot: boolean
 }
 
-async function main() {
-  const pages = await prisma.page.findMany({
-    select: { tenantId: true, path: true, data: true },
-    orderBy: [{ tenantId: "asc" }, { path: "asc" }],
+type TemplateInfo = { kind: string; area: string | null }
+type TplBySlug = Map<string, TemplateInfo>
+
+// Analyze one page's root component tree into its report fields (everything
+// except tenantId/path). Pure — slug frequency is accumulated by the caller.
+function analyzePage(root: Node): Omit<PageReport, "tenantId" | "path"> {
+  let rawHeaders = 0
+  let rawFooters = 0
+  let navs = 0
+  let hasContentSlot = false
+  const refSlugs: string[] = []
+
+  walk(root, (n) => {
+    const slug = refSlug(n)
+    if (slug) refSlugs.push(slug)
+    if (n.type === CONTENT_SLOT_TYPE) hasContentSlot = true
+    const kind = rawChromeKind(n)
+    if (kind === "header") rawHeaders++
+    if (kind === "footer") rawFooters++
+    if ((n.tagName ?? "").toLowerCase() === "nav") navs++
   })
 
-  // Label referenced slugs with their template kind/area so the summary shows
-  // which refs are actually PART chrome vs patterns/layouts.
-  const templates = await prisma.template.findMany({
-    select: { slug: true, kind: true, area: true },
-  })
-  const tplBySlug = new Map(templates.map((t) => [t.slug, t]))
+  const hasRef = refSlugs.length > 0
+  const hasRaw = rawHeaders + rawFooters > 0
+  const encoding: Encoding = hasRef
+    ? hasRaw
+      ? "mixed"
+      : "template-ref"
+    : hasRaw
+      ? "raw-markup"
+      : "none"
 
+  return {
+    encoding,
+    topChildren: root.components?.length ?? 0,
+    refSlugs,
+    rawHeaders,
+    rawFooters,
+    navs,
+    hasContentSlot,
+  }
+}
+
+// Build a report per page plus the cross-page referenced-slug frequency map.
+function buildReports(
+  pages: { tenantId: string; path: string; data: unknown }[]
+): { reports: PageReport[]; slugFreq: Map<string, number> } {
   const reports: PageReport[] = []
   const slugFreq = new Map<string, number>()
 
@@ -124,63 +158,30 @@ async function main() {
       })
       continue
     }
-
-    let rawHeaders = 0
-    let rawFooters = 0
-    let navs = 0
-    let hasContentSlot = false
-    const refSlugs: string[] = []
-
-    walk(root, (n) => {
-      const slug = refSlug(n)
-      if (slug) {
-        refSlugs.push(slug)
-        slugFreq.set(slug, (slugFreq.get(slug) ?? 0) + 1)
-      }
-      if (n.type === CONTENT_SLOT_TYPE) hasContentSlot = true
-      const kind = rawChromeKind(n)
-      if (kind === "header") rawHeaders++
-      if (kind === "footer") rawFooters++
-      if ((n.tagName ?? "").toLowerCase() === "nav") navs++
-    })
-
-    const hasRef = refSlugs.length > 0
-    const hasRaw = rawHeaders + rawFooters > 0
-    const encoding: Encoding = hasRef
-      ? hasRaw
-        ? "mixed"
-        : "template-ref"
-      : hasRaw
-        ? "raw-markup"
-        : "none"
-
-    reports.push({
-      tenantId: page.tenantId,
-      path: page.path,
-      encoding,
-      topChildren: root.components?.length ?? 0,
-      refSlugs,
-      rawHeaders,
-      rawFooters,
-      navs,
-      hasContentSlot,
-    })
+    const analysis = analyzePage(root)
+    for (const slug of analysis.refSlugs) {
+      slugFreq.set(slug, (slugFreq.get(slug) ?? 0) + 1)
+    }
+    reports.push({ tenantId: page.tenantId, path: page.path, ...analysis })
   }
 
-  // ---- Output ----------------------------------------------------------
-  const byEncoding = (e: Encoding) => reports.filter((r) => r.encoding === e)
+  return { reports, slugFreq }
+}
 
-  console.log(`\n=== Page chrome audit — ${reports.length} page(s) ===\n`)
+const countByEncoding = (reports: PageReport[], e: Encoding): number =>
+  reports.filter((r) => r.encoding === e).length
 
+const tplLabel = (t: TemplateInfo): string =>
+  `${t.kind}${t.area ? `/${t.area}` : ""}`
+
+function printPerPage(reports: PageReport[], tplBySlug: TplBySlug): void {
   console.log("Per-page:")
   for (const r of reports) {
     const refs = r.refSlugs.length
       ? ` refs=[${r.refSlugs
           .map((s) => {
             const t = tplBySlug.get(s)
-            return t
-              ? `${s}(${t.kind}${t.area ? `/${t.area}` : ""})`
-              : `${s}(?)`
+            return t ? `${s}(${tplLabel(t)})` : `${s}(?)`
           })
           .join(", ")}]`
       : ""
@@ -194,7 +195,9 @@ async function main() {
         ` (top=${r.topChildren})${refs}${raw}${slot}`
     )
   }
+}
 
+function printSummary(reports: PageReport[]): void {
   console.log("\nSummary by encoding:")
   const order: Encoding[] = [
     "template-ref",
@@ -204,27 +207,28 @@ async function main() {
     "empty",
   ]
   for (const e of order) {
-    console.log(`  ${e.padEnd(12)} ${byEncoding(e).length}`)
+    console.log(`  ${e.padEnd(12)} ${countByEncoding(reports, e)}`)
   }
+}
 
-  if (slugFreq.size) {
-    console.log(
-      "\nReferenced template slugs (candidate shared chrome / zones):"
-    )
-    const sorted = [...slugFreq.entries()].sort((a, b) => b[1] - a[1])
-    for (const [slug, count] of sorted) {
-      const t = tplBySlug.get(slug)
-      const label = t
-        ? `${t.kind}${t.area ? `/${t.area}` : ""}`
-        : "MISSING (dangling ref)"
-      console.log(`  ${String(count).padStart(4)}x  ${slug}  — ${label}`)
-    }
+function printSlugFrequency(
+  slugFreq: Map<string, number>,
+  tplBySlug: TplBySlug
+): void {
+  if (!slugFreq.size) return
+  console.log("\nReferenced template slugs (candidate shared chrome / zones):")
+  const sorted = [...slugFreq.entries()].sort((a, b) => b[1] - a[1])
+  for (const [slug, count] of sorted) {
+    const t = tplBySlug.get(slug)
+    const label = t ? tplLabel(t) : "MISSING (dangling ref)"
+    console.log(`  ${String(count).padStart(4)}x  ${slug}  — ${label}`)
   }
+}
 
-  // ---- The decision input ---------------------------------------------
-  const cleanlyShared = byEncoding("template-ref").length
+function printTakeaway(reports: PageReport[]): void {
+  const cleanlyShared = countByEncoding(reports, "template-ref")
   const rawOrMixed =
-    byEncoding("raw-markup").length + byEncoding("mixed").length
+    countByEncoding(reports, "raw-markup") + countByEncoding(reports, "mixed")
   console.log("\nTakeaway for the Approach-A zone design:")
   console.log(
     `  ${cleanlyShared} page(s) already pull chrome via template-ref PARTs` +
@@ -237,6 +241,30 @@ async function main() {
   console.log(
     "  (Data is disposable — this informs the zone set, not a migration.)\n"
   )
+}
+
+async function main() {
+  const pages = await prisma.page.findMany({
+    select: { tenantId: true, path: true, data: true },
+    orderBy: [{ tenantId: "asc" }, { path: "asc" }],
+  })
+
+  // Label referenced slugs with their template kind/area so the summary shows
+  // which refs are actually PART chrome vs patterns/layouts.
+  const templates = await prisma.template.findMany({
+    select: { slug: true, kind: true, area: true },
+  })
+  const tplBySlug: TplBySlug = new Map(
+    templates.map((t) => [t.slug, { kind: t.kind, area: t.area }])
+  )
+
+  const { reports, slugFreq } = buildReports(pages)
+
+  console.log(`\n=== Page chrome audit — ${reports.length} page(s) ===\n`)
+  printPerPage(reports, tplBySlug)
+  printSummary(reports)
+  printSlugFrequency(slugFreq, tplBySlug)
+  printTakeaway(reports)
 }
 
 main()
