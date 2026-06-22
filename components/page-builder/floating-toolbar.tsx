@@ -18,13 +18,36 @@ import {
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
+import { CONTENT_SLOT_TYPE } from "@/lib/plugins/post-fields"
 import { cn } from "@/lib/utils"
+import { useAcknowledgeDialog } from "@/hooks/use-acknowledge-dialog"
 import { CanvasFloating } from "./canvas-floating"
 import { InsertBlockPicker } from "./insert-block-picker"
 
 export function FloatingToolbar() {
   const editor = useEditorMaybe()
   const [selected, setSelected] = useState<Component | null>(null)
+
+  // The content slot can't be deleted silently — removing it blanks every post
+  // using the template. It's `removable: false` (so keyboard / layer-manager
+  // deletes are blocked), and the toolbar's delete routes through this
+  // acknowledgement dialog, then removes it programmatically.
+  const { confirm: confirmDeleteSlot, dialog: deleteSlotDialog } =
+    useAcknowledgeDialog({
+      title: "Delete content block?",
+      description: (
+        <>
+          This block displays the content of posts using this template.{" "}
+          <strong className="font-semibold text-foreground">
+            If you delete it, posts using this template will not display any
+            content.
+          </strong>{" "}
+          Visitors will see blank pages.
+        </>
+      ),
+      acknowledgeLabel: "I understand the consequences",
+      confirmText: "Delete",
+    })
 
   useEffect(() => {
     if (!editor) return
@@ -46,9 +69,16 @@ export function FloatingToolbar() {
     }
   }, [editor])
 
-  if (!selected) return null
+  // Render the dialog unconditionally so an open prompt survives a selection
+  // change; the toolbar itself only shows when something is selected.
+  if (!selected) return deleteSlotDialog
 
   const canConvert = isConvertibleSelection(selected)
+  const isContentSlot = selected.get("type") === CONTENT_SLOT_TYPE
+  const handleDeleteContentSlot = async () => {
+    const cmp = selected
+    if (await confirmDeleteSlot()) cmp.remove()
+  }
 
   // Mirror GrapesJS' default toolbar gating (Component.getToolbar): each action
   // is shown only when the component declares the matching capability. The
@@ -77,152 +107,175 @@ export function FloatingToolbar() {
   )
 
   return (
-    <CanvasFloating
-      target={selected}
-      placement="top-end"
-      fallbacks={["bottom-end", "left-start"]}
-    >
-      {/* Toolbar and the "Add block" picker share one floating row (gap-1 = 4px)
+    <>
+      {deleteSlotDialog}
+      <CanvasFloating
+        target={selected}
+        placement="top-end"
+        fallbacks={["bottom-end", "left-start"]}
+      >
+        {/* Toolbar and the "Add block" picker share one floating row (gap-1 = 4px)
           so floating-ui only positions a single element — no disjoint-placement
           dance to keep the two from overlapping. */}
-      <div className="flex items-center gap-1">
-        <TooltipProvider delay={300}>
-          <ButtonGroup className="rounded-lg bg-white">
-            <ButtonGroupText className={labelClass}>
-              {selected.getName()}
-            </ButtonGroupText>
-            {isTemplateRef && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={() => {
-                        const slug =
-                          selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ?? ""
-                        editor?.runCommand("tc:edit-template-ref", { slug })
-                      }}
-                    >
-                      <Pencil />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Edit Original</TooltipContent>
-              </Tooltip>
-            )}
-            {canMove && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={() => editor?.runCommand("tlb-move")}
-                    >
-                      <Move />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Move</TooltipContent>
-              </Tooltip>
-            )}
-            {canSelectParent && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={() => {
-                        const parent = selected.parent()
-                        if (parent) editor?.select(parent)
-                      }}
-                    >
-                      <ArrowUp />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Select parent</TooltipContent>
-              </Tooltip>
-            )}
-            {canDuplicate && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={() => {
-                        const parent = selected.parent()
-                        const idx = selected.index()
-                        parent?.append(selected.clone(), { at: idx + 1 })
-                      }}
-                    >
-                      <Copy />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Duplicate</TooltipContent>
-              </Tooltip>
-            )}
-            {canDelete && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={() => selected.remove()}
-                    >
-                      <Trash2 />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Delete</TooltipContent>
-              </Tooltip>
-            )}
-            {canConvert && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
-                      className={btnClass}
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        editor?.trigger(CONVERT_OPEN_EVENT, {
-                          rect: {
-                            x: rect.left,
-                            y: rect.bottom,
-                            width: rect.width,
-                          },
-                        })
-                      }}
-                    >
-                      <MoreVertical />
-                    </Button>
-                  }
-                />
-                <TooltipContent>More</TooltipContent>
-              </Tooltip>
-            )}
-          </ButtonGroup>
-        </TooltipProvider>
-        {editor && (
-          <InsertBlockPicker
-            key={selected.getId()}
-            editor={editor}
-            selected={selected}
-          />
-        )}
-      </div>
-    </CanvasFloating>
+        <div className="flex items-center gap-1">
+          <TooltipProvider delay={300}>
+            <ButtonGroup className="rounded-lg bg-white">
+              <ButtonGroupText className={labelClass}>
+                {selected.getName()}
+              </ButtonGroupText>
+              {isTemplateRef && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={() => {
+                          const slug =
+                            selected.getAttributes()[TEMPLATE_REF_SLUG_ATTR] ??
+                            ""
+                          editor?.runCommand("tc:edit-template-ref", { slug })
+                        }}
+                      >
+                        <Pencil />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Edit Original</TooltipContent>
+                </Tooltip>
+              )}
+              {canMove && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={() => editor?.runCommand("tlb-move")}
+                      >
+                        <Move />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Move</TooltipContent>
+                </Tooltip>
+              )}
+              {canSelectParent && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={() => {
+                          const parent = selected.parent()
+                          if (parent) editor?.select(parent)
+                        }}
+                      >
+                        <ArrowUp />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Select parent</TooltipContent>
+                </Tooltip>
+              )}
+              {canDuplicate && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={() => {
+                          const parent = selected.parent()
+                          const idx = selected.index()
+                          parent?.append(selected.clone(), { at: idx + 1 })
+                        }}
+                      >
+                        <Copy />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Duplicate</TooltipContent>
+                </Tooltip>
+              )}
+              {canDelete && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={() => selected.remove()}
+                      >
+                        <Trash2 />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
+              )}
+              {/* The content slot is removable:false (so `canDelete` is off);
+                its delete is gated by the acknowledgement dialog. */}
+              {isContentSlot && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={handleDeleteContentSlot}
+                      >
+                        <Trash2 />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
+              )}
+              {canConvert && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="outline"
+                        className={btnClass}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          editor?.trigger(CONVERT_OPEN_EVENT, {
+                            rect: {
+                              x: rect.left,
+                              y: rect.bottom,
+                              width: rect.width,
+                            },
+                          })
+                        }}
+                      >
+                        <MoreVertical />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>More</TooltipContent>
+                </Tooltip>
+              )}
+            </ButtonGroup>
+          </TooltipProvider>
+          {editor && (
+            <InsertBlockPicker
+              key={selected.getId()}
+              editor={editor}
+              selected={selected}
+            />
+          )}
+        </div>
+      </CanvasFloating>
+    </>
   )
 }

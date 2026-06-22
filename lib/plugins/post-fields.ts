@@ -27,6 +27,7 @@
  */
 
 import type { Editor } from "grapesjs"
+import type { ComponentDefinition } from "@/lib/plugins/react-renderer/project/types"
 
 export const POST_TITLE_TYPE = "post-title"
 export const POST_FEATURED_IMAGE_TYPE = "post-featured-image"
@@ -90,6 +91,14 @@ type FieldDef = {
   media: string
   /** Whether the node hosts children (only the content slot does). */
   droppable: boolean
+  /**
+   * Whether the default delete affordances (keyboard, layer manager, toolbar
+   * trash) may remove it. The content slot is `false` so it can't be deleted
+   * silently — its removal blanks every post using the template, so the
+   * floating toolbar routes its deletion through an acknowledgement dialog
+   * (see floating-toolbar.tsx) and removes it programmatically. @default true
+   */
+  removable?: boolean
 }
 
 // A void <img> field can't host a text label, so the featured image uses a
@@ -135,7 +144,25 @@ const FIELDS: FieldDef[] = [
     label: "Post <strong>content</strong>",
     media: ICON_SLOT,
     droppable: false,
+    // Guarded delete — see FieldDef.removable.
+    removable: false,
   },
+]
+
+/**
+ * Starter arrangement seeded into a brand-new single-post LAYOUT (slug
+ * `single`) when its canvas is empty — so the author opens onto the four
+ * dynamic field blocks instead of a blank page. The nodes carry only their
+ * `type`; the registered component defaults fill in tagName / class / etc.
+ * Appended to the wrapper on load (see editor-shell.tsx).
+ */
+export const DEFAULT_SINGLE_POST_SEED: ComponentDefinition[] = [
+  { type: POST_FEATURED_IMAGE_TYPE },
+  {
+    tagName: "header",
+    components: [{ type: POST_TITLE_TYPE }, { type: POST_DATE_TYPE }],
+  },
+  { type: CONTENT_SLOT_TYPE },
 ]
 
 export const postFieldsPlugin =
@@ -153,7 +180,8 @@ export const postFieldsPlugin =
 
       editor.Components.addType(field.type, {
         isComponent: (el) => {
-          if (!el || typeof el !== "object" || !("classList" in el)) return false
+          if (!el || typeof el !== "object" || !("classList" in el))
+            return false
           return (el as HTMLElement).classList?.contains(
             field.className.split(" ")[1]
           )
@@ -171,7 +199,7 @@ export const postFieldsPlugin =
             stylable: true,
             selectable: true,
             hoverable: true,
-            removable: true,
+            removable: field.removable ?? true,
             copyable: false,
             attributes: { class: field.className },
           },
