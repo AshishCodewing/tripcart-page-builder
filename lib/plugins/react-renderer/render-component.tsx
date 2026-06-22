@@ -10,6 +10,7 @@ import { createElement, useEffect, useState, type ReactNode } from "react"
 import type { Component, ComponentView, Editor } from "grapesjs"
 import { attrsToReactProps } from "./attrs"
 import { bindComponentToElement } from "./bind"
+import { mergeRenderChildren, resolveComponentTag } from "./render-helpers"
 import type {
   CustomRendererPropsWithConfig,
   RendererReactOptions,
@@ -107,11 +108,11 @@ export function RenderCanvasComponent(
   const cmpType = (component.get("type") as string) || "default"
   const content = (component as { content?: ReactNode }).content
   const cfgEntry = config.components?.[cmpType]
-  const Tag =
-    (cfgEntry?.component as React.ElementType | undefined) ||
-    tagName ||
-    component.tagName ||
-    "div"
+  const Tag = resolveComponentTag(
+    cfgEntry?.component as React.ElementType | undefined,
+    tagName,
+    component.tagName
+  )
 
   const childCmps = component.components()
   const childNodes = childCmps.length
@@ -130,10 +131,7 @@ export function RenderCanvasComponent(
     component.getAttributes() as Record<string, unknown>
   )
   const EditorRender = cfgEntry?.editorRender
-  const merged = [...childNodes, children].filter(
-    (n) => n ?? false
-  ) as ReactNode[]
-  const finalChildren = merged.length ? merged : null
+  const finalChildren = mergeRenderChildren(childNodes, children)
 
   if (EditorRender) {
     return (
