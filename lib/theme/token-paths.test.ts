@@ -7,7 +7,7 @@ import type { Token } from "@/lib/theme/schema"
 
 describe("token-paths get/set round-trip", () => {
   it("getGroup reads back what withGroup wrote", () => {
-    const next: Token[] = [{ slug: "primary", value: "#f00" }]
+    const next: Token[] = [{ slug: "primary", name: "Primary", value: "#f00" }]
     const updated = withGroup(defaultTheme, "color", next)
     expect(getGroup(updated, "color")).toEqual(next)
   })
@@ -16,7 +16,7 @@ describe("token-paths get/set round-trip", () => {
 describe("withGroup reference equality", () => {
   it("preserves untouched sibling branches by reference", () => {
     const updated = withGroup(defaultTheme, "color", [
-      { slug: "primary", value: "#f00" },
+      { slug: "primary", name: "Primary", value: "#f00" },
     ])
     // Editing the color branch must not rebuild typography/spacing/etc — the
     // store relies on this so selectors over those branches don't re-fire.
@@ -30,7 +30,7 @@ describe("withGroup reference equality", () => {
 
   it("shares the color branch when a typography group is edited", () => {
     const updated = withGroup(defaultTheme, "font-size", [
-      { slug: "base", value: "1rem" },
+      { slug: "base", name: "Base", value: "1rem" },
     ])
     expect(updated.settings.color).toBe(defaultTheme.settings.color)
     expect(updated.settings.typography).not.toBe(
@@ -42,17 +42,17 @@ describe("withGroup reference equality", () => {
 describe("mergePresetTokens", () => {
   it("overrides matching slugs in place and appends new ones", () => {
     const existing: Token[] = [
-      { slug: "a", value: "1" },
-      { slug: "b", value: "2" },
+      { slug: "a", name: "A", value: "1" },
+      { slug: "b", name: "B", value: "2" },
     ]
-    const preset = [
-      { slug: "b", value: "20" },
-      { slug: "c", value: "3" },
+    const preset: Token[] = [
+      { slug: "b", name: "B2", value: "20" },
+      { slug: "c", name: "C", value: "3" },
     ]
     expect(mergePresetTokens(existing, preset)).toEqual([
-      { slug: "a", value: "1" },
-      { slug: "b", value: "20" },
-      { slug: "c", value: "3" },
+      { slug: "a", name: "A", value: "1" },
+      { slug: "b", name: "B2", value: "20" },
+      { slug: "c", name: "C", value: "3" },
     ])
   })
 })
