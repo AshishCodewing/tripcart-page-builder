@@ -9,19 +9,20 @@ import { prisma } from "@/lib/prisma"
 import { cacheTags } from "./cache-tags"
 import { titleToSlug, validateSlug } from "./path"
 import {
-  parseProjectPayload,
-  validateComponentPayload,
-} from "./project-payload"
-import {
   assertReservedSlug,
   isReservedChromeSlug,
   slimTemplateProject,
-  templateRefUsage,
 } from "./templates"
-import { formatTemplateRefUsage } from "./template-ref-usage"
 import { getHierarchyEntry, isHierarchySlug } from "./template-hierarchy"
 import { BUILTIN_PATTERNS } from "@/lib/plugins/patterns/manifest"
 import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
+import {
+  parseSelectionForm,
+  parseTemplateBody,
+  parseTemplateMetadata,
+} from "./template-actions/parse"
+import { assertSlugRenameable, dedupeSlug } from "./template-actions/slug"
+import { buildChromeAssignmentOps } from "./template-actions/chrome-assignment"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -43,78 +44,17 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
   const existing = await prisma.template.findUnique({ where: { id } })
   if (!existing) throw new Error("Template not found.")
 
-  // --- Metadata (§4) -----------------------------------------------------
-  const titleField = form.get("title")
-  const title =
-    typeof titleField === "string" && titleField.trim()
-      ? titleField.trim()
-      : existing.title
+  const { title, kind, area, synced, slug, slugChanged } =
+    parseTemplateMetadata(form, existing)
 
-  const kindField = form.get("kind")
-  const kind =
-    kindField === "LAYOUT" || kindField === "PATTERN" || kindField === "PART"
-      ? kindField
-      : existing.kind
-
-  // Area is no longer editable from the right panel (like WP, only the title
-  // is renamed there), so the editor form omits it — preserve the existing
-  // value. When a caller does submit `area` (e.g. the create dialog), keep the
-  // old behavior: apply it for PART, clear it otherwise.
-  const areaField = form.get("area")
-  const area =
-    typeof areaField === "string"
-      ? kind === "PART" && areaField.trim()
-        ? areaField.trim()
-        : null
-      : existing.area
-
-  // PARTs are synced by intent (a template part is always a by-reference
-  // include, like WP — editing it propagates; it is never "unsynced"), so
-  // never downgrade one. Matches `createTemplate`, which seeds PART synced.
-  // For LAYOUT/PATTERN the Base UI Switch posts "on" when checked, nothing
-  // when unchecked.
-  const synced = kind === "PART" ? true : form.get("synced") === "on"
-
-  const slugField = form.get("slug")
-  const slug =
-    typeof slugField === "string" && slugField.trim()
-      ? slugField.trim()
-      : existing.slug
-  const slugChanged = slug !== existing.slug
   // A reserved chrome slug ("header"/"footer") may only be a PART — checked
   // unconditionally so changing kind on an existing chrome slug is caught too.
   assertReservedSlug(slug, kind)
   if (slugChanged) {
-    validateSlug(slug)
-    // Per-tenant slug uniqueness (globals share the null-tenant space).
-    const clash = await prisma.template.findFirst({
-      where: { tenantId: existing.tenantId, slug, id: { not: id } },
-      select: { id: true },
-    })
-    if (clash) {
-      throw new Error(`A template with slug "${slug}" already exists.`)
-    }
-    const usage = await templateRefUsage(existing.slug)
-    if (usage.total > 0) {
-      throw new Error(
-        `Cannot rename "${existing.slug}" — it is referenced by ` +
-          `${formatTemplateRefUsage(usage)}. Remove those references before ` +
-          `renaming.`
-      )
-    }
+    await assertSlugRenameable(id, slug, existing.slug, existing.tenantId)
   }
 
-  // The editor shell injects this on submit as the full
-  // `editor.getProjectData()` shape (`{ pages: [{ frames: [{ component }] }], styles, ... }`).
-  // Non-editor callers omit it, in which case we preserve the existing
-  // tree. We slim the project shape down to the §9 `{ component, styles }`
-  // form before persisting — see `slimTemplateProject` in lib/cms/templates.ts.
-  const dataField = form.get("data")
-  let body: ReturnType<typeof slimTemplateProject> | undefined
-  if (typeof dataField === "string" && dataField.length) {
-    const project = parseProjectPayload(dataField, "template")
-    body = slimTemplateProject(project)
-  }
+  const body = parseTemplateBody(form)
 
   await prisma.template.update({
     where: { id },
@@ -148,38 +88,14 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
     (area === "header" || area === "footer") &&
     form.get("chromeHierarchyPresent") === "1"
   ) {
-    const tenantId = existing.tenantId
     const selected = form
       .getAll("chromeHierarchy")
       .filter((v): v is string => typeof v === "string")
       .filter(isHierarchySlug)
 
-    const isHeader = area === "header"
-    const setData = isHeader ? { headerSlug: slug } : { footerSlug: slug }
-    const clearData = isHeader ? { headerSlug: null } : { footerSlug: null }
-    const notSelected =
-      selected.length > 0 ? { segment: { notIn: selected } } : {}
-
-    await prisma.$transaction([
-      // Set this part as the chrome for each selected template.
-      ...selected.map((segment) =>
-        prisma.chromeAssignment.upsert({
-          where: { tenantId_segment: { tenantId, segment } },
-          create: { tenantId, segment, ...setData },
-          update: setData,
-        })
-      ),
-      // Drop templates that pointed here but are no longer selected back to
-      // the fallback chain (clear only this part's column).
-      prisma.chromeAssignment.updateMany({
-        where: { tenantId, ...setData, ...notSelected },
-        data: clearData,
-      }),
-      // Tidy rows that no longer assign either a header or a footer.
-      prisma.chromeAssignment.deleteMany({
-        where: { tenantId, headerSlug: null, footerSlug: null },
-      }),
-    ])
+    await prisma.$transaction(
+      buildChromeAssignmentOps(existing.tenantId, slug, area, selected)
+    )
   }
 }
 
@@ -245,17 +161,7 @@ export async function createTemplate(
   // authoring a Part titled "Header" is the from-scratch way to define the
   // site header (resolveChromeBySlug). A LAYOUT/PATTERN at those slugs throws.
   assertReservedSlug(baseSlug, kind)
-  let slug = baseSlug
-  let suffix = 2
-  while (
-    await prisma.template.findUnique({
-      where: { tenantId_slug: { tenantId, slug } },
-      select: { id: true },
-    })
-  ) {
-    slug = `${baseSlug}-${suffix}`
-    suffix++
-  }
+  const slug = await dedupeSlug(tenantId, baseSlug)
 
   const created = await prisma.template.create({
     // PARTs are area-tagged and synced by intent (schema); LAYOUT/PATTERN
@@ -389,18 +295,7 @@ export async function duplicateDefaultPart(
   const project =
     slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
 
-  const baseSlug = `${slug}-copy`
-  let newSlug = baseSlug
-  let suffix = 2
-  while (
-    await prisma.template.findFirst({
-      where: { tenantId, slug: newSlug },
-      select: { id: true },
-    })
-  ) {
-    newSlug = `${baseSlug}-${suffix}`
-    suffix++
-  }
+  const newSlug = await dedupeSlug(tenantId, `${slug}-copy`)
 
   await prisma.template.create({
     data: {
@@ -436,18 +331,7 @@ export async function duplicateBuiltinPattern(
   const descriptor = BUILTIN_PATTERNS.find((p) => p.id === blockId)
   if (!descriptor) throw new Error(`"${blockId}" is not a built-in pattern.`)
 
-  const baseSlug = `${blockId}-copy`
-  let slug = baseSlug
-  let suffix = 2
-  while (
-    await prisma.template.findFirst({
-      where: { tenantId, slug },
-      select: { id: true },
-    })
-  ) {
-    slug = `${baseSlug}-${suffix}`
-    suffix++
-  }
+  const slug = await dedupeSlug(tenantId, `${blockId}-copy`)
 
   const created = await prisma.template.create({
     data: {
@@ -471,67 +355,13 @@ export async function createTemplateFromSelection(
 ): Promise<CreatedTemplate> {
   if (!tenantId) throw new Error("Tenant is required.")
 
-  const title = String(form.get("title") ?? "").trim()
-  const kindField = String(form.get("kind") ?? "").trim()
-  const areaField = String(form.get("area") ?? "").trim()
-  const synced = form.get("synced") === "true"
-  const subtreeField = form.get("subtree")
+  const { title, kind, area, synced, subtree, styles, baseSlug } =
+    parseSelectionForm(form)
 
-  if (!title) throw new Error("Title is required.")
-  if (kindField !== "LAYOUT" && kindField !== "PATTERN" && kindField !== "PART")
-    throw new Error("Kind must be LAYOUT, PATTERN, or PART.")
-  const kind = kindField as "LAYOUT" | "PATTERN" | "PART"
-  if (kind === "PART" && !areaField)
-    throw new Error("Area is required for PART templates.")
-
-  if (typeof subtreeField !== "string" || subtreeField.length === 0)
-    throw new Error("Selected component data is required.")
-  let parsedSubtree: unknown
-  try {
-    parsedSubtree = JSON.parse(subtreeField)
-  } catch {
-    throw new Error("Invalid subtree payload — could not parse JSON.")
-  }
-  const subtree = validateComponentPayload(parsedSubtree)
-
-  // Optional `styles` snapshot from the dialog — page-scoped CSS rules
-  // that target the subtree (e.g. Style-Manager-edited `#id { ... }`).
-  // Riding with the template instead of relying on the page keeps the
-  // template self-contained when the page's styles[] gets pruned on
-  // the next save after the conversion.
-  const stylesField = form.get("styles")
-  let styles: unknown[] = []
-  if (typeof stylesField === "string" && stylesField.length) {
-    try {
-      const parsed = JSON.parse(stylesField)
-      if (Array.isArray(parsed)) styles = parsed
-    } catch {
-      throw new Error("Invalid styles payload — could not parse JSON.")
-    }
-  }
-
-  // Derive a slug from the title and resolve collisions by appending
-  // -2, -3, ... per (tenantId, slug). One round-trip per existing
-  // collision is fine for the convert flow — slugs are tenant-scoped
-  // and contention is naturally low.
-  const baseSlug = titleToSlug(title)
-  if (!baseSlug)
-    throw new Error("Title must contain at least one letter or number.")
-  validateSlug(baseSlug)
-  // Converting to a PART at "header"/"footer" is the intended way to author
-  // site chrome; converting to a PATTERN/LAYOUT at those slugs is rejected.
-  assertReservedSlug(baseSlug, kind)
-  let slug = baseSlug
-  let suffix = 2
-  while (
-    await prisma.template.findUnique({
-      where: { tenantId_slug: { tenantId, slug } },
-      select: { id: true },
-    })
-  ) {
-    slug = `${baseSlug}-${suffix}`
-    suffix++
-  }
+  // Resolve collisions by appending -2, -3, ... per (tenantId, slug). One
+  // round-trip per existing collision is fine for the convert flow — slugs
+  // are tenant-scoped and contention is naturally low.
+  const slug = await dedupeSlug(tenantId, baseSlug)
 
   // §9 slim shape — a template is a component + its styles, not a
   // one-page project that happens to be a template. The editor wraps
@@ -548,7 +378,7 @@ export async function createTemplateFromSelection(
       slug,
       title,
       kind,
-      area: kind === "PART" ? areaField : null,
+      area: kind === "PART" ? area : null,
       synced,
       data: body as object,
     },
@@ -626,20 +456,7 @@ export async function duplicateTemplate(id: string): Promise<void> {
   const tpl = await prisma.template.findUnique({ where: { id } })
   if (!tpl) throw new Error("Template not found.")
 
-  const baseSlug = `${tpl.slug}-copy`
-  let slug = baseSlug
-  let suffix = 2
-  // findFirst (not findUnique on the compound key) so globals — where
-  // tenantId is null — dedupe correctly; SQL nulls aren't unique-comparable.
-  while (
-    await prisma.template.findFirst({
-      where: { tenantId: tpl.tenantId, slug },
-      select: { id: true },
-    })
-  ) {
-    slug = `${baseSlug}-${suffix}`
-    suffix++
-  }
+  const slug = await dedupeSlug(tpl.tenantId, `${tpl.slug}-copy`)
 
   await prisma.template.create({
     data: {
