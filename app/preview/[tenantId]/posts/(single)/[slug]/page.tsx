@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { PagePreview } from "@/components/page-builder/page-preview"
+import { resolveSinglePostRender } from "@/lib/cms/post-template"
 import { resolvePageTree } from "@/lib/cms/templates"
 import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
 import { prisma } from "@/lib/prisma"
@@ -34,6 +35,14 @@ export default async function BlogPostPreview({
     },
   })
   if (!post) notFound()
+
+  // If the tenant has authored a single-post LAYOUT (reserved `single` slug),
+  // bind it to this post — the author arranges the title/image/date/body
+  // freely on the canvas. Otherwise fall back to the hardcoded article below.
+  const rendered = await resolveSinglePostRender(tenantId, post)
+  if (rendered.kind === "layout") {
+    return <PagePreview projectData={rendered.projectData} rootTag="article" />
+  }
 
   const projectData = await resolvePageTree(
     tenantId,

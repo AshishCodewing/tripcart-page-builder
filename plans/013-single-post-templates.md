@@ -1,9 +1,28 @@
 # Plan 013: User-authored single-post templates (content-slot + dynamic fields)
 
-> **Status: NOT STARTED (design approved 2026-06-16).** Depends on Pieces 1–2
-> of the multi-header chrome work (shipped) for the reserved-slug + segment
-> patterns it reuses. Effort: L. This is the "Option C" path — the full
-> content-slot + dynamic-binding capability previously deferred, now planned.
+> **Status: Phase 1 + Phase 2 SHIPPED (2026-06-18).** Phase 3 (assignment
+> surface / per-post override) still pending. The reserved-slug authoring path
+> came partly for free: the WP template-hierarchy work (shipped 2026-06-16/18)
+> already lists "Single Posts" as a Library default row that materializes a
+> `single` LAYOUT via `customizeDefaultLayout` — so the only Phase-2 authoring
+> additions were the field blocks + the LAYOUT-editor gate.
+>
+> **What shipped:**
+> - `Post.featuredImage` column (migration `20260618113156_add_post_featured_image`).
+> - `lib/cms/post-template.ts` — `POST_FIELD_TYPES`, `bindPostTemplate` (pure,
+>   unit-tested), `formatPostDate`, `resolveSinglePostRender` (LAYOUT-kind
+>   guarded). Render path: `app/preview/[tenantId]/posts/(single)/[slug]/page.tsx`
+>   (note: route moved to the `(single)` group in the route-group split — the
+>   old `posts/[slug]/page.tsx` path below is stale).
+> - `lib/plugins/post-fields.ts` — the four field types (always registered;
+>   blocks only when `enabled`), gated in `editor-shell.tsx` via
+>   `allowPostFields = content.kind === "template" && content.template.kind === "LAYOUT"`.
+> - Reserved-slug guard generalized: `assertChromeSlug` → `assertReservedSlug`,
+>   backed by `RESERVED_SLUG_KINDS` (header/footer → PART; **every**
+>   `TEMPLATE_HIERARCHY` slug → LAYOUT, so no PART/PATTERN can shadow a route's
+>   template).
+>
+> Original plan (NOT STARTED) below for reference. Effort was: L.
 
 ## Context
 

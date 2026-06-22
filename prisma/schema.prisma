@@ -65,8 +65,9 @@ model Tenant {
 // WP way of referencing template parts by slug. null = inherit the tenant
 // default chrome slug ("header" / "footer"), which itself falls back to the
 // code-default part. So an unassigned segment renders exactly as before
-// Piece 2 (non-breaking). One row per (tenant, segment); `segment` is one of
-// CHROME_SEGMENTS (lib/cms/chrome.ts), app-owned rather than a DB enum.
+// Piece 2 (non-breaking). One row per (tenant, segment); `segment` is a
+// TEMPLATE_HIERARCHY slug (lib/cms/template-hierarchy.ts) — `page`, `single`,
+// `archive`, …, with `index` as the catch-all — app-owned, not a DB enum.
 model ChromeAssignment {
   id         String   @id @default(cuid())
   tenantId   String
@@ -119,6 +120,10 @@ model Post {
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   excerpt     String?
+  // URL of the post's featured image. Bound into a single-post LAYOUT's
+  // `post-featured-image` field block at render (see lib/cms/post-template.ts);
+  // null = the field is omitted from the rendered template.
+  featuredImage String?
   data        Json          @default("{}")
   // In-progress editor autosave (full ProjectDefinition). See Page.draftData.
   draftData   Json?

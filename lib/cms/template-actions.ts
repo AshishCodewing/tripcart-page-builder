@@ -13,7 +13,7 @@ import {
   validateComponentPayload,
 } from "./project-payload"
 import {
-  assertChromeSlug,
+  assertReservedSlug,
   isReservedChromeSlug,
   slimTemplateProject,
   templateRefUsage,
@@ -83,7 +83,7 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
   const slugChanged = slug !== existing.slug
   // A reserved chrome slug ("header"/"footer") may only be a PART — checked
   // unconditionally so changing kind on an existing chrome slug is caught too.
-  assertChromeSlug(slug, kind)
+  assertReservedSlug(slug, kind)
   if (slugChanged) {
     validateSlug(slug)
     // Per-tenant slug uniqueness (globals share the null-tenant space).
@@ -244,7 +244,7 @@ export async function createTemplate(
   // Reserved chrome slugs ("header"/"footer") are allowed only for PART —
   // authoring a Part titled "Header" is the from-scratch way to define the
   // site header (resolveChromeBySlug). A LAYOUT/PATTERN at those slugs throws.
-  assertChromeSlug(baseSlug, kind)
+  assertReservedSlug(baseSlug, kind)
   let slug = baseSlug
   let suffix = 2
   while (
@@ -520,7 +520,7 @@ export async function createTemplateFromSelection(
   validateSlug(baseSlug)
   // Converting to a PART at "header"/"footer" is the intended way to author
   // site chrome; converting to a PATTERN/LAYOUT at those slugs is rejected.
-  assertChromeSlug(baseSlug, kind)
+  assertReservedSlug(baseSlug, kind)
   let slug = baseSlug
   let suffix = 2
   while (
