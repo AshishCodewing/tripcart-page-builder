@@ -50,38 +50,18 @@ import {
   type ParsedGradient,
   type RadialPosition,
 } from "@/lib/gradient"
+import {
+  CHECKERBOARD,
+  DRAG_THRESHOLD_PX,
+  MIN_STOPS,
+  RADIAL_POSITION_LABELS,
+  TYPE_LABELS,
+  baseTypeOf,
+  clamp,
+  sortStops,
+} from "./gradient-picker-helpers"
 
 export type GradientPickerCommitOpts = { partial?: boolean }
-
-const MIN_STOPS = 2
-const DRAG_THRESHOLD_PX = 4
-
-const CHECKERBOARD =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill-opacity='.18'><path d='M5 0h5v5H5zM0 5h5v5H0z'/></svg>\")"
-
-// ---------- helpers ----------
-
-const clamp = (n: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, n))
-
-const sortStops = (stops: GradientStop[]): GradientStop[] =>
-  [...stops].sort((a, b) => stopPercent(a.position) - stopPercent(b.position))
-
-const baseTypeOf = (t: GradientType): "linear" | "radial" =>
-  t === "linear" || t === "repeating-linear" ? "linear" : "radial"
-
-const TYPE_LABELS: Record<GradientType, string> = {
-  linear: "Linear",
-  radial: "Radial",
-  "repeating-linear": "Repeating Linear",
-  "repeating-radial": "Repeating Radial",
-}
-
-const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase())
-
-const RADIAL_POSITION_LABELS = Object.fromEntries(
-  RADIAL_POSITIONS.map((p) => [p, titleCase(p)])
-) as Record<RadialPosition, string>
 
 // ---------- context ----------
 
