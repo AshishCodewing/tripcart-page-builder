@@ -3,12 +3,15 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
 import { validateSlug } from "./path"
-import { parseProjectPayload } from "./project-payload"
+import {
+  buildDraftDataUpdate,
+  computePublishTimestamp,
+  parseOptionalProjectData,
+} from "./actions-shared"
 
 export async function createPost(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
@@ -39,11 +42,7 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   // The editor populates this on submit (see EditorShell). Optional here
   // because non-editor callers (e.g. metadata-only updates from the post
   // index) will omit it — in which case we keep the previous value.
-  const dataField = form.get("data")
-  let data: object | undefined = undefined
-  if (typeof dataField === "string" && dataField.length) {
-    data = parseProjectPayload(dataField)
-  }
+  const data = parseOptionalProjectData(form)
 
   validateSlug(newSlug)
 
@@ -65,11 +64,12 @@ export async function savePost(id: string, form: FormData): Promise<void> {
       title,
       excerpt,
       status,
-      publishedAt:
-        willBePublished && !wasPublished ? new Date() : existing.publishedAt,
-      // Committing the editor state clears any pending autosave draft so
-      // the next load seeds from `data`. Metadata-only saves leave it.
-      ...(data !== undefined ? { data, draftData: Prisma.DbNull } : {}),
+      publishedAt: computePublishTimestamp(
+        wasPublished,
+        willBePublished,
+        existing.publishedAt
+      ),
+      ...buildDraftDataUpdate(data),
     },
   })
 
