@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Property, PropertyNumber } from "grapesjs"
+import type { PropertyNumber } from "grapesjs"
 
 import {
   DropdownMenu,
@@ -20,28 +20,14 @@ import { Slider } from "@/components/ui/slider"
 
 import { CssVarPicker } from "./css-var-picker"
 import type { TokenCategory } from "./open-props-tokens"
-
-const BORDER_RADIUS_RE = /border.*radius/
-// Number with optional unit suffix: 16, -4, 0.5, .5, 16px, 100%, -1.5rem.
-// Anything else (var(...), calc(...), auto, etc.) falls through to "fixed".
-const VALUE_SHAPE_RE = /^(-?(?:\d+\.?\d*|\.\d+))([a-zA-Z%]*)$/
-
-type ValueShape =
-  | { kind: "empty" }
-  | { kind: "numeric"; number: string; unit: string }
-  | { kind: "fixed"; value: string }
-
-function parseValueShape(raw: string): ValueShape {
-  const trimmed = raw.trim()
-  if (!trimmed) return { kind: "empty" }
-  const m = trimmed.match(VALUE_SHAPE_RE)
-  if (m) return { kind: "numeric", number: m[1], unit: m[2] }
-  return { kind: "fixed", value: trimmed }
-}
-
-// Empty-string unit (line-height accepts unitless `1.5`) displays as "—" so
-// the trigger never renders an invisible label.
-const displayUnit = (u: string): string => (u === "" ? "—" : u)
+import { useNumberDraft } from "./number-field-hooks"
+import {
+  displayUnit,
+  numericPart,
+  parseValueShape,
+  resolveNumberCommit,
+  varCategoriesFor,
+} from "./number-field-utils"
 
 export type NumberInputProps = {
   /** CSS value string — composed form, e.g. "16px" or "var(--x)". Empty = unset. */
@@ -88,37 +74,14 @@ export function NumberInput({
   const showSlider =
     slider && typeof min === "number" && typeof max === "number"
 
-  // When the unit chip is visible (multi-unit field), strip the unit from
-  // the displayed value — the chip already shows "px" / "%" / … so showing
-  // it in the input too reads as duplication ("200px  px {}"). Fixed-values
-  // ("auto", "var(--x)") pass through unchanged.
-  const formatDraft = React.useCallback(
-    (raw: string) => {
-      if (units.length <= 1) return raw
-      const s = parseValueShape(raw)
-      if (s.kind === "numeric" && s.unit) return s.number
-      return raw
-    },
-    [units.length]
-  )
-
-  // Adjusting state during render (React's documented pattern for resetting
-  // local state when a prop changes) so the dropdown's unit swap and the
-  // variable-picker insertion both reach the input without a blur dance.
-  const [draft, setDraft] = React.useState(() => formatDraft(value))
-  const [lastValue, setLastValue] = React.useState(value)
-  if (value !== lastValue) {
-    setLastValue(value)
-    setDraft(formatDraft(value))
-  }
+  const { draft, setDraft, formatDraft } = useNumberDraft(value, units)
 
   if (showSlider) {
     const minN = min as number
     const maxN = max as number
     // `value` arrives composed ("279deg", "50%", "0.5"). Strip the unit so
     // the slider and the type="number" input get a bare numeric.
-    const sliderShape = parseValueShape(value)
-    const numericStr = sliderShape.kind === "numeric" ? sliderShape.number : ""
+    const numericStr = numericPart(value)
     const numeric = Number(numericStr)
     const safe = Number.isFinite(numeric) ? numeric : minN
     const showUnitSelectSlider = units.length > 1
@@ -196,38 +159,17 @@ export function NumberInput({
   const shape = parseValueShape(draft)
 
   const commit = () => {
-    const next = parseValueShape(draft)
-    if (next.kind === "empty") {
+    const r = resolveNumberCommit(draft, units, currentUnit)
+    if (r.action === "clear") {
+      // Only fire when there was something to clear; always reset the input.
       if (value !== "") onCommit("")
       setDraft("")
       return
     }
-    // Fixed-values (var, calc, auto, …) pass through verbatim.
-    // PropertyNumber.validateInputValue matches against `fixedValues` and
-    // stores the matched portion with unit cleared.
-    if (next.kind === "fixed") {
-      onCommit(next.value)
-      return
-    }
-    // numeric with explicit unit — pass through. If the unit isn't in the
-    // configured `units` list, PropertyNumber will drop it; we still let it
-    // through so authors aren't blocked by a stale unit list.
-    if (next.unit) {
-      const composed = `${next.number}${next.unit}`
-      setDraft(formatDraft(composed))
-      onCommit(composed)
-      return
-    }
-    // numeric, no unit — compose with current/default. For line-height the
-    // default is "" (unitless) so we commit just the bare number.
-    if (units.length) {
-      const useUnit = currentUnit || units[0] || ""
-      const composed = useUnit ? `${next.number}${useUnit}` : next.number
-      setDraft(formatDraft(composed))
-      onCommit(composed)
-      return
-    }
-    onCommit(next.number)
+    // Re-display the composed value for numeric paths (a stale unit list still
+    // lets explicit units through — PropertyNumber drops invalid ones).
+    if (r.reformat) setDraft(formatDraft(r.value))
+    onCommit(r.value)
   }
 
   // Dropdown visible when the property advertises a unit list; disabled when
@@ -316,19 +258,6 @@ export function NumberInput({
       )}
     </InputGroup>
   )
-}
-
-// A property is "length-like" when it advertises a unit list. z-index /
-// flex-grow have no units and so don't get the variable picker.
-function varCategoriesFor(property: Property): TokenCategory[] | undefined {
-  const units = (property as PropertyNumber).getUnits?.() ?? []
-  if (!units.length) return undefined
-  const name = property.getName()
-  if (BORDER_RADIUS_RE.test(name)) return ["border-radius"]
-  if (name === "font-size") return ["font-size"]
-  if (name === "line-height") return ["font-lineheight"]
-  if (name === "letter-spacing") return ["font-letterspacing"]
-  return ["size"]
 }
 
 export default function NumberField({
