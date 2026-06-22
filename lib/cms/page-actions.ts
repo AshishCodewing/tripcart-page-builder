@@ -3,7 +3,6 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
 import { cacheTags } from "./cache-tags"
@@ -13,7 +12,12 @@ import {
   validateSlug,
   validateTopLevelSlug,
 } from "./path"
-import { parseProjectPayload, projectContainsTag } from "./project-payload"
+import { projectContainsTag } from "./project-payload"
+import {
+  buildDraftDataUpdate,
+  computePublishTimestamp,
+  parseOptionalProjectData,
+} from "./actions-shared"
 
 export async function createPage(form: FormData): Promise<void> {
   const slug = String(form.get("slug") ?? "").trim()
@@ -51,21 +55,17 @@ export async function savePage(id: string, form: FormData): Promise<void> {
 
   // The editor populates this on submit (see EditorShell). Optional here
   // because non-editor callers (e.g. metadata-only updates from the page
-  // index) will omit it — in which case we keep the previous value.
-  const dataField = form.get("data")
-  let data: object | undefined = undefined
-  if (typeof dataField === "string" && dataField.length) {
-    data = parseProjectPayload(dataField)
-    // The page route renders this content inside a <main> landmark, so the
-    // content itself must not contain a <main> (nested/duplicate <main> is
-    // invalid HTML). Belt-and-suspenders against an imported/pasted <main>.
-    if (projectContainsTag(data, "main")) {
+  // index) will omit it — in which case we keep the previous value. The page
+  // route renders content inside a <main> landmark, so guard against a
+  // nested/duplicate <main> (invalid HTML) from an imported/pasted tree.
+  const data = parseOptionalProjectData(form, (parsed) => {
+    if (projectContainsTag(parsed, "main")) {
       throw new Error(
         "Page content can't contain a <main> element — the page is already " +
           "rendered inside one. Use a <section> or <div> instead."
       )
     }
-  }
+  })
 
   validateSlug(newSlug)
 
@@ -100,11 +100,12 @@ export async function savePage(id: string, form: FormData): Promise<void> {
       path,
       title,
       status,
-      publishedAt:
-        willBePublished && !wasPublished ? new Date() : existing.publishedAt,
-      // Committing the editor state clears any pending autosave draft so
-      // the next load seeds from `data`. Metadata-only saves leave it.
-      ...(data !== undefined ? { data, draftData: Prisma.DbNull } : {}),
+      publishedAt: computePublishTimestamp(
+        wasPublished,
+        willBePublished,
+        existing.publishedAt
+      ),
+      ...buildDraftDataUpdate(data),
     },
   })
 
