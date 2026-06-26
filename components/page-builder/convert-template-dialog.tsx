@@ -8,6 +8,7 @@ import {
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
 import { registerTemplateBlock } from "@/lib/plugins/template-blocks"
+import { SKIP_SLOT_GUARD } from "./content-slot-delete-guard"
 import { getPageStyles } from "@/lib/plugins/tc-storage-adapter"
 import { extractStylesForSubtree } from "@/lib/cms/style-extract"
 import { createTemplateFromSelection } from "@/lib/cms/template-actions"
@@ -190,7 +191,9 @@ export function ConvertTemplateDialog({
           attributes: { [TEMPLATE_REF_SLUG_ATTR]: result.slug },
         })
         for (let i = selected.length - 1; i >= 1; i--) {
-          selected[i].remove()
+          // Intentional swap, not a destructive delete — skip the content-slot
+          // acknowledgement guard (replaceWith above doesn't fire remove:before).
+          selected[i].remove({ [SKIP_SLOT_GUARD]: true })
         }
       }
 

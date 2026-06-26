@@ -41,6 +41,7 @@ import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
+import { ContentSlotDeleteGuard } from "./content-slot-delete-guard"
 import { editorSaveStore } from "@/lib/page-builder/save-status-store"
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
 import { useToastManager } from "@/components/ui/toast"
@@ -457,6 +458,7 @@ function EditorShellInner({
                   <Canvas className="gjs-custom-editor-canvas grow" />
                   <FloatingToolbar />
                   <FloatingBadge />
+                  <ContentSlotDeleteGuard />
                 </SidebarInset>
               </SidebarProvider>
 
