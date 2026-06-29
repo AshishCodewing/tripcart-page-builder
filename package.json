@@ -21,7 +21,8 @@
     "ingest:grapesjs-symbols": "tsx scripts/ingest-grapesjs-symbols.ts",
     "ingest:wp-themes": "tsx scripts/ingest-wp-themes-docs.ts",
     "audit:chrome": "tsx scripts/audit-page-chrome.ts",
-    "mcp:rag": "tsx scripts/mcp-rag-server.ts"
+    "mcp:rag": "tsx scripts/mcp-rag-server.ts",
+    "smoke:ledger": "tsx scripts/smoke-ledger.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

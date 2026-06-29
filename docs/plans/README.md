@@ -23,6 +23,7 @@ your row when done.
 | 012 | Public render path — build (host-routed published pages) | P2 | L | 009 (design), 008 (shipped chrome) | DEFERRED (2026-06-16: scope is the page builder, not serving the live site. Plan stands ready to execute whenever public rendering is greenlit) |
 | 013 | User-authored single-post templates (content-slot + dynamic fields) | P2 | L | multi-header Pieces 1–2 (shipped) | NOT STARTED (2026-06-16: "Option C" design approved; reserved `single` LAYOUT slug + server-side post-field binding. Phased: data+binding+render → editor authoring → assignment/per-post) |
 | 014 | Chrome assignment UI (multi-header Piece 3) | P2 | M | Pieces 1–2 (shipped) | NOT STARTED (2026-06-16: per-segment header/footer Select panel over the shipped `ChromeAssignment` model; extend rename guard. No migration) |
+| 015 | Credit ledger foundation (generic double-entry core) | P2 | L | — (additive) | NOT STARTED (2026-06-26: generic ledger only — accounts/transactions/entries/balance projection + `LedgerService.postTransaction`. Composition over inheritance; `bigint` units; `FOR UPDATE` concurrency; idempotent replay. Business services out of scope. Design: docs/reference/ledger.md) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale).

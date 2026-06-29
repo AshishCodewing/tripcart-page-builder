@@ -82,7 +82,9 @@ export function TemplateCardActions({
           </DropdownMenuItem>
         )}
         {caps.duplicate === "default" && (
-          <DropdownMenuItem onClick={() => onDuplicateDefault(t.tenantId, t.slug)}>
+          <DropdownMenuItem
+            onClick={() => onDuplicateDefault(t.tenantId, t.slug)}
+          >
             <CopyIcon />
             Duplicate
           </DropdownMenuItem>
@@ -99,7 +101,10 @@ export function TemplateCardActions({
         {caps.destructive === "reset" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onReset(t.id)}>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onReset(t.id)}
+            >
               <RotateCcwIcon />
               Reset to default
             </DropdownMenuItem>

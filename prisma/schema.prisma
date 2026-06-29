@@ -33,6 +33,11 @@ enum TemplateKind {
   PART
 }
 
+enum LedgerAccountType {
+  SYSTEM // platform-owned, tenantId = null
+  TENANT // one TENANT_WALLET per tenant
+}
+
 model Tenant {
   id                String             @id @default(cuid())
   name              String
@@ -114,25 +119,25 @@ model Page {
 }
 
 model Post {
-  id          String        @id @default(cuid())
-  slug        String
-  tenantId    String
-  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title       String
-  excerpt     String?
+  id            String        @id @default(cuid())
+  slug          String
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title         String
+  excerpt       String?
   // URL of the post's featured image. Bound into a single-post LAYOUT's
   // `post-featured-image` field block at render (see lib/cms/post-template.ts);
   // null = the field is omitted from the rendered template.
   featuredImage String?
-  data        Json          @default("{}")
+  data          Json          @default("{}")
   // In-progress editor autosave (full ProjectDefinition). See Page.draftData.
-  draftData   Json?
-  status      ContentStatus @default(DRAFT)
-  publishedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  categories  Category[]    @relation("PostCategories")
-  tags        Tag[]         @relation("PostTags")
+  draftData     Json?
+  status        ContentStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  categories    Category[]    @relation("PostCategories")
+  tags          Tag[]         @relation("PostTags")
 
   // Slug uniqueness is scoped per tenant — two tenants can each own
   // `/blog/hello-world` independently.
@@ -248,4 +253,61 @@ model DocChunkUrl {
   @@unique([chunkHash, url])
   @@index([url])
   @@map("doc_chunk_urls")
+}
+
+model LedgerAccount {
+  id          String            @id @default(uuid())
+  tenantId    String? // null = system account
+  accountCode String
+  accountType LedgerAccountType
+  createdAt   DateTime          @default(now())
+
+  entries LedgerEntry[]
+  balance AccountBalance?
+
+  // Per-tenant uniqueness. Global (tenantId NULL) dedupe is a PARTIAL unique
+  // index added in the migration SQL — see below. Same trick as Template.
+  @@unique([tenantId, accountCode])
+  @@index([tenantId])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id              String   @id @default(uuid())
+  tenantId        String?
+  transactionType String
+  referenceType   String?
+  referenceId     String?
+  description     String?
+  idempotencyKey  String   @unique
+  createdAt       DateTime @default(now())
+
+  entries LedgerEntry[]
+
+  @@index([tenantId])
+  @@index([referenceType, referenceId])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id            String            @id @default(uuid())
+  transactionId String
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id])
+  accountId     String
+  account       LedgerAccount     @relation(fields: [accountId], references: [id])
+  amount        BigInt // signed units; + increease, - decreases
+  createdAt     DateTime          @default(now())
+
+  @@index([accountId])
+  @@index([transactionId])
+  @@map("ledger_entries")
+}
+
+model AccountBalance {
+  accountId String        @id
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+  balance   BigInt        @default(0)
+  updatedAt DateTime      @updatedAt
+
+  @@map("account_balances")
 }

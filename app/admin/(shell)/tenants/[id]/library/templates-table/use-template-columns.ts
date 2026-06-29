@@ -6,7 +6,7 @@ import { type ColumnDef } from "@tanstack/react-table"
 import type { TemplateRow } from "./types"
 
 // Single-string cell value against a set of selected options.
-const includesValue = <T,>(
+const includesValue = <T>(
   row: { getValue: (id: string) => unknown },
   id: string,
   filterValue: T[]
