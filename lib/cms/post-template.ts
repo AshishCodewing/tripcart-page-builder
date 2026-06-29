@@ -191,7 +191,10 @@ export async function resolveSinglePostRender(
     pages: [
       {
         ...layoutPage,
-        frames: [{ ...layoutFrame, component: bound }, ...layoutPage.frames!.slice(1)],
+        frames: [
+          { ...layoutFrame, component: bound },
+          ...layoutPage.frames!.slice(1),
+        ],
       },
       ...resolvedLayout.pages!.slice(1),
     ],

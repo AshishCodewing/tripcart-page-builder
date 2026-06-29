@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { POST_FIELD_TYPES, bindPostTemplate, formatPostDate } from "./post-template"
+import {
+  POST_FIELD_TYPES,
+  bindPostTemplate,
+  formatPostDate,
+} from "./post-template"
 import type { ComponentDefinition } from "@/lib/plugins/react-renderer/project/types"
 
 const POST = {
@@ -82,13 +86,12 @@ describe("bindPostTemplate", () => {
       tagName: "article",
       components: [image(), title(), slot()],
     }
-    const bound = bindPostTemplate(
-      root,
-      { ...POST, featuredImage: null },
-      BODY
-    )
+    const bound = bindPostTemplate(root, { ...POST, featuredImage: null }, BODY)
     const types = bound.components!.map((c) => c.type ?? c.tagName)
-    expect(types).toEqual([POST_FIELD_TYPES.title, POST_FIELD_TYPES.contentSlot])
+    expect(types).toEqual([
+      POST_FIELD_TYPES.title,
+      POST_FIELD_TYPES.contentSlot,
+    ])
   })
 
   it("binds the featured image src when present, preserving other attributes", () => {
