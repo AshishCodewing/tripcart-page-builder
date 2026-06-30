@@ -17,6 +17,19 @@ doc (the mental model) and a technical doc (a map into the code) for each:
 - [Preview & Publishing](./handbook/preview.md)
 - [RAG (Docs Search)](./handbook/rag.md)
 
+## Specs (PRDs / TDDs)
+
+Formal product- and technical-design specs in [`specs/`](./specs). These are the
+canonical "what to build" and "how to build it" for a feature, written as paired
+PRD + TDD with stable requirement IDs (`LR-*`, `FR-*`) for traceability.
+
+| Doc | What it covers |
+|---|---|
+| [Ledger Service — PRD](./specs/ledger-service-prd.md) | Product requirements for the generic double-entry credit ledger. |
+| [Ledger Service — TDD](./specs/ledger-service-tdd.md) | Technical design for the ledger core (services, factories, invariants). |
+| [AI Copilot — PRD](./specs/ai-copilot-prd.md) | Product requirements for the in-editor AI assistant. |
+| [AI Copilot — TDD](./specs/ai-copilot-tdd.md) | Technical design for the embeddable Copilot module. |
+
 ## Reference (working docs)
 
 Living design/status docs for in-flight work. These are cited by code comments and by
