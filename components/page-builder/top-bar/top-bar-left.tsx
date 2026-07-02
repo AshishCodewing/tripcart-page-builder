@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useEditor } from "@grapesjs/react"
-import { Layers, Plus, Redo, SquareDashed, Undo } from "lucide-react"
+import { Layers, Plus, Redo, SquareDashed, Undo, Sparkles } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ export default function TopBarLeft({ className }: Props) {
 
   const blocksActive = activeMode === "blocks"
   const layersActive = activeMode === "layers"
+  const assistantActive = activeMode === "assistant"
 
   // Tracks the GrapesJS core outline command (runs the dashed-border overlay
   // on every component). The `update` listener above already re-renders this
@@ -88,6 +89,62 @@ export default function TopBarLeft({ className }: Props) {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
+                aria-label="Layers"
+                aria-pressed={layersActive}
+                onClick={() => togglePanel("layers")}
+                className={cn(
+                  layersActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Layers />
+              </Button>
+            }
+          />
+          <TooltipContent>Layers</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Insert block"
+                aria-pressed={blocksActive}
+                onClick={() => togglePanel("assistant")}
+                className={cn(
+                  assistantActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Sparkles />
+              </Button>
+            }
+          />
+          <TooltipContent>AI Assistant</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Toggle
+                size="sm"
+                aria-label="Toggle outline"
+                pressed={outlineActive}
+                onPressedChange={toggleOutline}
+                className="size-8 p-0"
+              >
+                <SquareDashed className="size-4" />
+              </Toggle>
+            }
+          />
+          <TooltipContent>Toggle outline</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
                 aria-label="Undo"
                 disabled={!UndoManager.hasUndo()}
                 onClick={() => UndoManager.undo()}
@@ -115,44 +172,6 @@ export default function TopBarLeft({ className }: Props) {
             }
           />
           <TooltipContent>Redo</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Layers"
-                aria-pressed={layersActive}
-                onClick={() => togglePanel("layers")}
-                className={cn(
-                  layersActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Layers />
-              </Button>
-            }
-          />
-          <TooltipContent>Layers</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                size="sm"
-                aria-label="Toggle outline"
-                pressed={outlineActive}
-                onPressedChange={toggleOutline}
-                className="size-8 p-0"
-              >
-                <SquareDashed className="size-4" />
-              </Toggle>
-            }
-          />
-          <TooltipContent>Toggle outline</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>

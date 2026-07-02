@@ -51,7 +51,11 @@ export default function EditorError({
             Try again
           </Button>
         )}
-        <Button size="sm" render={<Link href="/admin/tenants" />}>
+        <Button
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/admin/tenants" />}
+        >
           <ArrowLeft className="size-4" />
           Back to dashboard
         </Button>
