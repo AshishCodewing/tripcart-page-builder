@@ -19,8 +19,16 @@ import {
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Message, MessageContent } from "@/components/ui/message"
 import type { MessagePart, UIMessage } from "@tanstack/ai-client"
+import type { RunFinishedEvent } from "@tanstack/ai/client"
 
 type ApprovalResponder = (response: { id: string; approved: boolean }) => void
+
+/**
+ * Token/cost usage for one assistant turn. Sourced from the terminal
+ * `RUN_FINISHED` event's `usage` field (OpenRouter reports token counts plus an
+ * authoritative per-request `cost` in USD via the adapter).
+ */
+export type MessageUsage = NonNullable<RunFinishedEvent["usage"]>
 
 function safeParse(value: string | undefined): unknown {
   if (!value) return undefined
@@ -171,13 +179,45 @@ function PartView({
   }
 }
 
+/** Format OpenRouter's USD cost, keeping precision for sub-cent amounts. */
+function formatCost(cost: number): string {
+  return cost.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  })
+}
+
+/** Compact per-turn token/cost readout shown under an assistant message. */
+function UsageLine({ usage }: { usage: MessageUsage }) {
+  const { promptTokens, completionTokens, totalTokens, cost } = usage
+  return (
+    <div className="flex items-center gap-1.5 pl-1 text-[11px] text-muted-foreground/70 tabular-nums">
+      <span
+        title={`${promptTokens.toLocaleString()} in · ${completionTokens.toLocaleString()} out`}
+      >
+        {totalTokens.toLocaleString()} tokens
+      </span>
+      {typeof cost === "number" ? (
+        <>
+          <span aria-hidden>·</span>
+          <span>{formatCost(cost)}</span>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 /** One chat turn rendered as a Message bubble with avatar. */
 export function MessageView({
   message,
   onApproval,
+  usage,
 }: {
   message: UIMessage
   onApproval: ApprovalResponder
+  usage?: MessageUsage
 }) {
   const isUser = message.role === "user"
   return (
@@ -191,6 +231,7 @@ export function MessageView({
             onApproval={onApproval}
           />
         ))}
+        {!isUser && usage ? <UsageLine usage={usage} /> : null}
       </MessageContent>
     </Message>
   )

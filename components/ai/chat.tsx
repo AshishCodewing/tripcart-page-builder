@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useChat } from "@tanstack/ai-react"
 import { fetchServerSentEvents } from "@tanstack/ai-client"
+import { EventType } from "@tanstack/ai/client"
 import {
   ArrowUpIcon,
   Loader2,
@@ -35,7 +36,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
-import { MessageView } from "./message-parts"
+import { MessageView, type MessageUsage } from "./message-parts"
 
 const SUGGESTIONS = [
   "Create a hero section with a headline and call-to-action",
@@ -45,6 +46,14 @@ const SUGGESTIONS = [
 ]
 export default function Chat() {
   const [input, setInput] = useState("")
+
+  // Per-message token/cost usage, keyed by message id. The client's UIMessage
+  // model doesn't carry usage, so we capture the terminal RUN_FINISHED event's
+  // `usage` (via onChunk) and commit it to the finished message (via onFinish).
+  const [usageByMessageId, setUsageByMessageId] = useState<
+    Record<string, MessageUsage>
+  >({})
+  const pendingUsageRef = useRef<MessageUsage | undefined>(undefined)
 
   const {
     messages,
@@ -56,7 +65,25 @@ export default function Chat() {
     addToolApprovalResponse,
   } = useChat({
     connection: fetchServerSentEvents("/api/chat"),
+    onChunk: (chunk) => {
+      if (chunk.type === EventType.RUN_FINISHED && chunk.usage) {
+        pendingUsageRef.current = chunk.usage
+      }
+    },
+    onFinish: (message) => {
+      const usage = pendingUsageRef.current
+      pendingUsageRef.current = undefined
+      if (usage) {
+        setUsageByMessageId((prev) => ({ ...prev, [message.id]: usage }))
+      }
+    },
   })
+
+  function handleClear() {
+    pendingUsageRef.current = undefined
+    setUsageByMessageId({})
+    clear()
+  }
 
   // The assistant is "thinking" between submit and its first token — i.e.
   // still loading while the newest turn is the user's. Once tokens arrive the
@@ -67,6 +94,7 @@ export default function Chat() {
     const trimmed = text.trim()
     if (!trimmed || isLoading) return
     setInput("")
+    pendingUsageRef.current = undefined
     void sendMessage(trimmed)
   }
 
@@ -83,7 +111,7 @@ export default function Chat() {
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => clear()}
+                  onClick={handleClear}
                 >
                   <Trash2 />
                 </Button>
@@ -132,6 +160,7 @@ export default function Chat() {
                       <MessageView
                         message={m}
                         onApproval={addToolApprovalResponse}
+                        usage={usageByMessageId[m.id]}
                       />
                     </MessageScrollerItem>
                   ))}

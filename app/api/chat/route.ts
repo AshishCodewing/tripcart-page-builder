@@ -1,4 +1,9 @@
-import { chat, toServerSentEventsResponse } from "@tanstack/ai"
+import {
+  chat,
+  chatParamsFromRequest,
+  maxIterations,
+  toServerSentEventsResponse,
+} from "@tanstack/ai"
 import { openRouterText } from "@tanstack/ai-openrouter"
 
 export async function POST(request: Request) {
@@ -16,12 +21,18 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json()
+  const params = await chatParamsFromRequest(request)
+  const abortController = new AbortController()
 
   try {
     const stream = chat({
       adapter: openRouterText("minimax/minimax-m3"),
-      messages: body.messages,
+      messages: params.messages,
+      threadId: params.threadId,
+      runId: params.runId,
+      parentRunId: params.parentRunId,
+      agentLoopStrategy: maxIterations(6),
+      abortController,
     })
     return toServerSentEventsResponse(stream)
   } catch (error) {
