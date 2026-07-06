@@ -4,11 +4,13 @@ import type { ComponentType } from "react"
 
 import BlockInserter from "./block-inserter"
 import LayersPanel from "./layers-panel"
+import AssistantPanel from "./assistant-panel"
 import { useLeftPanel, type LeftPanelMode } from "./left-panel-context"
 
 const PANELS: Record<LeftPanelMode, ComponentType> = {
   blocks: BlockInserter,
   layers: LayersPanel,
+  assistant: AssistantPanel,
 }
 
 export default function LeftPanel() {
