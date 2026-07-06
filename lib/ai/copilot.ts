@@ -8,6 +8,11 @@ import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
 export const COPILOT_PROMPT_NAME = "page-builder-copilot"
 export const COPILOT_PROMPT_LABEL = "production"
 
+// Used when the Langfuse prompt config carries no model override. Cheap chat
+// orchestrator (plan 017) — code generation runs on a stronger model behind
+// /api/generate (see lib/ai/codegen.ts).
+export const COPILOT_DEFAULT_MODEL = "openai/gpt-5-mini"
+
 // Minimal fallback, used only when Langfuse is unreachable or the prompt has not
 // been authored yet. A condensed version of the chat-first copilot persona that
 // lives in the Langfuse UI (name: page-builder-copilot, label: production).
@@ -27,6 +32,8 @@ export type CopilotPrompt = {
   name: string
   version: number
   isFallback: boolean
+  /** Model id from the prompt's Langfuse config, else the default. */
+  model: string
 }
 
 /**
@@ -44,11 +51,14 @@ export async function fetchCopilotPrompt(): Promise<CopilotPrompt> {
     cacheTtlSeconds: 300,
     fallback: COPILOT_FALLBACK_PROMPT,
   })
+  const configModel = (prompt.config as { model?: unknown } | null)?.model
   return {
     text: prompt.prompt,
     name: prompt.name,
     version: prompt.version,
     isFallback: prompt.isFallback,
+    model:
+      typeof configModel === "string" ? configModel : COPILOT_DEFAULT_MODEL,
   }
 }
 

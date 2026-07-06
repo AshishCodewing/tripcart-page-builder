@@ -18,11 +18,13 @@ export type ChatTraceContext = {
   promptName?: string
   /** Langfuse prompt version that produced this generation. */
   promptVersion?: number
+  /** Trace name shown in the Langfuse UI; defaults to the assistant chat. */
+  traceName?: string
 }
 
 // Stable, human-readable trace name so traces are findable/filterable in the
 // Langfuse UI (beats the middleware default of `chat <model>`).
-const TRACE_NAME = "page-builder-assistant"
+const DEFAULT_TRACE_NAME = "page-builder-assistant"
 
 /**
  * Builds the TanStack AI OpenTelemetry middleware wired for Langfuse.
@@ -47,7 +49,7 @@ export function langfuseChatMiddleware(ctx: ChatTraceContext = {}) {
       // Trace-level context lives on the root chat span.
       if (info.kind === "chat") {
         const attrs: Record<string, AttributeValue> = {
-          "langfuse.trace.name": TRACE_NAME,
+          "langfuse.trace.name": ctx.traceName ?? DEFAULT_TRACE_NAME,
         }
         if (ctx.sessionId) attrs["session.id"] = ctx.sessionId
         if (ctx.userId) attrs["user.id"] = ctx.userId

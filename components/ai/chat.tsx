@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { useChat } from "@tanstack/ai-react"
 import { fetchServerSentEvents } from "@tanstack/ai-client"
 import { EventType } from "@tanstack/ai/client"
@@ -38,6 +38,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import { createCopilotTools } from "./copilot-tools"
 import { MessageView, type MessageUsage } from "./message-parts"
 
 const SUGGESTIONS = [
@@ -108,6 +109,16 @@ export default function Chat() {
     [editor]
   )
 
+  // Client-executed copilot tools (plan 017): the orchestrator picks a tool,
+  // the handler runs here (code tools call /api/generate and apply the HTML
+  // to the canvas), and only a small result re-enters the loop. The session
+  // id groups this panel's code generations in Langfuse traces.
+  const [codegenSessionId] = useState(() => `copilot-${crypto.randomUUID()}`)
+  const tools = useMemo(
+    () => createCopilotTools(() => editor, codegenSessionId),
+    [editor, codegenSessionId]
+  )
+
   // Per-message token/cost usage, keyed by message id. The client's UIMessage
   // model doesn't carry usage, so we capture the terminal RUN_FINISHED event's
   // `usage` (via onChunk) and commit it to the finished message (via onFinish).
@@ -128,6 +139,7 @@ export default function Chat() {
     // Options resolver runs per request, so each message carries a fresh editor
     // snapshot. `body` is merged into the server's `forwardedProps`.
     connection: fetchServerSentEvents("/api/chat", getConnectionOptions),
+    tools,
     onChunk: (chunk) => {
       if (chunk.type === EventType.RUN_FINISHED && chunk.usage) {
         pendingUsageRef.current = chunk.usage

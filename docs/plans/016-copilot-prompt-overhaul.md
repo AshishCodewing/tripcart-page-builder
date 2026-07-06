@@ -205,6 +205,11 @@ message volume; revisit if turns get tool-call-heavy after Phase 4.
 
 ## Phase 4 — Tools / agentic loop (separately green-lightable)
 
+> **Green-lit 2026-07-06 — detailed design moved to plan 017
+> (`docs/plans/017-copilot-tools-codegen.md`).** The section below is the
+> original sketch; 017 supersedes it (models per Studio SDK example:
+> `openai/gpt-5-mini` orchestrator, `openai/gpt-5.1` code-gen).
+
 **Do not start without explicit go-ahead.** This is the real product value
 (the UI already renders tool-call markers and approval buttons, and
 `maxIterations(6)` + `addToolApprovalResponse` are already wired), but it is
