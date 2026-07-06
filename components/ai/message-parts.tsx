@@ -125,6 +125,11 @@ function ToolCallMarker({
   )
 }
 
+// minimax-m3 occasionally leaks its reasoning delimiter (an orphan
+// `</mm:think>` / `<mm:think>` tag) into the text stream even though the
+// reasoning itself arrives separately as a `thinking` part.
+const REASONING_TAG_ARTIFACT = /<\/?mm:think>/g
+
 function PartView({
   part,
   isUser,
@@ -137,12 +142,15 @@ function PartView({
   switch (part.type) {
     case "text":
       if (!part.content) return null
-      if (!isUser)
+      if (!isUser) {
+        const content = part.content.replace(REASONING_TAG_ARTIFACT, "")
+        if (!content.trim()) return null
         return (
           <Streamdown className="w-fit max-w-full leading-relaxed wrap-break-word">
-            {part.content}
+            {content}
           </Streamdown>
         )
+      }
       return (
         <Bubble variant="default">
           <BubbleContent>{part.content}</BubbleContent>

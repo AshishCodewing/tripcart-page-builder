@@ -1,9 +1,11 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useChat } from "@tanstack/ai-react"
 import { fetchServerSentEvents } from "@tanstack/ai-client"
 import { EventType } from "@tanstack/ai/client"
+import { useEditorMaybe } from "@grapesjs/react"
+import type { Editor } from "grapesjs"
 import {
   ArrowUpIcon,
   Loader2,
@@ -44,8 +46,67 @@ const SUGGESTIONS = [
   "Create a contact form",
   "Add testimonials section",
 ]
+
+// Snapshot the GrapesJS editor state to send alongside each message: the
+// page's exported HTML/CSS plus slim selection/device state — never project
+// JSON, which models reason over poorly and which bloats the prompt cache.
+// Kept resilient per-field so one failing accessor never drops the whole
+// context. The server splits this into cache-tiered systemPrompts (see
+// EditorContext in lib/ai/copilot.ts — keep the two shapes in sync).
+function gatherEditorContext(
+  editor: Editor | undefined
+): Record<string, unknown> {
+  if (!editor) return {}
+  const safe = <T,>(fn: () => T): T | undefined => {
+    try {
+      return fn()
+    } catch {
+      return undefined
+    }
+  }
+  const selected = safe(() => editor.getSelected())
+  const page = safe(() => editor.Pages.getSelected())
+  return {
+    pageHtml: safe(() => editor.getWrapper()?.toHTML()),
+    pageCss: safe(() => editor.getCss()),
+    selectedComponent: selected
+      ? (safe(() => ({
+          id: String(selected.getId()),
+          html: selected.toHTML(),
+        })) ?? null)
+      : null,
+    selectedIds:
+      safe(() => editor.getSelectedAll().map((c) => String(c.getId()))) ?? [],
+    currentPage: page
+      ? (safe(() => ({ id: String(page.getId()), name: page.getName() })) ??
+        null)
+      : null,
+    devices:
+      safe(() =>
+        editor.Devices.getDevices().map((d) => ({
+          name: d.getName(),
+          width: d.get("width"),
+          widthMedia: d.get("widthMedia"),
+        }))
+      ) ?? [],
+    isNewProject:
+      (safe(() => editor.getWrapper()?.components().length) ?? 0) === 0,
+  }
+}
+
 export default function Chat() {
   const [input, setInput] = useState("")
+
+  // Latest editor instance, read lazily when a request fires so the server
+  // always receives the current selection/project state.
+  // The GrapesJS editor instance is stable once ready and its internal state is
+  // read live at request time, so closing over it is enough (no latest-ref
+  // needed) and keeps this resolver referentially stable.
+  const editor = useEditorMaybe()
+  const getConnectionOptions = useCallback(
+    () => ({ body: { editorContext: gatherEditorContext(editor) } }),
+    [editor]
+  )
 
   // Per-message token/cost usage, keyed by message id. The client's UIMessage
   // model doesn't carry usage, so we capture the terminal RUN_FINISHED event's
@@ -64,7 +125,9 @@ export default function Chat() {
     error,
     addToolApprovalResponse,
   } = useChat({
-    connection: fetchServerSentEvents("/api/chat"),
+    // Options resolver runs per request, so each message carries a fresh editor
+    // snapshot. `body` is merged into the server's `forwardedProps`.
+    connection: fetchServerSentEvents("/api/chat", getConnectionOptions),
     onChunk: (chunk) => {
       if (chunk.type === EventType.RUN_FINISHED && chunk.usage) {
         pendingUsageRef.current = chunk.usage

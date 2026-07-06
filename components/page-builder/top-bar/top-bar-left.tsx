@@ -109,8 +109,8 @@ export default function TopBarLeft({ className }: Props) {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Insert block"
-                aria-pressed={blocksActive}
+                aria-label="AI Assistant"
+                aria-pressed={assistantActive}
                 onClick={() => togglePanel("assistant")}
                 className={cn(
                   assistantActive && "bg-accent text-accent-foreground"
