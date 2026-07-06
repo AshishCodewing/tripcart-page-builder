@@ -1,11 +1,11 @@
 # Plan 017: Copilot tools & code-gen orchestration (plan 016 Phase 4)
 
-> **Status: IMPLEMENTED & VERIFIED E2E (2026-07-06).** All five steps done;
-> two user-side items remain: paste `page-builder-codegen` v1 and
-> `page-builder-copilot` v3 into Langfuse (in-repo fallbacks are identical,
-> so the product runs correctly meanwhile — the v3 Tool-behavior section
-> matters: in testing, v2-without-it once wrote a page spec into chat instead
-> of calling generatePage until nudged). E2E results: add (testimonials,
+> **Status: DONE (2026-07-06).** All five steps done and both prompts live
+> in Langfuse (`page-builder-codegen` v1, `page-builder-copilot` v3, both
+> `production` with model configs) — trace-verified, including that v3's
+> Tool-behavior section fixes the failure where v2 wrote a page spec into
+> chat instead of calling generatePage. In-repo fallbacks mirror the live
+> prompts; keep them in sync. E2E results: add (testimonials,
 > pure design-system reuse, zero new CSS rules), approval-gated edit +
 > remove (deny leaves page untouched), generatePage on empty canvas (4
 > sections, theme fonts; second same-turn call correctly refused by the
