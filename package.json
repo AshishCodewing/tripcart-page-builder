@@ -25,12 +25,18 @@
     "smoke:ledger": "tsx scripts/smoke-ledger.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.7",
     "@base-ui/react": "^1.4.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react": "^0.27.19",
     "@grapesjs/react": "^2.0.0",
+    "@grapesjs/studio-sdk-plugins": "^1.0.38",
+    "@langfuse/client": "^5.9.1",
+    "@langfuse/otel": "^5.9.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@shadcn/react": "^0.1.0",
