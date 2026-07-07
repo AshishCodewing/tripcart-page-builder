@@ -17,6 +17,7 @@ import { DEFAULT_SINGLE_POST_SEED } from "@/lib/plugins/post-fields"
 import { useRouter } from "next/navigation"
 import { Component as ComponentIcon } from "lucide-react"
 import type { Template } from "@/generated/prisma/client"
+import { EditorTenantProvider } from "./editor-tenant-context"
 import { contentTenantId } from "./types"
 import { ConvertTemplateDialog } from "./convert-template-dialog"
 import {
@@ -139,9 +140,11 @@ export default function EditorShell(props: Props) {
   if (!useIsClient()) return null
 
   return (
-    <LeftPanelProvider>
-      <EditorShellInner {...props} />
-    </LeftPanelProvider>
+    <EditorTenantProvider tenantId={contentTenantId(props.content)}>
+      <LeftPanelProvider>
+        <EditorShellInner {...props} />
+      </LeftPanelProvider>
+    </EditorTenantProvider>
   )
 }
 

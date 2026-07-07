@@ -239,7 +239,7 @@ export function MessageView({
             onApproval={onApproval}
           />
         ))}
-        {!isUser && usage ? <UsageLine usage={usage} /> : null}
+        {/*{!isUser && usage ? <UsageLine usage={usage} /> : null}*/}
       </MessageContent>
     </Message>
   )

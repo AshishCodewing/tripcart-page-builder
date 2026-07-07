@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { seedTenantCredits } from "@/lib/billing/seed"
 import { prisma } from "@/lib/prisma"
 import { themeSchema } from "@/lib/theme/schema.zod"
 import type { Theme } from "@/lib/theme/schema"
@@ -29,7 +30,14 @@ export async function createTenant(form: FormData): Promise<void> {
       throw new Error(`A tenant with domain "${domain}" already exists.`)
   }
 
-  await prisma.tenant.create({ data: { name, slug, domain } })
+  const tenant = await prisma.tenant.create({ data: { name, slug, domain } })
+
+  // Best-effort: the billing gate re-seeds a missing wallet on first use.
+  try {
+    await seedTenantCredits(tenant.id)
+  } catch (e) {
+    console.error(`failed to seed credits for tenant ${tenant.id}:`, e)
+  }
 
   updateTag(cacheTags.tenants)
   redirect("/admin/tenants")

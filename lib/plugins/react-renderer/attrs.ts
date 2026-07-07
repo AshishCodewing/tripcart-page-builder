@@ -206,18 +206,19 @@ export const attrsToReactProps = (
       out[ATTR_CASE_MAP[key]] = value
       continue
     }
+    // aria-* must be tested on the ORIGINAL key (kebabToCamel collapses the
+    // hyphen) and BEFORE the SVG branch: React requires hyphenated aria-*
+    // props on SVG and HTML alike — `ariaHidden` triggers a warning.
+    if (key.startsWith("aria-")) {
+      out[key] = value
+      continue
+    }
     const camel = kebabToCamel(key)
     if (isSvgContext || SVG_PROPS.has(camel) || camel.startsWith("svg")) {
       out[camel] = value
       continue
     }
-    // aria-* must be tested on the ORIGINAL key: kebabToCamel("aria-label")
-    // collapses the hyphen to "ariaLabel", so a `camel.startsWith("aria-")`
-    // check could never fire. React accepts kebab aria-* props verbatim, so
-    // pass them through unchanged. (data-* is already handled above.)
-    if (key.startsWith("aria-")) {
-      out[key] = value
-    } else if (!STANDARD_REACT_PROPS.has(camel) && !camel.startsWith("on")) {
+    if (!STANDARD_REACT_PROPS.has(camel) && !camel.startsWith("on")) {
       // Unknown attribute: leave the original (likely kebab) key so it lands
       // on the DOM verbatim instead of becoming an unknown camelCase prop.
       out[key] = value

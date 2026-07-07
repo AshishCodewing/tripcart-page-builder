@@ -117,6 +117,8 @@ export type CodegenRequest = {
   devices?: Array<{ name?: string; width?: string; widthMedia?: string }>
   /** Chat thread id, reused as the Langfuse session id. */
   threadId?: string
+  /** Tenant whose wallet the generation is billed to; absent = unmetered. */
+  tenantId?: string
 }
 
 const EPHEMERAL: OpenRouterSystemPromptMetadata = {
