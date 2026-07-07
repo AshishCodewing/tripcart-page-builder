@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useChat } from "@tanstack/ai-react"
 import { fetchServerSentEvents } from "@tanstack/ai-client"
 import { EventType } from "@tanstack/ai/client"
@@ -29,6 +29,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import { useEditorTenantId } from "@/components/page-builder/editor-tenant-context"
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -37,6 +38,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
+import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { createCopilotTools } from "./copilot-tools"
 import { MessageView, type MessageUsage } from "./message-parts"
@@ -95,6 +97,21 @@ function gatherEditorContext(
   }
 }
 
+/** Wallet balance for the header readout; null = unavailable (no wallet yet,
+ * request failed). Cosmetic — errors never disturb the chat. */
+async function fetchCredits(tenantId: string): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `/api/credits?tenantId=${encodeURIComponent(tenantId)}`
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as { credits?: number | null }
+    return typeof data.credits === "number" ? data.credits : null
+  } catch {
+    return null
+  }
+}
+
 export default function Chat() {
   const [input, setInput] = useState("")
 
@@ -104,9 +121,12 @@ export default function Chat() {
   // read live at request time, so closing over it is enough (no latest-ref
   // needed) and keeps this resolver referentially stable.
   const editor = useEditorMaybe()
+  // Billed tenant (null = unmetered, e.g. global templates); forwarded with
+  // every chat request and codegen call so the server can meter usage.
+  const tenantId = useEditorTenantId()
   const getConnectionOptions = useCallback(
-    () => ({ body: { editorContext: gatherEditorContext(editor) } }),
-    [editor]
+    () => ({ body: { editorContext: gatherEditorContext(editor), tenantId } }),
+    [editor, tenantId]
   )
 
   // Client-executed copilot tools (plan 017): the orchestrator picks a tool,
@@ -115,9 +135,20 @@ export default function Chat() {
   // id groups this panel's code generations in Langfuse traces.
   const [codegenSessionId] = useState(() => `copilot-${crypto.randomUUID()}`)
   const tools = useMemo(
-    () => createCopilotTools(() => editor, codegenSessionId),
-    [editor, codegenSessionId]
+    () => createCopilotTools(() => editor, codegenSessionId, tenantId),
+    [editor, codegenSessionId, tenantId]
   )
+
+  // Remaining AI credits for the header readout. Charges post server-side as
+  // each run's stream closes, so refetching when a turn finishes (or errors,
+  // e.g. the 402 gate) keeps the number honest without polling.
+  const [credits, setCredits] = useState<number | null>(null)
+  const refreshCredits = useCallback(() => {
+    if (!tenantId) return
+    void fetchCredits(tenantId).then((value) => {
+      if (value !== null) setCredits(value)
+    })
+  }, [tenantId])
 
   // Per-message token/cost usage, keyed by message id. The client's UIMessage
   // model doesn't carry usage, so we capture the terminal RUN_FINISHED event's
@@ -151,8 +182,20 @@ export default function Chat() {
       if (usage) {
         setUsageByMessageId((prev) => ({ ...prev, [message.id]: usage }))
       }
+      refreshCredits()
     },
   })
+
+  useEffect(() => {
+    if (!tenantId) return
+    let cancelled = false
+    void fetchCredits(tenantId).then((value) => {
+      if (!cancelled && value !== null) setCredits(value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, error])
 
   function handleClear() {
     pendingUsageRef.current = undefined
@@ -179,6 +222,27 @@ export default function Chat() {
         <header className="flex items-center justify-between gap-2 border-b px-2 py-2">
           <Sparkles className="size-4" />
           <div className="flex-1 text-xs">AI Assistant</div>
+          {credits !== null ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span
+                    className={cn(
+                      "text-xs tabular-nums",
+                      credits <= 0
+                        ? "font-medium text-destructive"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {credits.toLocaleString()}
+                  </span>
+                }
+              />
+              <TooltipContent>
+                {credits.toLocaleString()} AI credits remaining
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           <Tooltip>
             <TooltipTrigger
               render={
@@ -246,7 +310,11 @@ export default function Chat() {
                   ) : null}
                   {error ? (
                     <div className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                      {error.message}
+                      {/* The SSE adapter throws before the JSON body is
+                          readable, so a 402 is only identifiable by status. */}
+                      {error.message.includes("status: 402")
+                        ? "You're out of AI credits. Contact your administrator to top up your workspace."
+                        : error.message}
                     </div>
                   ) : null}
                 </MessageScrollerContent>

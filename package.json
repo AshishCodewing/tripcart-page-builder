@@ -22,7 +22,8 @@
     "ingest:wp-themes": "tsx scripts/ingest-wp-themes-docs.ts",
     "audit:chrome": "tsx scripts/audit-page-chrome.ts",
     "mcp:rag": "tsx scripts/mcp-rag-server.ts",
-    "smoke:ledger": "tsx scripts/smoke-ledger.ts"
+    "smoke:ledger": "tsx scripts/smoke-ledger.ts",
+    "seed:credits": "tsx scripts/backfill-credit-seed.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.7",

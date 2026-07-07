@@ -8,6 +8,11 @@ import {
 import { openRouterText } from "@tanstack/ai-openrouter"
 import { after } from "next/server"
 import { langfuseSpanProcessor } from "@/instrumentation.node"
+import { hasCredits, INSUFFICIENT_CREDITS } from "@/lib/billing/gate"
+import {
+  createBillingMiddleware,
+  settledWithTimeout,
+} from "@/lib/billing/usage-middleware"
 import {
   buildCopilotSystemPrompts,
   fetchCopilotPrompt,
@@ -48,6 +53,24 @@ export async function POST(request: Request) {
   const editorContext = (params.forwardedProps?.editorContext ??
     {}) as EditorContext
 
+  // Which tenant to bill. null (e.g. global template editing) means the run
+  // is unmetered. TODO(auth): client-supplied — replace with server-side
+  // tenant resolution once the routes have a session.
+  const forwardedTenantId = params.forwardedProps?.tenantId
+  const tenantId =
+    typeof forwardedTenantId === "string" && forwardedTenantId.length > 0
+      ? forwardedTenantId
+      : null
+
+  if (tenantId && !(await hasCredits(tenantId))) {
+    return new Response(JSON.stringify(INSUFFICIENT_CREDITS), {
+      status: 402,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const billing = createBillingMiddleware({ tenantId, source: "copilot" })
+
   try {
     // Static system prompt from Langfuse (cached + fallback); split with the
     // dynamic editor state into cache-tiered systemPrompts.
@@ -72,6 +95,7 @@ export async function POST(request: Request) {
       parentRunId: params.parentRunId,
       agentLoopStrategy: maxIterations(6),
       middleware: [
+        billing.middleware,
         langfuseChatMiddleware({
           sessionId: params.threadId,
           tags: ["page-builder"],
@@ -83,8 +107,10 @@ export async function POST(request: Request) {
     })
 
     // Serverless functions can freeze the moment the response is returned, so
-    // flush buffered spans once the streamed response has fully drained.
+    // let the billing charge settle (bounded) and flush buffered spans once
+    // the streamed response has fully drained.
     after(async () => {
+      await settledWithTimeout(billing.settled)
       await langfuseSpanProcessor.forceFlush()
     })
 

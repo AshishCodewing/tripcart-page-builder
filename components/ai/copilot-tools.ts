@@ -65,8 +65,12 @@ function componentLabel(editor: Editor, id: string): string {
  */
 export function createCopilotTools(
   getEditor: () => Editor | undefined,
-  sessionId: string
+  sessionId: string,
+  tenantId: string | null
 ) {
+  // Billed tenant, spread into every /api/generate body (undefined = unmetered).
+  const billing = { tenantId: tenantId ?? undefined }
+
   const run = async (
     fn: (editor: Editor) => Promise<ToolResult> | ToolResult
   ): Promise<ToolResult> => {
@@ -91,6 +95,7 @@ export function createCopilotTools(
         targetIds: [args.componentId],
         position: args.position as CodegenPosition,
         threadId: sessionId,
+        ...billing,
         ...editorSnapshot(editor),
       })
       const result = applyGenerated(editor, {
@@ -120,6 +125,7 @@ export function createCopilotTools(
         plan: args.plan,
         targetIds: ids,
         threadId: sessionId,
+        ...billing,
         ...editorSnapshot(editor),
       })
       const result = applyGenerated(editor, { action: "edit", html })
@@ -140,6 +146,7 @@ export function createCopilotTools(
         action: "create",
         plan: args.plan,
         threadId: sessionId,
+        ...billing,
         ...editorSnapshot(editor),
       })
       const result = applyGenerated(editor, { action: "create", html })

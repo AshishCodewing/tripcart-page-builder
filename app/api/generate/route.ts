@@ -3,6 +3,11 @@ import { openRouterText } from "@tanstack/ai-openrouter"
 import { after } from "next/server"
 import { z } from "zod"
 import { langfuseSpanProcessor } from "@/instrumentation.node"
+import { hasCredits, INSUFFICIENT_CREDITS } from "@/lib/billing/gate"
+import {
+  createBillingMiddleware,
+  settledWithTimeout,
+} from "@/lib/billing/usage-middleware"
 import {
   buildCodegenMessages,
   buildCodegenSystemPrompts,
@@ -39,6 +44,10 @@ const bodySchema = z.object({
     .max(10)
     .optional(),
   threadId: z.string().max(200).optional(),
+  // Which tenant to bill; absent for unmetered contexts (global templates).
+  // TODO(auth): client-supplied — replace with server-side tenant resolution
+  // once the routes have a session.
+  tenantId: z.string().max(200).optional(),
 })
 
 // The adapter types model ids as a literal union; the id here comes from the
@@ -46,8 +55,8 @@ const bodySchema = z.object({
 // itself accepts any valid model string.
 type OpenRouterModelId = Parameters<typeof openRouterText>[0]
 
-function jsonError(status: number, error: string) {
-  return new Response(JSON.stringify({ error }), {
+function jsonError(status: number, error: string, code?: string) {
+  return new Response(JSON.stringify(code ? { error, code } : { error }), {
     status,
     headers: { "Content-Type": "application/json" },
   })
@@ -64,13 +73,24 @@ export async function POST(request: Request) {
   }
   const req: CodegenRequest = parsed.data
 
+  const tenantId = parsed.data.tenantId ?? null
+  if (tenantId && !(await hasCredits(tenantId))) {
+    return jsonError(402, INSUFFICIENT_CREDITS.error, INSUFFICIENT_CREDITS.code)
+  }
+
+  // One middleware (= one charge) per real model call: the corrective retry
+  // below is a second full generation and must be billed separately.
+  const settledCharges: Array<Promise<void>> = []
+
   try {
     const prompt = await fetchCodegenPrompt()
     const systemPrompts = buildCodegenSystemPrompts(prompt.text, req)
     const messages = buildCodegenMessages(req)
 
-    const generate = (retryMessages: typeof messages) =>
-      streamToText(
+    const generate = (retryMessages: typeof messages) => {
+      const billing = createBillingMiddleware({ tenantId, source: "codegen" })
+      settledCharges.push(billing.settled)
+      return streamToText(
         chat({
           adapter: openRouterText(prompt.model as OpenRouterModelId),
           messages: retryMessages,
@@ -79,6 +99,7 @@ export async function POST(request: Request) {
           // prefix stays cache-warm across a session's generations.
           modelOptions: { sessionId: req.threadId },
           middleware: [
+            billing.middleware,
             langfuseChatMiddleware({
               sessionId: req.threadId,
               tags: ["page-builder", "codegen"],
@@ -89,6 +110,7 @@ export async function POST(request: Request) {
           ],
         })
       )
+    }
 
     let raw = await generate(messages)
     let html = parseGeneratedCode(raw)
@@ -107,6 +129,7 @@ export async function POST(request: Request) {
     }
 
     after(async () => {
+      await settledWithTimeout(Promise.all(settledCharges))
       await langfuseSpanProcessor.forceFlush()
     })
 
