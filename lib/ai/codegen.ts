@@ -51,6 +51,7 @@ the page.
 ## Output contract
 - Add a human-readable 'data-gjs-name' attribute to every new element; make it semantic and role-based (e.g. <ul data-gjs-name="Menu Card">). Repeated structures may share the same name.
 - Wrap ALL text content in an element (p, span, h1-h6, a, li, ...) — never leave bare text as the only child of a structural element.
+- <textarea> must be completely EMPTY — no text or elements between its tags. Use the placeholder attribute for hint text. Likewise for <select>, mark the default choice with the selected attribute on an <option>, never with text outside <option> tags.
 - Do not include <script> elements.
 - NEVER include comments, backticks, markdown or explanations.
 - Wrap the entire output inside a single <${GENERATED_CODE_TAG}> tag and output NOTHING outside it.`

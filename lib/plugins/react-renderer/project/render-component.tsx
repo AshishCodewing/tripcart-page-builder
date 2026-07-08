@@ -4,6 +4,7 @@
 
 import { createElement, type ElementType } from "react"
 import { attrsToReactProps } from "../attrs"
+import { booleanAttrPresent, selectDefaultValue } from "../form-controls"
 import { getComponentId } from "./util"
 import type { RenderComponentProps } from "./types"
 
@@ -58,9 +59,56 @@ export const RenderComponent = (props: RenderComponentProps) => {
     : [content]
 
   const merged = [...childNodes, children]
-  const finalProps = {
+  const finalProps: Record<string, unknown> = {
     ...reactProps,
     ...(nodeId ? { id: nodeId } : {}),
+  }
+
+  // React treats raw form controls as (un)controlled inputs (children on
+  // <textarea> throw, `selected` on <option> warns), while GrapesJS stores
+  // the parsed-HTML shape — translate to defaultValue (see ../form-controls).
+  if (!isReactCmp) {
+    const tag = component.tagName.toLowerCase()
+    if (tag === "textarea") {
+      const text =
+        childCmps
+          .filter((c) => c.type === "textnode")
+          .map((c) => c.content)
+          .join("") || content
+      return createElement(Tag, {
+        ...finalProps,
+        key,
+        defaultValue: text || undefined,
+      })
+    }
+    if (tag === "option") delete finalProps.selected
+    if (tag === "input" && "checked" in finalProps) {
+      finalProps.defaultChecked = booleanAttrPresent(finalProps.checked)
+      delete finalProps.checked
+    }
+    if (
+      tag === "select" &&
+      !("value" in finalProps) &&
+      !("defaultValue" in finalProps)
+    ) {
+      const defaultValue = selectDefaultValue(
+        childCmps
+          .filter((c) => c.tagName.toLowerCase() === "option")
+          .map((c) => ({
+            selected: booleanAttrPresent(c.attributes.selected),
+            value:
+              typeof c.attributes.value === "string"
+                ? c.attributes.value
+                : undefined,
+            text: c.components
+              .filter((t) => t.type === "textnode")
+              .map((t) => t.content)
+              .join(""),
+          })),
+        booleanAttrPresent(finalProps.multiple)
+      )
+      if (defaultValue !== undefined) finalProps.defaultValue = defaultValue
+    }
   }
 
   // React-component path uses the JSX runtime so children are passed via
