@@ -170,6 +170,133 @@ describe("RenderProject — void + escaping", () => {
     expect(html).not.toContain("ignored")
   })
 
+  it("folds textarea child textnodes into defaultValue instead of children", () => {
+    // React throws on <textarea> children; GrapesJS serializes the content
+    // as child textnodes (e.g. from LLM-generated <textarea>text</textarea>).
+    const html = render({
+      projectData: {
+        pages: [
+          {
+            id: "home",
+            frames: [
+              {
+                component: {
+                  type: "wrapper",
+                  components: [
+                    {
+                      tagName: "textarea",
+                      attributes: { placeholder: "Your message" },
+                      components: [
+                        { type: "textnode", content: "Saved draft" },
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+    expect(html).toContain("<textarea")
+    expect(html).toContain('placeholder="Your message"')
+    expect(html).toContain(">Saved draft</textarea>")
+  })
+
+  it("renders an empty textarea without a defaultValue", () => {
+    const html = render({
+      projectData: {
+        pages: [
+          {
+            id: "home",
+            frames: [
+              {
+                component: {
+                  type: "wrapper",
+                  components: [{ tagName: "textarea", components: [] }],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+    expect(html).toContain("<textarea")
+    expect(html).toContain("></textarea>")
+  })
+
+  it("moves `selected` on an <option> to defaultValue on the <select>", () => {
+    // React forbids `selected` on <option>; it must become the select's
+    // defaultValue (see ../form-controls).
+    const option = (value: string, text: string, selected?: boolean) => ({
+      tagName: "option",
+      attributes: { value, ...(selected ? { selected: true } : {}) },
+      components: [{ type: "textnode", content: text }],
+    })
+    const html = render({
+      projectData: {
+        pages: [
+          {
+            id: "home",
+            frames: [
+              {
+                component: {
+                  type: "wrapper",
+                  components: [
+                    {
+                      tagName: "select",
+                      components: [
+                        option("a", "One"),
+                        option("b", "Two", true),
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+    expect(html).toContain("<select")
+    // React re-emits `selected` on the option matching defaultValue — and
+    // only on that one.
+    expect(html).toMatch(/<option[^>]*selected[^>]*>Two<\/option>/)
+    expect(html).not.toMatch(/<option[^>]*selected[^>]*>One<\/option>/)
+  })
+
+  it("converts `checked` on an <input> to defaultChecked", () => {
+    // React warns on `checked` without onChange; initial state must be
+    // defaultChecked (see ../form-controls).
+    const checkbox = (attrs: Record<string, unknown>) => ({
+      tagName: "input",
+      attributes: { type: "checkbox", ...attrs },
+      void: true,
+    })
+    const html = render({
+      projectData: {
+        pages: [
+          {
+            id: "home",
+            frames: [
+              {
+                component: {
+                  type: "wrapper",
+                  components: [
+                    checkbox({ name: "on", checked: true }),
+                    checkbox({ name: "off" }),
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+    expect(html).toMatch(/<input[^>]*name="on"[^>]*checked/)
+    expect(html).not.toMatch(/<input[^>]*name="off"[^>]*checked/)
+  })
+
   it("escapes stored HTML in textnode content (not interpreted as markup)", () => {
     const html = render({
       projectData: {

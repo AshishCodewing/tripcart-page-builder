@@ -10,6 +10,7 @@ import { createElement, useEffect, useState, type ReactNode } from "react"
 import type { Component, ComponentView, Editor } from "grapesjs"
 import { attrsToReactProps } from "./attrs"
 import { bindComponentToElement } from "./bind"
+import { booleanAttrPresent, selectDefaultValue } from "./form-controls"
 import { mergeRenderChildren, resolveComponentTag } from "./render-helpers"
 import type {
   CustomRendererPropsWithConfig,
@@ -166,6 +167,62 @@ export function RenderCanvasComponent(
   // function-as-ref because it can't tell intentional callback refs apart
   // from accidental ones.
   /* eslint-disable react-hooks/refs */
+
+  // React treats raw form controls as (un)controlled inputs (children on
+  // <textarea> throw, `selected` on <option> warns), while GrapesJS stores
+  // the parsed-HTML shape — translate to defaultValue (see ./form-controls).
+  const rawTag = typeof Tag === "string" ? Tag.toLowerCase() : ""
+  if (rawTag === "textarea") {
+    const text =
+      childCmps
+        .map((c: Component) =>
+          c.isInstanceOf("textnode")
+            ? String((c as { content?: unknown }).content ?? "")
+            : ""
+        )
+        .join("") || (typeof content === "string" ? content : "")
+    return createElement(Tag, {
+      ...reactProps,
+      ref: connectDom,
+      key: reactKey,
+      defaultValue: text || undefined,
+    })
+  }
+  if (rawTag === "option") delete reactProps.selected
+  if (rawTag === "input" && "checked" in reactProps) {
+    reactProps.defaultChecked = booleanAttrPresent(reactProps.checked)
+    delete reactProps.checked
+  }
+  if (
+    rawTag === "select" &&
+    !("value" in reactProps) &&
+    !("defaultValue" in reactProps)
+  ) {
+    const defaultValue = selectDefaultValue(
+      childCmps
+        .filter(
+          (c: Component) => (c.tagName || "").toLowerCase() === "option"
+        )
+        .map((c: Component) => {
+          const attrs = c.getAttributes() as Record<string, unknown>
+          return {
+            selected: booleanAttrPresent(attrs.selected),
+            value: typeof attrs.value === "string" ? attrs.value : undefined,
+            text: c
+              .components()
+              .map((t: Component) =>
+                t.isInstanceOf("textnode")
+                  ? String((t as { content?: unknown }).content ?? "")
+                  : ""
+              )
+              .join(""),
+          }
+        }),
+      booleanAttrPresent(reactProps.multiple)
+    )
+    if (defaultValue !== undefined) reactProps.defaultValue = defaultValue
+  }
+
   return createElement(
     Tag,
     { ...reactProps, ref: connectDom, key: reactKey },
