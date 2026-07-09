@@ -21,6 +21,7 @@
 // callers own those (see PagePreview).
 
 import { createElement, type ElementType, type ReactNode } from "react"
+import { cssContentKey } from "./css-helpers"
 import { ProjectEditor } from "./parser"
 import { RenderComponent } from "./render-component"
 import type { ProjectDefinition, RenderCommonProps } from "./types"
@@ -57,9 +58,20 @@ export function RenderProjectFragment({
   const root = editor.Pages.getAll()[0]?.frames[0]?.component
   if (!root) return emptyFallback
 
+  // Hoistable <style> (React 19): `href` + `precedence` make React lift the
+  // tag into <head> (valid HTML instead of a body <style>) and dedupe it by
+  // href. The href is a hash of the CSS itself — React never re-renders a
+  // hoisted style's content for a known href, so the key must rotate with the
+  // content. `precedence` ranks all fragment CSS after the tenant theme link
+  // (precedence "default", discovered first in the preview root layout), so
+  // page rules win the cascade deterministically rather than by body source
+  // order. Text children of <style> render raw in React 19 (pinned in
+  // render.test.ts), so no dangerouslySetInnerHTML is needed.
   const css =
     pageCss.length > 0 ? (
-      <style dangerouslySetInnerHTML={{ __html: pageCss }} />
+      <style href={`tc-${cssContentKey(pageCss)}`} precedence="tc-page">
+        {pageCss}
+      </style>
     ) : null
 
   const children = root.components.map((child, i) => (
