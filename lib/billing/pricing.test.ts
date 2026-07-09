@@ -98,6 +98,43 @@ describe("usageToUnits", () => {
     }
   })
 
+  it("prefers provider-reported cost over the table", () => {
+    const { units, microUsdCost, pricedFrom } = usageToUnits({
+      model: "openai/gpt-5-mini",
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      reportedMicroUsd: 143n,
+    })
+    expect(pricedFrom).toBe("reported")
+    expect(microUsdCost).toBe(143n)
+    expect(units).toBe((143n * MARKUP_NUM + MARKUP_DEN - 1n) / MARKUP_DEN)
+  })
+
+  it("prices unknown models from reported cost without DEFAULT_RATE", () => {
+    const { units, unknownModel, pricedFrom } = usageToUnits({
+      model: "some/unlisted-model-with-cost",
+      inputTokens: 100,
+      outputTokens: 100,
+      reportedMicroUsd: 50n,
+    })
+    expect(unknownModel).toBe(true)
+    expect(pricedFrom).toBe("reported")
+    expect(units).toBe((50n * MARKUP_NUM + MARKUP_DEN - 1n) / MARKUP_DEN)
+  })
+
+  it("falls back to the table when reported cost is zero or absent", () => {
+    const base = {
+      model: "openai/gpt-5-mini",
+      inputTokens: 1000,
+      outputTokens: 0,
+    }
+    const viaTable = usageToUnits(base)
+    expect(viaTable.pricedFrom).toBe("table")
+    const zeroReported = usageToUnits({ ...base, reportedMicroUsd: 0n })
+    expect(zeroReported.pricedFrom).toBe("table")
+    expect(zeroReported.units).toBe(viaTable.units)
+  })
+
   it("clamps negative/fractional token counts instead of throwing", () => {
     const { units } = usageToUnits({
       model: "openai/gpt-5-mini",

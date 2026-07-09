@@ -107,10 +107,12 @@ export async function POST(request: Request) {
     })
 
     // Serverless functions can freeze the moment the response is returned, so
-    // let the billing charge settle (bounded) and flush buffered spans once
-    // the streamed response has fully drained.
+    // settle the billing charge (bounded) and flush buffered spans once the
+    // streamed response has fully drained. flush() also covers runs that
+    // pause for client-side tools — the engine fires no terminal hook for
+    // those, so without it the pausing leg's usage would go unbilled.
     after(async () => {
-      await settledWithTimeout(billing.settled)
+      await settledWithTimeout(billing.flush())
       await langfuseSpanProcessor.forceFlush()
     })
 
