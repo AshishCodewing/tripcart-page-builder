@@ -6,7 +6,9 @@ import { redirect } from "next/navigation"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 
+import { buildDraftDataUpdate } from "./actions-shared"
 import { cacheTags } from "./cache-tags"
+import { compileCssArtifact } from "./css-artifacts"
 import { titleToSlug, validateSlug } from "./path"
 import {
   assertReservedSlug,
@@ -65,11 +67,9 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       area,
       synced,
       // Committing the editor state clears any pending autosave draft so
-      // the next load seeds from `data`. Metadata-only saves (no `data`
-      // field) leave the draft untouched.
-      ...(body !== undefined
-        ? { data: body as object, draftData: Prisma.DbNull }
-        : {}),
+      // the next load seeds from `data`, and bakes the CSS artifact.
+      // Metadata-only saves (no `data` field) leave all of it untouched.
+      ...buildDraftDataUpdate(body as object | undefined),
     },
   })
 
@@ -212,6 +212,7 @@ export async function customizeDefaultPart(
   const siteName = tenant?.name ?? ""
   const project =
     slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
+  const body = slimTemplateProject(project) as object
 
   const created = await prisma.template.create({
     data: {
@@ -221,7 +222,8 @@ export async function customizeDefaultPart(
       kind: "PART",
       area: slug,
       synced: true,
-      data: slimTemplateProject(project) as object,
+      data: body,
+      ...compileCssArtifact(body),
     },
     select: { id: true },
   })
@@ -294,6 +296,7 @@ export async function duplicateDefaultPart(
   const siteName = tenant?.name ?? ""
   const project =
     slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
+  const body = slimTemplateProject(project) as object
 
   const newSlug = await dedupeSlug(tenantId, `${slug}-copy`)
 
@@ -305,7 +308,8 @@ export async function duplicateDefaultPart(
       kind: "PART",
       area: slug,
       synced: true,
-      data: slimTemplateProject(project) as object,
+      data: body,
+      ...compileCssArtifact(body),
     },
   })
 
@@ -381,6 +385,7 @@ export async function createTemplateFromSelection(
       area: kind === "PART" ? area : null,
       synced,
       data: body as object,
+      ...compileCssArtifact(body),
     },
     select: {
       id: true,
@@ -469,6 +474,10 @@ export async function duplicateTemplate(id: string): Promise<void> {
       description: tpl.description,
       preview: tpl.preview,
       data: tpl.data as Prisma.InputJsonValue,
+      // The clone's data is byte-identical to the source's, so the baked
+      // artifact carries over as-is (including a pre-pipeline null).
+      css: tpl.css,
+      cssHash: tpl.cssHash,
     },
   })
 

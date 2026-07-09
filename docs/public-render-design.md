@@ -79,6 +79,15 @@ The publish lifecycle exists end-to-end on the **write** side and serves
   rotates on edit. The route name contains `preview/` — a wart if reused
   verbatim in cached public HTML (see Open Questions).
 
+- **Publish-time CSS artifacts (Option B future-proofing) shipped** — see
+  `docs/plans/023-css-artifact-pipeline.md`. Every `data` write bakes a
+  per-entity, unresolved CSS artifact onto the row (`Page/Post/Template.css`,
+  `Tenant.themeCss`), served immutable at
+  `app/api/css/[kind]/[id]/[hash]/styles.css`. Option A serving (inline
+  hoisted `<style>` from render-time stringification) is unchanged; the
+  artifacts exist so a future read-only renderer can link stylesheets
+  without importing the compiler.
+
 - **Resolvers return only rendered data, not provenance.**
   `resolvePageTree` and `resolveChromeBySlug` (`lib/cms/templates.ts`)
   return a `ProjectDefinition`; the set of template slugs each render

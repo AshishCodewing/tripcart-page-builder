@@ -50,6 +50,12 @@ model Tenant {
   // compiled-theme CSS URL so each version is its own cache key, served
   // immutable — theme edits invalidate by URL change, not by purge.
   themeVersion      Int                @default(1)
+  // Compiled theme CSS baked at updateTenantTheme so a read-only renderer
+  // can serve a string without importing compileTheme. null = no theme
+  // write since the artifact pipeline landed (run `pnpm backfill:css`).
+  themeCss          String?
+  // cssContentKey(themeCss) — pure URL cache-buster, never a lookup key.
+  themeCssHash      String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   pages             Page[]
@@ -102,6 +108,13 @@ model Page {
   // draft ahead of `data`; the editor seeds from `draftData ?? data` and
   // the public render reads `data` only. Cleared on explicit Save/Publish.
   draftData   Json?
+  // Compiled page-scoped CSS artifact (this page's own rules only —
+  // template-ref styles stay on their Template rows; protected theme rules
+  // stripped). Written in lockstep with `data`; "" is a real empty
+  // artifact, null = row predates the pipeline (run `pnpm backfill:css`).
+  css         String?
+  // cssContentKey(css) — pure cache-buster for /api/css URLs.
+  cssHash     String?
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
@@ -132,6 +145,9 @@ model Post {
   data          Json          @default("{}")
   // In-progress editor autosave (full ProjectDefinition). See Page.draftData.
   draftData     Json?
+  // Compiled post-scoped CSS artifact. See Page.css.
+  css           String?
+  cssHash       String?
   status        ContentStatus @default(DRAFT)
   publishedAt   DateTime?
   createdAt     DateTime      @default(now())
@@ -204,6 +220,11 @@ model Template {
   // In-progress editor autosave, stored in the slim `{ component, styles }`
   // shape (same as `data`). null = no draft ahead of `data`. See Page.draftData.
   draftData   Json?
+  // Compiled part-scoped CSS artifact — deliberately separate from any
+  // consuming Page's artifact: a renderer resolves template-refs, then
+  // composes page CSS + each part's CSS. See Page.css.
+  css         String?
+  cssHash     String?
   // Optional thumbnail URL for inserter UIs.
   preview     String?
   // No publish lifecycle: a template reaches the public site only by
