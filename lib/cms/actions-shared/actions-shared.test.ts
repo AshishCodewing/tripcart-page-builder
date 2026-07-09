@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { Prisma } from "@/generated/prisma/client"
 
+import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
+
 import { computePublishTimestamp } from "./publish-timestamp"
 import { buildDraftDataUpdate } from "./draft-data"
 import { parseOptionalProjectData } from "./parse-body"
@@ -29,12 +31,22 @@ describe("computePublishTimestamp", () => {
 })
 
 describe("buildDraftDataUpdate", () => {
-  it("clears the draft when data is committed", () => {
-    const data = { pages: [] }
+  it("clears the draft and bakes the CSS artifact when data is committed", () => {
+    const data = {
+      pages: [],
+      styles: [{ selectors: ["a"], style: { color: "red" } }],
+    }
     expect(buildDraftDataUpdate(data)).toEqual({
       data,
       draftData: Prisma.DbNull,
+      css: ".a{color:red;}",
+      cssHash: cssContentKey(".a{color:red;}"),
     })
+  })
+
+  it("bakes an empty-but-real artifact for rule-less data", () => {
+    const update = buildDraftDataUpdate({ pages: [] })
+    expect(update).toMatchObject({ css: "", cssHash: cssContentKey("") })
   })
 
   it("is an empty fragment for metadata-only saves", () => {

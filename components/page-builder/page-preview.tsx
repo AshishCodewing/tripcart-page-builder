@@ -4,8 +4,8 @@
 // document, which is the right shape for a standalone publish deployment.
 // Inside this Next.js app, however, the layout already provides <html> and
 // <body>, so we render the wrapper component's children inline (via the
-// shared `RenderProjectFragment`) and inject the per-page CSS as a <style>
-// block.
+// shared `RenderProjectFragment`), which emits the per-page CSS as a
+// hoistable <style> that React lifts into <head>.
 //
 // Tenant theme composition is handled one layer up by
 // `app/preview/[tenantId]/layout.tsx`, which fetches the tenant's brand theme
@@ -46,7 +46,8 @@ export function PagePreview({ projectData, config, rootTag = "div" }: Props) {
   // landed still carry a stale theme snapshot in `data.styles`; without
   // this defensive filter, the snapshot's `:root` rule would win the
   // cascade against the layout's fresh tenant theme (same selector,
-  // same specificity, page CSS comes later in source order).
+  // same specificity, and page CSS is hoisted after the theme link —
+  // its "tc-page" precedence group ranks behind the link's "default").
   const filtered = filterProtectedStyles(projectData as ProjectData)
 
   // The wrapper component maps to <body>; we're already inside the host

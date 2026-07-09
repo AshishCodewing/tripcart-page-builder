@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 
 import { seedTenantCredits } from "@/lib/billing/seed"
 import { prisma } from "@/lib/prisma"
+import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
+import { compiledThemeToCss, compileTheme } from "@/lib/theme/compile"
 import { themeSchema } from "@/lib/theme/schema.zod"
 import type { Theme } from "@/lib/theme/schema"
 
@@ -107,6 +109,12 @@ export async function updateTenantTheme(
   })
   if (!existing) throw new Error(`Tenant ${tenantId} not found.`)
 
+  // Bake the compiled CSS alongside the source document so a read-only
+  // renderer can serve a string without importing compileTheme. The
+  // preview theme route still compiles on demand — this bake is the
+  // artifact-pipeline mirror of Page/Post/Template `css` (plan 023).
+  const themeCss = compiledThemeToCss(compileTheme(parsed.data))
+
   await prisma.tenant.update({
     where: { id: tenantId },
     data: {
@@ -115,6 +123,8 @@ export async function updateTenantTheme(
       // route handler serves the current theme for any URL; the version
       // exists only to invalidate browser/CDN caches by URL rotation.
       themeVersion: { increment: 1 },
+      themeCss,
+      themeCssHash: cssContentKey(themeCss),
     },
   })
 
