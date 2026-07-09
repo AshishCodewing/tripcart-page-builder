@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
   // One middleware (= one charge) per real model call: the corrective retry
   // below is a second full generation and must be billed separately.
-  const settledCharges: Array<Promise<void>> = []
+  const chargeFlushes: Array<() => Promise<void>> = []
 
   try {
     const prompt = await fetchCodegenPrompt()
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
     const generate = (retryMessages: typeof messages) => {
       const billing = createBillingMiddleware({ tenantId, source: "codegen" })
-      settledCharges.push(billing.settled)
+      chargeFlushes.push(billing.flush)
       return streamToText(
         chat({
           adapter: openRouterText(prompt.model as OpenRouterModelId),
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     }
 
     after(async () => {
-      await settledWithTimeout(Promise.all(settledCharges))
+      await settledWithTimeout(Promise.all(chargeFlushes.map((f) => f())))
       await langfuseSpanProcessor.forceFlush()
     })
 

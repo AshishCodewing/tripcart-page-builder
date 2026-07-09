@@ -46,6 +46,12 @@ export interface ChargeAiUsageInput {
   model: string
   inputTokens: number
   outputTokens: number
+  /**
+   * Provider-reported cost in micro-USD (summed across iterations by the
+   * middleware). Preferred over MODEL_RATES when present and positive;
+   * absent when any iteration failed to report a cost.
+   */
+  reportedMicroUsd?: bigint
   /** Server-generated UUID — becomes the ledger reference + idempotency key. */
   usageId: string
   source: "copilot" | "codegen"
@@ -106,7 +112,7 @@ export async function chargeAiUsage(
   deps: BillingLedgerDeps = defaultDeps
 ): Promise<ChargeAiUsageResult> {
   try {
-    const { units, microUsdCost } = usageToUnits(input)
+    const { units, microUsdCost, pricedFrom } = usageToUnits(input)
     const credits = unitsToCredits(units)
     if (credits === 0n) {
       console.warn(
@@ -122,7 +128,7 @@ export async function chargeAiUsage(
     const description =
       `${input.source} ${input.model} ` +
       `${input.inputTokens}in/${input.outputTokens}out ` +
-      `cost=${microUsdCost}µ$` +
+      `cost=${microUsdCost}µ$ (${pricedFrom})` +
       (input.threadId ? ` thread=${input.threadId}` : "")
 
     try {
