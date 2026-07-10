@@ -336,6 +336,23 @@ function EditorShellInner({
       wrapper.append(DEFAULT_SINGLE_POST_SEED as object[])
     })
 
+    // When editing a PATTERN, disable the outer wrapper: a pattern has no
+    // page chrome of its own, so its `<body>` root is just an editing
+    // container. Make it non-selectable/hoverable so clicks and the Style
+    // Manager only ever target the pattern content — never the wrapper. This
+    // is a selection guard, NOT a `stylable` restriction, so no CSS property
+    // is hidden on the actual content. Re-applied on every (re)load because
+    // GrapesJS rebuilds the wrapper when loading a project.
+    editor.on("load", () => {
+      const c = contentRef.current
+      if (c.kind !== "template" || c.template.kind !== "PATTERN") return
+      editor.getWrapper()?.set({
+        selectable: false,
+        hoverable: false,
+        highlightable: false,
+      })
+    })
+
     // Wire the "Edit template" toolbar action on `template-ref` nodes.
     // The plugin emits this event with the ref's slug; we resolve the
     // tenant via the current content, then route to a slug→id redirect
