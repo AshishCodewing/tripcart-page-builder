@@ -9,9 +9,22 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # Dummy value: prisma.config.ts requires DATABASE_URL at load time, but
-      # `prisma generate` never connects. CI must not see a real database.
+      # Points at the throwaway `postgres` service below. `prisma generate`
+      # only needs the var to exist; `migrate deploy` + the integration suite
+      # actually connect. pgvector image: an init migration CREATEs the vector
+      # extension (RAG tables), so stock postgres can't apply the schema.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s
+          --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,3 +41,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm prisma migrate deploy
+      - run: pnpm test:integration
