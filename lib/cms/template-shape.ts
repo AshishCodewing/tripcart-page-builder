@@ -46,3 +46,58 @@ export function unwrapTemplateRoot(
     components: Array.isArray(root.components) ? root.components : [],
   }
 }
+
+/**
+ * Wrapper-only fields GrapesJS merges onto whatever component sits in a
+ * frame's root slot. When a slim template body's content subtree is loaded
+ * directly as the frame root (the old load path), the wrapper's defaults —
+ * notably a background-only `stylable` whitelist, plus `head`/`docEl` — get
+ * baked into the content node and serialized back on autosave. These don't
+ * belong on a nested content component.
+ */
+const DOC_ROOT_ARTIFACT_KEYS = ["stylable", "head", "docEl"] as const
+
+/**
+ * Strip document-root artifacts so a content subtree behaves as a normal,
+ * fully-stylable child again. A `wrapper`/`body`/`html` root is first
+ * rewritten to a plain `<div>` (via {@link unwrapTemplateRoot}); then the
+ * `stylable` whitelist and `head`/`docEl` that leaked in while the node was
+ * the frame root are dropped so the node's own type defaults apply.
+ */
+export function sanitizeContentRoot(
+  root: ComponentDefinition
+): ComponentDefinition {
+  const base: ComponentDefinition = isDocumentLevelRoot(root)
+    ? unwrapTemplateRoot(root)
+    : { ...root }
+  for (const key of DOC_ROOT_ARTIFACT_KEYS) delete base[key]
+  return base
+}
+
+/**
+ * Load-time inverse of {@link unwrapEditorRoot}: nest a stored template
+ * content root under a real GrapesJS `wrapper` so the content node is a
+ * child, not the frame's document root. Editing it then exposes the full
+ * Style Manager instead of the wrapper's background-only whitelist, and no
+ * wrapper defaults get merged back into the content on save. The root is
+ * sanitized first, healing rows that were previously polluted while edited
+ * as the frame root.
+ */
+export function wrapEditorRoot(root: ComponentDefinition): ComponentDefinition {
+  return { type: "wrapper", components: [sanitizeContentRoot(root)] }
+}
+
+/**
+ * Save-time inverse of {@link wrapEditorRoot}: pull the content root back
+ * out of the synthetic editor wrapper. A single-child wrapper yields that
+ * child verbatim; an empty or multi-child wrapper collapses to one nestable
+ * `<div>` root (via {@link unwrapTemplateRoot}) so the stored body stays a
+ * single component. A non-wrapper root passes through untouched — defensive
+ * against legacy payloads or a caller that never wrapped.
+ */
+export function unwrapEditorRoot(root: ComponentDefinition): ComponentDefinition {
+  if (root.type !== "wrapper") return root
+  const children = Array.isArray(root.components) ? root.components : []
+  if (children.length === 1) return children[0]
+  return unwrapTemplateRoot(root)
+}

@@ -16,7 +16,7 @@ import type {
   ProjectDefinition,
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
-import { unwrapTemplateRoot } from "@/lib/cms/template-shape"
+import { unwrapEditorRoot, unwrapTemplateRoot } from "@/lib/cms/template-shape"
 import type { TemplateRefUsage } from "./template-ref-usage"
 import { TEMPLATE_HIERARCHY, getHierarchyEntry } from "./template-hierarchy"
 
@@ -215,10 +215,14 @@ export function slimTemplateProject(project: unknown): {
     pages?: Array<{ frames?: Array<{ component?: ComponentDefinition }> }>
     styles?: Rule[]
   }
-  const component = p?.pages?.[0]?.frames?.[0]?.component
-  if (!component) throw new Error("Template payload missing a root component.")
+  const frameRoot = p?.pages?.[0]?.frames?.[0]?.component
+  if (!frameRoot) throw new Error("Template payload missing a root component.")
+  // The editor loads a template's content under a synthetic `wrapper` (see
+  // `wrapEditorRoot`) so the content node is a fully-stylable child rather
+  // than the frame's document root. Pull the content back out before storing
+  // the slim body.
   return {
-    component,
+    component: unwrapEditorRoot(frameRoot),
     styles: Array.isArray(p?.styles) ? p.styles : [],
   }
 }
