@@ -108,13 +108,16 @@ export function createBillingMiddleware(p: {
   return { middleware, settled, flush }
 }
 
-/** `after()` helper: wait for the charge, but never longer than `ms`. */
+/** `after()` helper: wait for the charge, but never longer than `ms`. Clears
+ * the timeout once the race settles so a fast charge (the normal case) can't
+ * hold the serverless invocation open for the full `ms`. */
 export function settledWithTimeout(
   settled: Promise<unknown>,
   ms = 10_000
 ): Promise<unknown> {
-  return Promise.race([
-    settled,
-    new Promise<void>((resolve) => setTimeout(resolve, ms)),
-  ])
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms)
+  })
+  return Promise.race([settled, timeout]).finally(() => clearTimeout(timer))
 }
