@@ -208,4 +208,12 @@ describe("settledWithTimeout", () => {
     const resolved = Promise.resolve("charged")
     await expect(settledWithTimeout(resolved, 10_000)).resolves.toBe("charged")
   })
+
+  it("clears the pending timeout once a fast charge settles (no lingering timer)", async () => {
+    vi.useFakeTimers()
+    await settledWithTimeout(Promise.resolve("charged"), 10_000)
+    // Without clearTimeout the 10s timer would still be armed, holding the
+    // serverless invocation open for the full window.
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })

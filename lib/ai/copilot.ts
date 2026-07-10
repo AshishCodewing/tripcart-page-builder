@@ -80,6 +80,11 @@ const EPHEMERAL: OpenRouterSystemPromptMetadata = {
   cache_control: { type: "ephemeral" },
 }
 
+// The selected component's markup also exists inside the tier-1 page HTML
+// (addressable by id), so beyond this size we send only the id reference —
+// small selections keep answer quality, large ones are pure duplicate cost.
+const MAX_SELECTED_HTML_CHARS = 4000
+
 function block(heading: string, value: unknown): string {
   const body = typeof value === "string" ? value : JSON.stringify(value)
   return `## ${heading}\n${body}`
@@ -126,14 +131,17 @@ export function buildCopilotSystemPrompts(
   const volatileParts: string[] = []
   if (ctx.currentPage)
     volatileParts.push(block("Current Page", ctx.currentPage))
-  if (ctx.selectedComponent)
+  if (ctx.selectedComponent) {
+    const { id, html } = ctx.selectedComponent
     volatileParts.push(
-      fencedBlock(
-        `Selected Component (id: ${ctx.selectedComponent.id})`,
-        "html",
-        ctx.selectedComponent.html
-      )
+      html.length <= MAX_SELECTED_HTML_CHARS
+        ? fencedBlock(`Selected Component (id: ${id})`, "html", html)
+        : block(
+            `Selected Component (id: ${id})`,
+            `[markup omitted — ${html.length} chars; locate it by id in the Page HTML above]`
+          )
     )
+  }
   if (ctx.selectedIds?.length)
     volatileParts.push(block("All Selected Component IDs", ctx.selectedIds))
   if (ctx.isNewProject !== undefined)
