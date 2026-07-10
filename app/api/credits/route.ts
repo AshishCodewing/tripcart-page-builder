@@ -1,13 +1,19 @@
+import { resolveBilledTenant } from "@/lib/billing/resolve-tenant"
 import { AccountNotFoundError, balances, UNITS_PER_CREDIT } from "@/lib/ledger"
 
 // Wallet balance for the editor's credit readout (components/ai/chat.tsx).
-// TODO(auth): tenantId is client-supplied — switch to server-side tenant
-// resolution once the routes have a session.
+// TODO(auth): tenantId is client-supplied — resolved by
+// lib/billing/resolve-tenant.ts (the single seam for future session auth).
 export async function GET(request: Request) {
-  const tenantId = new URL(request.url).searchParams.get("tenantId")
-  if (!tenantId) {
-    return Response.json({ error: "tenantId is required" }, { status: 400 })
+  // A cosmetic readout: an unknown/absent tenant returns `{credits: null}`
+  // (200), not a 4xx, so status codes can't be used to probe which tenant ids
+  // exist. Revisit this trade-off once real auth lands.
+  const candidate = new URL(request.url).searchParams.get("tenantId")
+  const resolved = await resolveBilledTenant(candidate)
+  if ("error" in resolved || resolved.tenantId === null) {
+    return Response.json({ credits: null })
   }
+  const tenantId = resolved.tenantId
   try {
     const units = await balances.getWalletBalance(tenantId)
     return Response.json({ credits: Number(units / UNITS_PER_CREDIT) })

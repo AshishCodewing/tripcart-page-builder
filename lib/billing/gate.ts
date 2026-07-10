@@ -14,6 +14,17 @@ export const INSUFFICIENT_CREDITS = {
   code: "INSUFFICIENT_CREDITS",
 } as const
 
+/**
+ * Policy for balance-check failures. Default is fail OPEN (availability over
+ * enforcement — a DB blip must not brick the copilot for paying tenants); set
+ * BILLING_GATE_FAIL_CLOSED=1 to prefer cost safety instead. Either way the
+ * write path still clamps to the real balance (ai-usage.service.ts), so
+ * fail-open bounds the loss to one run's overage.
+ */
+function failOpen(): boolean {
+  return process.env.BILLING_GATE_FAIL_CLOSED !== "1"
+}
+
 export async function hasCredits(tenantId: string): Promise<boolean> {
   try {
     return (await balances.getWalletBalance(tenantId)) > 0n
@@ -35,10 +46,10 @@ export async function hasCredits(tenantId: string): Promise<boolean> {
           `[billing] wallet self-heal failed for tenant ${tenantId}:`,
           seedError
         )
-        return true // fail open — availability over enforcement
+        return failOpen() // availability over enforcement (unless flagged)
       }
     }
     console.error(`[billing] balance check failed for tenant ${tenantId}:`, e)
-    return true // fail open
+    return failOpen()
   }
 }
