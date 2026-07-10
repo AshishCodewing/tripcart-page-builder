@@ -4,6 +4,7 @@
 import { LangfuseClient } from "@langfuse/client"
 import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
+import { z } from "zod"
 
 export const COPILOT_PROMPT_NAME = "page-builder-copilot"
 export const COPILOT_PROMPT_LABEL = "production"
@@ -62,19 +63,40 @@ export async function fetchCopilotPrompt(): Promise<CopilotPrompt> {
   }
 }
 
-// Shape of the editor context the client sends: the page's exported HTML/CSS
+// Schema for the editor context the client sends: the page's exported HTML/CSS
 // plus slim selection/device state. Built by gatherEditorContext in
 // components/ai/chat.tsx — keep the two in sync. Every field stays optional
-// because the client gathers each one resiliently and omits failures.
-export type EditorContext = {
-  pageHtml?: string
-  pageCss?: string
-  selectedComponent?: { id: string; html: string } | null
-  selectedIds?: string[]
-  currentPage?: { id: string; name: string } | null
-  devices?: Array<{ name?: string; width?: string; widthMedia?: string }>
-  isNewProject?: boolean
-}
+// because the client gathers each one resiliently and omits failures. The
+// route validates untrusted input against this before it reaches the prompt.
+//
+// Caps mirror /api/generate's bodySchema (400k page code, 10 devices) plus
+// sane bounds on the selection fields. The client stays comfortably under all
+// of them. `nullish()` (not `nullable()`): the client sends `null` for an empty
+// selection and omits failed fields entirely.
+export const editorContextSchema = z.object({
+  pageHtml: z.string().max(400_000).optional(),
+  pageCss: z.string().max(400_000).optional(),
+  selectedComponent: z
+    .object({ id: z.string().max(200), html: z.string().max(400_000) })
+    .nullish(),
+  selectedIds: z.array(z.string().max(200)).max(50).optional(),
+  currentPage: z
+    .object({ id: z.string().max(200), name: z.string().max(500) })
+    .nullish(),
+  devices: z
+    .array(
+      z.object({
+        name: z.string().max(200).optional(),
+        width: z.string().max(50).optional(),
+        widthMedia: z.string().max(50).optional(),
+      })
+    )
+    .max(10)
+    .optional(),
+  isNewProject: z.boolean().optional(),
+})
+
+export type EditorContext = z.infer<typeof editorContextSchema>
 
 const EPHEMERAL: OpenRouterSystemPromptMetadata = {
   cache_control: { type: "ephemeral" },

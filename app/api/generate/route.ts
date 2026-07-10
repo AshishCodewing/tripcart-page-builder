@@ -4,6 +4,7 @@ import { after } from "next/server"
 import { z } from "zod"
 import { langfuseSpanProcessor } from "@/instrumentation.node"
 import { hasCredits, INSUFFICIENT_CREDITS } from "@/lib/billing/gate"
+import { resolveBilledTenant } from "@/lib/billing/resolve-tenant"
 import {
   createBillingMiddleware,
   settledWithTimeout,
@@ -45,8 +46,8 @@ const bodySchema = z.object({
     .optional(),
   threadId: z.string().max(200).optional(),
   // Which tenant to bill; absent for unmetered contexts (global templates).
-  // TODO(auth): client-supplied — replace with server-side tenant resolution
-  // once the routes have a session.
+  // TODO(auth): client-supplied — resolved and validated by
+  // lib/billing/resolve-tenant.ts (the single seam for future session auth).
   tenantId: z.string().max(200).optional(),
 })
 
@@ -73,7 +74,14 @@ export async function POST(request: Request) {
   }
   const req: CodegenRequest = parsed.data
 
-  const tenantId = parsed.data.tenantId ?? null
+  // TODO(auth): the candidate is still client-supplied —
+  // lib/billing/resolve-tenant.ts is the single seam to swap for session-based
+  // resolution once the routes have a session.
+  const tenantResult = await resolveBilledTenant(parsed.data.tenantId)
+  if ("error" in tenantResult) {
+    return jsonError(400, "Unknown tenant")
+  }
+  const { tenantId } = tenantResult
   if (tenantId && !(await hasCredits(tenantId))) {
     return jsonError(402, INSUFFICIENT_CREDITS.error, INSUFFICIENT_CREDITS.code)
   }

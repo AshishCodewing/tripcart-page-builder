@@ -9,14 +9,15 @@ import { openRouterText } from "@tanstack/ai-openrouter"
 import { after } from "next/server"
 import { langfuseSpanProcessor } from "@/instrumentation.node"
 import { hasCredits, INSUFFICIENT_CREDITS } from "@/lib/billing/gate"
+import { resolveBilledTenant } from "@/lib/billing/resolve-tenant"
 import {
   createBillingMiddleware,
   settledWithTimeout,
 } from "@/lib/billing/usage-middleware"
 import {
   buildCopilotSystemPrompts,
+  editorContextSchema,
   fetchCopilotPrompt,
-  type EditorContext,
 } from "@/lib/ai/copilot"
 import { copilotToolDefinitions } from "@/lib/ai/tools"
 import { langfuseChatMiddleware } from "@/lib/ai/tracing"
@@ -52,18 +53,36 @@ export async function POST(request: Request) {
   request.signal.addEventListener("abort", () => abortController.abort())
 
   // Structured GrapesJS editor state the client attaches per message (see
-  // components/ai/chat.tsx). Absent on the very first render / non-editor calls.
-  const editorContext = (params.forwardedProps?.editorContext ??
-    {}) as EditorContext
+  // components/ai/chat.tsx). Untrusted — validate before it reaches the prompt
+  // so per-request input-token cost can't be attacker-controlled. Absent on the
+  // very first render / non-editor calls, hence the `?? {}`.
+  const contextResult = editorContextSchema.safeParse(
+    params.forwardedProps?.editorContext ?? {}
+  )
+  if (!contextResult.success) {
+    return new Response(
+      JSON.stringify({
+        error: `Invalid editorContext: ${contextResult.error.issues[0]?.message}`,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    )
+  }
+  const editorContext = contextResult.data
 
   // Which tenant to bill. null (e.g. global template editing) means the run
-  // is unmetered. TODO(auth): client-supplied — replace with server-side
-  // tenant resolution once the routes have a session.
-  const forwardedTenantId = params.forwardedProps?.tenantId
-  const tenantId =
-    typeof forwardedTenantId === "string" && forwardedTenantId.length > 0
-      ? forwardedTenantId
-      : null
+  // is unmetered. TODO(auth): the candidate is still client-supplied —
+  // lib/billing/resolve-tenant.ts is the single seam to swap for session-based
+  // resolution once the routes have a session.
+  const tenantResult = await resolveBilledTenant(
+    params.forwardedProps?.tenantId
+  )
+  if ("error" in tenantResult) {
+    return new Response(JSON.stringify({ error: "Unknown tenant" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  const { tenantId } = tenantResult
 
   if (tenantId && !(await hasCredits(tenantId))) {
     return new Response(JSON.stringify(INSUFFICIENT_CREDITS), {
@@ -81,6 +100,8 @@ export async function POST(request: Request) {
 
     const stream = chat({
       adapter: openRouterText(prompt.model as OpenRouterModelId),
+      // Bounds message COUNT; no per-message length cap — the model's own
+      // context limit bounds content and legitimate turns are hand-typed.
       messages: params.messages.slice(-MAX_HISTORY_MESSAGES),
       systemPrompts: buildCopilotSystemPrompts(prompt.text, editorContext),
       // The isomorphic tool definitions (no execute) drive the runtime: they

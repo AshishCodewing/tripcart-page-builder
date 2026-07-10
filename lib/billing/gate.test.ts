@@ -25,6 +25,7 @@ const seed = vi.mocked(seedTenantCredits)
 describe("hasCredits", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
     getWalletBalance.mockReset()
     findUnique.mockReset()
     seed.mockReset()
@@ -76,5 +77,19 @@ describe("hasCredits", () => {
     getWalletBalance.mockRejectedValue(new Error("db down"))
     await expect(hasCredits("tenant-1")).resolves.toBe(true)
     expect(seed).not.toHaveBeenCalled()
+  })
+
+  it("fails CLOSED (false) on a generic error when BILLING_GATE_FAIL_CLOSED=1", async () => {
+    vi.stubEnv("BILLING_GATE_FAIL_CLOSED", "1")
+    getWalletBalance.mockRejectedValue(new Error("db down"))
+    await expect(hasCredits("tenant-1")).resolves.toBe(false)
+  })
+
+  it("fails CLOSED (false) on a self-heal seed failure when BILLING_GATE_FAIL_CLOSED=1", async () => {
+    vi.stubEnv("BILLING_GATE_FAIL_CLOSED", "1")
+    getWalletBalance.mockRejectedValue(new AccountNotFoundError("wallet:t"))
+    findUnique.mockResolvedValue({ id: "tenant-1" } as never)
+    seed.mockRejectedValue(new Error("seed exploded"))
+    await expect(hasCredits("tenant-1")).resolves.toBe(false)
   })
 })

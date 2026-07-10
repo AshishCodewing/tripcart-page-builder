@@ -2,7 +2,11 @@ import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
 import { describe, expect, it } from "vitest"
 
-import { buildCopilotSystemPrompts, type EditorContext } from "./copilot"
+import {
+  buildCopilotSystemPrompts,
+  editorContextSchema,
+  type EditorContext,
+} from "./copilot"
 
 const PROMPT = "You are the TripCart copilot."
 
@@ -101,5 +105,37 @@ describe("buildCopilotSystemPrompts", () => {
 
     const withoutFlag = build({})
     expect(withoutFlag).toHaveLength(1)
+  })
+})
+
+describe("editorContextSchema", () => {
+  it("accepts the exact shape gatherEditorContext produces", () => {
+    // Mirrors components/ai/chat.tsx gatherEditorContext (incl. null selection
+    // and empty selectedIds) — the schema must accept the legitimate client.
+    const fromClient = {
+      pageHtml: "<div>Home</div>",
+      pageCss: ".a{color:red}",
+      selectedComponent: null,
+      selectedIds: [],
+      currentPage: { id: "page-1", name: "Home" },
+      devices: [
+        { name: "Desktop", width: "", widthMedia: "" },
+        { name: "Mobile", width: "480px", widthMedia: "768px" },
+      ],
+      isNewProject: false,
+    }
+    const result = editorContextSchema.safeParse(fromClient)
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts an empty object (first render / non-editor calls)", () => {
+    expect(editorContextSchema.safeParse({}).success).toBe(true)
+  })
+
+  it("rejects an oversize pageHtml (attacker-controlled token cost)", () => {
+    const result = editorContextSchema.safeParse({
+      pageHtml: "x".repeat(400_001),
+    })
+    expect(result.success).toBe(false)
   })
 })
