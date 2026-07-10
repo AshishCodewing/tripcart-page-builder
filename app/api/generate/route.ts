@@ -78,9 +78,23 @@ export async function POST(request: Request) {
     return jsonError(402, INSUFFICIENT_CREDITS.error, INSUFFICIENT_CREDITS.code)
   }
 
+  const abortController = new AbortController()
+  // A closed client connection must cancel the generation: otherwise the run
+  // (and its OpenRouter spend + billing) continues after the user hit Stop.
+  request.signal.addEventListener("abort", () => abortController.abort())
+
   // One middleware (= one charge) per real model call: the corrective retry
   // below is a second full generation and must be billed separately.
   const chargeFlushes: Array<() => Promise<void>> = []
+  // Registered before any generation so a thrown error can't skip it: the
+  // callback reads chargeFlushes at flush time (after the response), so
+  // charges pushed inside the try are included; an early throw with an empty
+  // array resolves immediately. This is what settles an already-incurred
+  // charge and flushes Langfuse spans on the error path.
+  after(async () => {
+    await settledWithTimeout(Promise.all(chargeFlushes.map((f) => f())))
+    await langfuseSpanProcessor.forceFlush()
+  })
 
   try {
     const prompt = await fetchCodegenPrompt()
@@ -108,6 +122,7 @@ export async function POST(request: Request) {
               traceName: "page-builder-codegen",
             }),
           ],
+          abortController,
         })
       )
     }
@@ -127,11 +142,6 @@ export async function POST(request: Request) {
       ])
       html = parseGeneratedCode(raw)
     }
-
-    after(async () => {
-      await settledWithTimeout(Promise.all(chargeFlushes.map((f) => f())))
-      await langfuseSpanProcessor.forceFlush()
-    })
 
     if (!html) {
       return jsonError(
