@@ -16,6 +16,7 @@ import {
 } from "@/lib/cms/templates"
 import { deleteTemplate, saveTemplate } from "@/lib/cms/template-actions"
 import { getTenantTheme } from "@/lib/cms/tenants"
+import { wrapEditorRoot } from "@/lib/cms/template-shape"
 import { defaultTheme } from "@/lib/tokens"
 
 export default async function EditTemplatePage({
@@ -99,7 +100,11 @@ export default async function EditTemplatePage({
   const body = (tpl.draftData ?? tpl.data) as TemplateBody
   const initialProjectData = (body.component !== undefined
     ? {
-        pages: [{ frames: [{ component: body.component }] }],
+        // Nest the content root under a real `wrapper` so it edits as a
+        // fully-stylable child, not the frame's document root (which would
+        // otherwise restrict the Style Manager to the wrapper's background-
+        // only whitelist). `slimTemplateProject` unwraps it again on save.
+        pages: [{ frames: [{ component: wrapEditorRoot(body.component) }] }],
         styles: body.styles ?? [],
       }
     : body.pages
