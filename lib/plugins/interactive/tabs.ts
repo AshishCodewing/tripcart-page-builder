@@ -40,6 +40,7 @@ type TabCmp = Cmp & {
   __onRemove(): void
   getTabsType(): TabsCmp | undefined
   getTabContent(): Component | undefined
+  getUnlinkedPanel(): Component | undefined
 }
 type TabsCmp = Cmp & {
   __onTab(tab: Component, v?: unknown, opts?: { avoidStore?: boolean; temporary?: boolean }): void
@@ -119,23 +120,52 @@ export const tabsPlugin = (editor: Editor): void => {
         this.on("removed", this.__onRemove)
       },
 
-      // Create the paired panel if it doesn't exist yet, and wire the id link.
+      // Pair this tab with a panel and wire the id link. Reuse the panel this
+      // tab already links to, else (for AI-authored markup, which ships tabs +
+      // panels with NO ids — the codegen contract forbids them, see
+      // lib/plugins/interactive/tags.ts) adopt the panel at this tab's index
+      // rather than spawning a duplicate placeholder. Only create a fresh panel
+      // when neither yields one. Mirrors the runtime enhancer's aria-controls-
+      // then-index matching (lib/web-components/tabs.ts #panelFor).
       __initTab(this: TabCmp) {
         if (this.tabContent) return
-        let content = this.getTabContent()
+        const tabs = this.getTabsType()
+        if (!tabs) return
+        let content = this.getTabContent() ?? this.getUnlinkedPanel()
         if (!content) {
-          const tabs = this.getTabsType()
-          if (!tabs) return
           content = tabs.getPanelsType().append({
             type: T_PANEL,
             components: "<p>Tab panel content…</p>",
           })[0]
+        }
+        // getTabContent() only returns a panel this tab already links to; for
+        // an adopted or freshly created panel the link is still missing, so wire
+        // it. (Guarding on aria-controls avoids re-stamping an existing link.)
+        if (!this.getAttributes()[ARIA_CONTROLS]) {
           const panelId = content.getId()
           const tabId = this.getId()
           content.addAttributes({ id: panelId, "aria-labelledby": tabId })
           this.addAttributes({ [ARIA_CONTROLS]: panelId, id: tabId })
         }
         this.tabContent = content
+      },
+
+      // The panel at this tab's index, when it isn't already claimed by another
+      // tab's aria-controls. Lets index-aligned tabs↔panels (e.g. imported
+      // markup with no ids) pair up without creating duplicate panels; the
+      // claimed check keeps a mid-list clone from stealing a sibling's panel.
+      getUnlinkedPanel(this: TabCmp) {
+        const tabs = this.getTabsType()
+        if (!tabs) return undefined
+        const panel = tabs.findPanels()[tabs.findTabs().indexOf(this)]
+        if (!panel) return undefined
+        const claimed = new Set(
+          tabs
+            .findTabs()
+            .map((t) => t.getAttributes()[ARIA_CONTROLS])
+            .filter(Boolean)
+        )
+        return claimed.has(panel.getId()) ? undefined : panel
       },
 
       __onRemove(this: TabCmp) {
