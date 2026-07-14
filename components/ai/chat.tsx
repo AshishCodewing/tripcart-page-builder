@@ -220,8 +220,6 @@ export default function Chat() {
     <MessageScrollerProvider>
       <div className="flex h-full w-full flex-col">
         <header className="flex items-center justify-between gap-2 border-b px-2 py-2">
-          <Sparkles className="size-4" />
-          <div className="flex-1 text-xs">AI Assistant</div>
           {credits !== null ? (
             <Tooltip>
               <TooltipTrigger
