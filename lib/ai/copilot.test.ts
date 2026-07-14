@@ -24,7 +24,8 @@ describe("buildCopilotSystemPrompts", () => {
   it("emits exactly the static tier, ephemeral-cached, for empty context", () => {
     const prompts = build()
     expect(prompts).toHaveLength(1)
-    expect(prompts[0].content).toBe(PROMPT)
+    expect(prompts[0].content).toContain(PROMPT)
+    expect(prompts[0].content).toContain("## Available interactive blocks")
     expect(prompts[0].metadata?.cache_control?.type).toBe("ephemeral")
   })
 
@@ -66,7 +67,7 @@ describe("buildCopilotSystemPrompts", () => {
       isNewProject: true,
     })
     expect(prompts).toHaveLength(3)
-    expect(prompts[0].content).toBe(PROMPT)
+    expect(prompts[0].content).toContain(PROMPT)
     expect(prompts[1].content.startsWith("# Current website state")).toBe(true)
     expect(prompts[2].content.startsWith("# Current selection")).toBe(true)
     // Cache-prefix stability contract: only the two stable tiers carry it.

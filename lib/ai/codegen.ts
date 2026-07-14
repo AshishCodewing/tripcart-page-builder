@@ -5,6 +5,8 @@ import { LangfuseClient } from "@langfuse/client"
 import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
 
+import { INTERACTIVE_BLOCKS } from "@/lib/plugins/interactive/tags"
+
 export const CODEGEN_PROMPT_NAME = "page-builder-codegen"
 export const CODEGEN_PROMPT_LABEL = "production"
 
@@ -150,6 +152,24 @@ function fenced(lang: string, code: string): string {
   return `\`\`\`${lang}\n${code}\n\`\`\``
 }
 
+/** Static (cacheable) section describing the ready-made interactive blocks and
+ * the EXACT markup to emit for each. Generated from the manifest
+ * (lib/plugins/interactive/tags.ts) so it can't drift. Empty when there are no
+ * blocks. */
+export function buildInteractiveBlocksSection(): string {
+  if (INTERACTIVE_BLOCKS.length === 0) return ""
+  const blocks = INTERACTIVE_BLOCKS.map(
+    (b) => `## ${b.label}\nUse for ${b.whenToUse}\n${fenced("html", b.example)}`
+  ).join("\n\n")
+  return `# Interactive blocks
+Prefer these ready-made, accessible blocks when the plan calls for one. Emit
+EXACTLY the structure shown — do NOT add id, aria-*, hidden or tabindex
+attributes (they are wired automatically at runtime). Keep the tab and panel
+order aligned, and put each tab's label in its inner <span>.
+
+${blocks}`
+}
+
 /** Allowed media queries derived from the editor's device list; the first
  * (largest) device styles all screens, so it contributes no query. */
 function mediaQuerySection(devices: CodegenRequest["devices"]): string {
@@ -196,8 +216,15 @@ Insert the new element(s) ${req.position ?? "afterInside"} the element with id "
     current.push(`## Current page CSS\n${fenced("css", req.pageCss)}`)
   if (current.length) parts.push(`# CURRENT_CODE\n${current.join("\n\n")}`)
 
+  // Fold the interactive-blocks contract into the cached static tier so it's
+  // part of the byte-stable prefix (one cache breakpoint), alongside the
+  // authored guardrail prompt.
+  const staticParts = [promptText]
+  const blocksSection = buildInteractiveBlocksSection()
+  if (blocksSection) staticParts.push(blocksSection)
+
   return [
-    { content: promptText, metadata: EPHEMERAL },
+    { content: staticParts.join("\n\n"), metadata: EPHEMERAL },
     { content: parts.join("\n\n") },
   ]
 }
