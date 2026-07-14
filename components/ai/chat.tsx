@@ -12,7 +12,6 @@ import {
   MessageCircleDashedIcon,
   Square,
   Trash2,
-  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -117,16 +116,31 @@ export default function Chat() {
 
   // Latest editor instance, read lazily when a request fires so the server
   // always receives the current selection/project state.
-  // The GrapesJS editor instance is stable once ready and its internal state is
-  // read live at request time, so closing over it is enough (no latest-ref
-  // needed) and keeps this resolver referentially stable.
   const editor = useEditorMaybe()
   // Billed tenant (null = unmetered, e.g. global templates); forwarded with
   // every chat request and codegen call so the server can meter usage.
   const tenantId = useEditorTenantId()
+
+  // `useChat` snapshots `connection` at first mount and never re-reads it, so
+  // the resolver must NOT close over `editor`/`tenantId` directly: this panel
+  // now mounts eagerly (all left-panel tabs stay mounted), i.e. before the
+  // GrapesJS editor is ready, and a captured `editor === undefined` would leave
+  // every request's editorContext empty forever. Read the live values from refs
+  // at request time instead, and keep the resolver referentially stable.
+  const editorRef = useRef(editor)
+  const tenantIdRef = useRef(tenantId)
+  useEffect(() => {
+    editorRef.current = editor
+    tenantIdRef.current = tenantId
+  }, [editor, tenantId])
   const getConnectionOptions = useCallback(
-    () => ({ body: { editorContext: gatherEditorContext(editor), tenantId } }),
-    [editor, tenantId]
+    () => ({
+      body: {
+        editorContext: gatherEditorContext(editorRef.current),
+        tenantId: tenantIdRef.current,
+      },
+    }),
+    []
   )
 
   // Client-executed copilot tools (plan 017): the orchestrator picks a tool,
@@ -167,8 +181,10 @@ export default function Chat() {
     error,
     addToolApprovalResponse,
   } = useChat({
-    // Options resolver runs per request, so each message carries a fresh editor
-    // snapshot. `body` is merged into the server's `forwardedProps`.
+    // Options resolver runs per request (not during render), so each message
+    // carries a fresh editor snapshot read from the refs above; `body` is
+    // merged into the server's `forwardedProps`.
+    // eslint-disable-next-line react-hooks/refs -- resolver defers the ref read to request time
     connection: fetchServerSentEvents("/api/chat", getConnectionOptions),
     tools,
     onChunk: (chunk) => {
