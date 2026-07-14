@@ -141,7 +141,7 @@ export default function EditorShell(props: Props) {
 
   return (
     <EditorTenantProvider tenantId={contentTenantId(props.content)}>
-      <LeftPanelProvider>
+      <LeftPanelProvider initialOpen={false}>
         <EditorShellInner {...props} />
       </LeftPanelProvider>
     </EditorTenantProvider>
@@ -444,8 +444,15 @@ function EditorShellInner({
 
   return (
     <form action={augmentedSave} className="contents">
-      {/* Outer provider — controls the right (settings) sidebar. */}
-      <SidebarProvider defaultOpen>
+      {/* Outer provider — controls the LEFT panel sidebar.
+          Expanded = icon rail (--sidebar-width-icon, 3rem) + panel;
+          collapsed = just the rail. `collapsible="icon"` keeps the rail
+          visible instead of sliding the whole thing off-canvas. */}
+      <SidebarProvider
+        open={leftOpen}
+        onOpenChange={setLeftOpen}
+        style={{ "--sidebar-width": "23rem" } as React.CSSProperties}
+      >
         <GjsEditor
           key={storageKey}
           className="gjs-editor-root"
@@ -454,41 +461,48 @@ function EditorShellInner({
           onEditor={onEditor}
         >
           <div className="flex h-dvh flex-col">
-            <TopBar content={content} />
-
             <div className="flex flex-1 overflow-hidden">
-              {/* Inner provider — controls the left panel sidebar.
-                  `contents` keeps the wrapper layout-transparent so the
-                  left Sidebar and the SidebarInset participate in the
-                  outer flex row alongside the right Sidebar. */}
-              <SidebarProvider
-                open={leftOpen}
-                onOpenChange={setLeftOpen}
-                className="contents"
+              <Sidebar
+                side="left"
+                collapsible="icon"
               >
-                <Sidebar
-                  side="left"
-                  collapsible="offcanvas"
-                  className="top-12 h-[calc(100svh-3rem)]"
-                >
-                  <LeftPanel />
-                </Sidebar>
+                <LeftPanel />
+              </Sidebar>
 
+              {/* Inner provider — controls the right (settings) sidebar.
+                  TopBar lives inside this provider (via SidebarInset), so its
+                  SidebarTrigger toggles the RIGHT panel — `useSidebar` resolves
+                  to the nearest provider. `contents` keeps the wrapper
+                  layout-transparent so the SidebarInset participates in the
+                  flex row alongside the left Sidebar. */}
+              <SidebarProvider defaultOpen className="contents">
                 <SidebarInset className="bg-muted/20">
-                  <Canvas className="gjs-custom-editor-canvas grow" />
-                  <FloatingToolbar />
-                  <FloatingBadge />
-                  <ContentSlotDeleteGuard />
+                  <TopBar content={content} />
+                  {/* Row below the full-width top bar. The canvas inset comes
+                      before the right Sidebar so the Sidebar's in-flow gap
+                      reserves its width on the right (matching the fixed panel
+                      pinned to right-0) — otherwise the canvas underlaps it. */}
+                  <div className="relative flex min-h-0 flex-1">
+                    <SidebarInset className="bg-muted/20">
+                      <Canvas className="gjs-custom-editor-canvas grow" />
+                      <FloatingToolbar />
+                      <FloatingBadge />
+                      <ContentSlotDeleteGuard />
+                    </SidebarInset>
+
+                    <Sidebar
+                      side="right"
+                      collapsible="offcanvas"
+                      className="top-12 h-[calc(100svh-3rem)]"
+                    >
+                      <RightPanel
+                        content={content}
+                        deleteAction={deleteAction}
+                      />
+                    </Sidebar>
+                  </div>
                 </SidebarInset>
               </SidebarProvider>
-
-              <Sidebar
-                side="right"
-                collapsible="offcanvas"
-                className="top-12 h-[calc(100svh-3rem)]"
-              >
-                <RightPanel content={content} deleteAction={deleteAction} />
-              </Sidebar>
             </div>
           </div>
 

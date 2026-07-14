@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useEditor } from "@grapesjs/react"
-import { Layers, Plus, Redo, SquareDashed, Undo, Sparkles } from "lucide-react"
+import { Redo, SquareDashed, Undo } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-import { useLeftPanel } from "../left-panel/left-panel-context"
-
 type Props = React.HTMLAttributes<HTMLDivElement>
 
 export default function TopBarLeft({ className }: Props) {
-  const { activeMode, togglePanel } = useLeftPanel()
   const editor = useEditor()
   const [, setTick] = React.useState(0)
   const { UndoManager } = editor
@@ -31,10 +28,6 @@ export default function TopBarLeft({ className }: Props) {
       editor.off("update", tick)
     }
   }, [editor])
-
-  const blocksActive = activeMode === "blocks"
-  const layersActive = activeMode === "layers"
-  const assistantActive = activeMode === "assistant"
 
   // Tracks the GrapesJS core outline command (runs the dashed-border overlay
   // on every component). The `update` listener above already re-renders this
@@ -61,67 +54,6 @@ export default function TopBarLeft({ className }: Props) {
   return (
     <TooltipProvider delay={500}>
       <div className={cn("flex items-center gap-1", className)}>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Insert block"
-                aria-pressed={blocksActive}
-                onClick={() => togglePanel("blocks")}
-                className={cn(
-                  blocksActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Plus />
-              </Button>
-            }
-          />
-          <TooltipContent>Insert block</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Layers"
-                aria-pressed={layersActive}
-                onClick={() => togglePanel("layers")}
-                className={cn(
-                  layersActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Layers />
-              </Button>
-            }
-          />
-          <TooltipContent>Layers</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="AI Assistant"
-                aria-pressed={assistantActive}
-                onClick={() => togglePanel("assistant")}
-                className={cn(
-                  assistantActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Sparkles />
-              </Button>
-            }
-          />
-          <TooltipContent>AI Assistant</TooltipContent>
-        </Tooltip>
         <Tooltip>
           <TooltipTrigger
             render={
