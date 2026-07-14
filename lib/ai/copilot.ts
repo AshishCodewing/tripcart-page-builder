@@ -5,6 +5,8 @@ import { LangfuseClient } from "@langfuse/client"
 import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
 
+import { describeInteractiveBlocks } from "@/lib/plugins/interactive/tags"
+
 export const COPILOT_PROMPT_NAME = "page-builder-copilot"
 export const COPILOT_PROMPT_LABEL = "production"
 
@@ -104,8 +106,16 @@ export function buildCopilotSystemPrompts(
   promptText: string,
   ctx: EditorContext = {}
 ): Array<SystemPrompt<OpenRouterSystemPromptMetadata>> {
+  // Tier 0 — the static prompt plus a short, cacheable awareness of the
+  // ready-made interactive blocks so the orchestrator plans to use them (the
+  // full emit contract lives in the code-gen prompt).
+  const blocks = describeInteractiveBlocks()
+  const tier0 = blocks
+    ? `${promptText}\n\n## Available interactive blocks\nWhen a request fits one of these, plan to use it — the code generator will emit the block:\n${blocks}`
+    : promptText
+
   const prompts: Array<SystemPrompt<OpenRouterSystemPromptMetadata>> = [
-    { content: promptText, metadata: EPHEMERAL },
+    { content: tier0, metadata: EPHEMERAL },
   ]
 
   // Tier 1 — the page export, byte-stable until the site itself is edited.

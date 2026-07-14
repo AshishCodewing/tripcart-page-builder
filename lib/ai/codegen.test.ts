@@ -64,9 +64,16 @@ describe("buildCodegenSystemPrompts", () => {
   it("always returns 2 entries: ephemeral static prompt + uncached task body", () => {
     const prompts = build({ action: "create" })
     expect(prompts).toHaveLength(2)
-    expect(prompts[0].content).toBe(PROMPT)
+    expect(prompts[0].content).toContain(PROMPT)
     expect(prompts[0].metadata?.cache_control?.type).toBe("ephemeral")
     expect("metadata" in prompts[1]).toBe(false)
+  })
+
+  it("folds the interactive-blocks contract into the cached static tier", () => {
+    const [staticTier] = build({ action: "create" })
+    expect(staticTier.content).toContain("# Interactive blocks")
+    expect(staticTier.content).toContain("<tc-tabs>")
+    expect(staticTier.metadata?.cache_control?.type).toBe("ephemeral")
   })
 
   it("emits a Target position block for `add` with targetIds", () => {
