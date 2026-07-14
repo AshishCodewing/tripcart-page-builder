@@ -10,6 +10,7 @@ import styleFilterPlugin from "grapesjs-style-filter"
 
 import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
+import { tabsPlugin } from "@/lib/plugins/interactive"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
 import { tcRemoteStorage } from "@/lib/plugins/tc-storage-adapter"
@@ -99,6 +100,10 @@ export const buildGjsOptions = (
         blocks: ["text", "link", "image", "video", "map"],
       }),
     columnsPlugin,
+    // Interactive web-component blocks (tc-tabs, …). After designSystemPlugin
+    // so `--tc--preset--*` resolves in the type's `defaults.styles`, and after
+    // reactRendererPlugin so the block-add processor is installed.
+    tabsPlugin,
     patternsPlugin,
     // template-ref must register AFTER designSystemPlugin so the
     // placeholder CSS can reference --tc--preset--* vars without
