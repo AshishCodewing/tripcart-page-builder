@@ -127,8 +127,10 @@ export function tcTabs(win: Win) {
       const editing = this.isEditing
       this.#tabs.forEach((tab, i) => {
         const selected = i === idx
+        // `aria-selected` is the active-state hook — stable and standard, so
+        // default CSS can style `[role="tab"][aria-selected="true"]` without
+        // depending on any author-chosen class name.
         tab.setAttribute("aria-selected", String(selected))
-        tab.classList.toggle("tc-tabs__tab--active", selected)
         if (editing) tab.removeAttribute("tabindex")
         else tab.tabIndex = selected ? 0 : -1
       })

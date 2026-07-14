@@ -73,7 +73,7 @@ describe("<tc-tabs> switching", () => {
     expect(visible(el)).toHaveLength(1)
     expect(visible(el)[0].textContent).toBe("Second")
     expect(tabs(el)[1].getAttribute("aria-selected")).toBe("true")
-    expect(tabs(el)[1].classList.contains("tc-tabs__tab--active")).toBe(true)
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("false")
   })
 
   it("honors an existing aria-controls link over index order", () => {
