@@ -119,22 +119,47 @@ export const tabsPlugin = (editor: Editor): void => {
         this.on("removed", this.__onRemove)
       },
 
-      // Create the paired panel if it doesn't exist yet, and wire the id link.
+      // Ensure this tab owns exactly one panel, then wire the id link.
+      //
+      // Two flows converge here: dropping the empty block / "Add Tab" (no
+      // panels yet → create), and importing fully-formed tabs — AI codegen,
+      // paste, foreign HTML — whose panels already exist but may have missing
+      // or mismatched ids (LLMs routinely get id-wiring wrong). In the import
+      // case we ADOPT the existing panel at this tab's position instead of
+      // creating a duplicate; we only create when no free panel is left. A
+      // panel already claimed by another tab is never reused, so clone/reorder
+      // (which keep their own panel via aria-controls) still work.
       __initTab(this: TabCmp) {
         if (this.tabContent) return
+        const tabs = this.getTabsType()
+        if (!tabs) return
+
         let content = this.getTabContent()
         if (!content) {
-          const tabs = this.getTabsType()
-          if (!tabs) return
-          content = tabs.getPanelsType().append({
-            type: T_PANEL,
-            components: "<p>Tab panel content…</p>",
-          })[0]
-          const panelId = content.getId()
-          const tabId = this.getId()
-          content.addAttributes({ id: panelId, "aria-labelledby": tabId })
-          this.addAttributes({ [ARIA_CONTROLS]: panelId, id: tabId })
+          const claimed = new Set(
+            tabs
+              .findTabs()
+              .map((t) => t.getAttributes()[ARIA_CONTROLS])
+              .filter((v): v is string => !!v)
+          )
+          const isFree = (p: Component) =>
+            !claimed.has(p.getId()) &&
+            !claimed.has(String(p.getAttributes().id ?? ""))
+          const panels = tabs.findPanels()
+          const atIndex = panels[tabs.findTabs().indexOf(this)]
+          content =
+            atIndex && isFree(atIndex)
+              ? atIndex
+              : (panels.find(isFree) ??
+                tabs.getPanelsType().append({
+                  type: T_PANEL,
+                  components: "<p>Tab panel content…</p>",
+                })[0])
         }
+        const panelId = content.getId()
+        const tabId = this.getId()
+        content.addAttributes({ id: panelId, "aria-labelledby": tabId })
+        this.addAttributes({ [ARIA_CONTROLS]: panelId, id: tabId })
         this.tabContent = content
       },
 

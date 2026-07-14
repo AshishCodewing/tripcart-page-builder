@@ -162,10 +162,16 @@ export function buildInteractiveBlocksSection(): string {
     (b) => `## ${b.label}\nUse for ${b.whenToUse}\n${fenced("html", b.example)}`
   ).join("\n\n")
   return `# Interactive blocks
-Prefer these ready-made, accessible blocks when the plan calls for one. Emit
-EXACTLY the structure shown — do NOT add id, aria-*, hidden or tabindex
-attributes (they are wired automatically at runtime). Keep the tab and panel
-order aligned, and put each tab's label in its inner <span>.
+Prefer these ready-made, accessible blocks when the plan calls for one. For
+EVERY interactive block below:
+- Emit EXACTLY the structure shown.
+- NEVER write id, aria-controls, aria-labelledby, aria-selected, hidden or
+  tabindex — they are wired automatically at runtime, and adding them BREAKS
+  the block.
+- The tab buttons and the panels are two parallel lists: output the SAME number
+  of panels as tabs, in the SAME order (1st tab ↔ 1st panel). Each tab's label
+  text goes in its inner <span>; each tab's content goes in the matching
+  <div role="tabpanel">.
 
 ${blocks}`
 }
