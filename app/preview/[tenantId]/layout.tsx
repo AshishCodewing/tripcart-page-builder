@@ -63,6 +63,10 @@ export default async function PreviewLayout({
           precedence="default"
         />
       )}
+      {/* The interactive web-component runtime is loaded per-page by
+          <InteractiveComponentsLoader> (rendered by PagePreview only when the
+          page uses one), via a client-only dynamic import. Styling ships with
+          the component's `defaults.styles`, baked into the page CSS. */}
       {children}
     </>
   )

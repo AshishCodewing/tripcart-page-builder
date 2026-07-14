@@ -16,6 +16,8 @@
 
 import type { ElementType } from "react"
 
+import { InteractiveComponentsLoader } from "@/components/page-builder/interactive-components-loader"
+import { usesInteractiveComponents } from "@/lib/plugins/interactive/tags"
 import { filterProtectedStyles } from "@/lib/plugins/tc-storage-adapter"
 import {
   RenderProjectFragment,
@@ -54,13 +56,18 @@ export function PagePreview({ projectData, config, rootTag = "div" }: Props) {
   // page's body, so the shared fragment renderer strips it and emits the
   // page's children + CSS on a host element carrying the wrapper's classes.
   return (
-    <RenderProjectFragment
-      projectData={filtered as ProjectDefinition}
-      config={config}
-      parentId="preview"
-      rootTag={rootTag}
-      emptyFallback={<PreviewEmpty reason="Project has no pages or frames." />}
-    />
+    <>
+      <RenderProjectFragment
+        projectData={filtered as ProjectDefinition}
+        config={config}
+        parentId="preview"
+        rootTag={rootTag}
+        emptyFallback={<PreviewEmpty reason="Project has no pages or frames." />}
+      />
+      {/* Load the interactive web-component runtime only when the page uses one,
+          so pages without tabs/etc. ship zero web-component JS. */}
+      {usesInteractiveComponents(filtered) && <InteractiveComponentsLoader />}
+    </>
   )
 }
 
