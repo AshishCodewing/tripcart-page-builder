@@ -148,12 +148,17 @@ export function tcTabs(win: Win) {
 
     onKeydown(event: KeyboardEvent) {
       if (this.isEditing) return
+      // APG: vertical tablists navigate with Up/Down, horizontal with
+      // Left/Right. Orientation is author-declared on the tablist; the ARIA
+      // default (unset) is horizontal. keyNav also handles Home/End.
+      const vertical =
+        this.#tablist?.getAttribute("aria-orientation") === "vertical"
       const next = this.keyNav(
         event,
         this.#active,
         this.#tabs.length,
-        "ArrowLeft",
-        "ArrowRight"
+        vertical ? "ArrowUp" : "ArrowLeft",
+        vertical ? "ArrowDown" : "ArrowRight"
       )
       if (next < 0) return
       this.#activate(next)
