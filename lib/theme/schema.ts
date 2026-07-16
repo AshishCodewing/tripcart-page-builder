@@ -78,18 +78,17 @@ export type StyleBlock = z.infer<typeof styleBlockSchema>
 export type PseudoStyleBlock = z.infer<typeof pseudoStyleBlockSchema>
 
 /**
- * Mirrors WP's supported element list. Each maps to a class handle the
- * renderer attaches (e.g. `tc-element-button`), so element-level defaults
- * target a class rather than a tag — same trick WP uses with
- * `.wp-element-button`. Derived from the elements schema's key set.
+ * Mirrors WP's supported element list. Each compiles to a bare tag
+ * selector (`heading` → `h1, …, h6`, `link` → `a`, `caption` →
+ * `figcaption`, everything else the tag as-is) — see `elementSelector`
+ * in `./compile.ts`. Derived from the elements schema's key set.
  */
 export type ElementName = keyof z.infer<typeof elementsSchema>
 
 /**
  * `components` is keyed by GrapesJS component `type`. Open-ended (no
  * fixed enum) so new patterns/blocks register without a schema bump. The
- * compiler targets the component's root selector (typically
- * `.tc-component-<type>`).
+ * compiler targets each type via its `[data-gjs-type="<type>"]` selector.
  */
 export type StyleDefaults = z.infer<typeof styleDefaultsSchema>
 

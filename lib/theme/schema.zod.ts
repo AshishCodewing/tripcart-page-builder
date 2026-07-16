@@ -86,6 +86,7 @@ export const colorStyleSchema = z.object({
 export const typographyStyleSchema = z.object({
   fontFamily: z.string().optional(),
   fontSize: z.string().optional(),
+  fontStyle: z.string().optional(),
   fontWeight: z.string().optional(),
   lineHeight: z.string().optional(),
   letterSpacing: z.string().optional(),

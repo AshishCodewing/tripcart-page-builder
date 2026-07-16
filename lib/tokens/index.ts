@@ -102,6 +102,7 @@ const fontSizes: FontSizeToken[] = [
   { slug: "large", name: "Large", value: "var(--font-size-3)" },
   { slug: "x-large", name: "Extra Large", value: "var(--font-size-5)" },
   { slug: "xx-large", name: "2X Large", value: "var(--font-size-7)" },
+  { slug: "xxx-large", name: "3X Large", value: "var(--font-size-8)" },
 ]
 
 const fontWeights: Token[] = [
@@ -174,8 +175,10 @@ const shadowPresets: Token[] = [
 //
 // `styles` populates element-level defaults so the new compileTheme
 // styles path produces visible output: every <button> picks up the
-// brand primary; every <h1> uses the heading font at xx-large bold;
-// links inherit primary with a hover underline. Slugs in StyleRefs
+// brand primary; h1-h6 use the heading font on a descending size ramp
+// (xxx-large down to small, with h6 as an uppercase eyebrow); links
+// inherit primary with a hover underline; figcaption and cite get muted
+// caption text and italics respectively. Slugs in StyleRefs
 // are written exactly as stored in the token arrays — resolveStyleRef
 // kebabs them when assembling the final CSS variable name.
 export const defaultTheme: Theme = {
@@ -215,9 +218,19 @@ export const defaultTheme: Theme = {
           lineHeight: "var:preset|line-height|tight",
         },
       },
-      h1: { typography: { fontSize: "var:preset|font-size|xx-large" } },
-      h2: { typography: { fontSize: "var:preset|font-size|x-large" } },
-      h3: { typography: { fontSize: "var:preset|font-size|large" } },
+      h1: { typography: { fontSize: "var:preset|font-size|xxx-large" } },
+      h2: { typography: { fontSize: "var:preset|font-size|xx-large" } },
+      h3: { typography: { fontSize: "var:preset|font-size|x-large" } },
+      h4: { typography: { fontSize: "var:preset|font-size|large" } },
+      h5: { typography: { fontSize: "var:preset|font-size|medium" } },
+      h6: {
+        typography: {
+          fontSize: "var:preset|font-size|small",
+          fontWeight: "var:preset|font-weight|semibold",
+          letterSpacing: "var:preset|letter-spacing|wide",
+          textTransform: "uppercase",
+        },
+      },
       button: {
         color: {
           text: "var:preset|color|primaryForeground",
@@ -231,6 +244,14 @@ export const defaultTheme: Theme = {
           typography: { textDecoration: "underline" },
         },
       },
+      caption: {
+        color: { text: "var:preset|color|mutedForeground" },
+        typography: {
+          fontSize: "var:preset|font-size|small",
+          lineHeight: "var:preset|line-height|snug",
+        },
+      },
+      cite: { typography: { fontStyle: "italic" } },
     },
   },
 }

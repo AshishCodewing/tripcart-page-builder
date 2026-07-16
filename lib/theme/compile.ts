@@ -160,6 +160,7 @@ const compileBlock = (block: StyleBlock): Record<string, string> => {
     const t = block.typography
     setIfRef(decls, "font-family", t.fontFamily)
     setIfRef(decls, "font-size", t.fontSize)
+    setIfRef(decls, "font-style", t.fontStyle)
     setIfRef(decls, "font-weight", t.fontWeight)
     setIfRef(decls, "line-height", t.lineHeight)
     setIfRef(decls, "letter-spacing", t.letterSpacing)
