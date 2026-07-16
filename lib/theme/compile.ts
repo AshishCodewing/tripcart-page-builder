@@ -348,7 +348,22 @@ export const compileTheme = (theme: Theme): CompiledTheme => {
     // only the top-level style props through compileBlock so the body
     // rule doesn't accidentally absorb element/component selectors.
     const { elements, components, ...rootBlock } = styles
-    const rootDecls = compileBlock(rootBlock)
+
+    // Root-level blockGap hoists to the WP-style `--tc--style--block-gap`
+    // custom property on :root — consumed by the `.tc-entry-content`
+    // flow owl in tc-normalize.css — rather than becoming a no-op `gap`
+    // on the body rule (`gap` does nothing in normal block flow). Per-
+    // component/element blockGap still compiles to `gap` (flex/grid) via
+    // compileBlock; only the root block is hoisted here.
+    const { blockGap: rootBlockGap, ...rootSpacing } = rootBlock.spacing ?? {}
+    if (rootBlockGap) {
+      rootVars["--tc--style--block-gap"] = resolveStyleRef(rootBlockGap)
+    }
+
+    const rootDecls = compileBlock({
+      ...rootBlock,
+      spacing: Object.keys(rootSpacing).length > 0 ? rootSpacing : undefined,
+    })
     if (Object.keys(rootDecls).length > 0) {
       rules.push({ selector: "body", style: rootDecls })
     }

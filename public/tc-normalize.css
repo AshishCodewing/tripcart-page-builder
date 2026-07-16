@@ -34,6 +34,7 @@
 
 :where(html) {
   -webkit-text-size-adjust: none;
+  --tc--style--block-gap: var(--size-fluid-2);
   accent-color: var(--brand, var(--tc--preset--color--primary));
   background-color: var(--tc--preset--color--background);
   block-size: 100%;
@@ -300,6 +301,28 @@
 :where(p) {
   text-wrap: pretty;
   max-inline-size: var(--size-content-3);
+}
+
+/* ---- Block-gap vertical rhythm --------------------------------------------
+ * WordPress `.is-layout-flow > * + *` model, scoped to the content area
+ * (`.tc-entry-content`, our analog of WP's `.entry-content`) so the site
+ * header/footer chrome — which lives OUTSIDE this scope — is never touched.
+ * `[data-gjs-type="wrapper"]` is the same scope inside the editor canvas,
+ * where the wrapper root is not stripped.
+ *
+ * Uniform gap between sibling blocks (WP block-gap semantics — headings get
+ * the same gap as paragraphs; no prose-style asymmetry). Nested reach is
+ * limited to SEMANTIC sectioning tags, never `div`, so flex column rows
+ * (`div.gjs-grid-row`) keep their own cross-axis layout. Kept at :where()
+ * 0-0-0 so themes, [data-gjs-type] components (0-1-0) and authored classes
+ * always win — this stays a floor. Comes after the `margin: 0` reset, so at
+ * equal specificity source order applies it.
+ */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) > :where(* + *),
+:where(.tc-entry-content, [data-gjs-type="wrapper"])
+  :where(article, section, header, footer, aside, form)
+  > :where(* + *) {
+  margin-block-start: var(--tc--style--block-gap, var(--size-fluid-2));
 }
 
 :where(dt, summary) {

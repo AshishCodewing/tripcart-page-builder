@@ -25,6 +25,7 @@
     "mcp:rag": "tsx scripts/mcp-rag-server.ts",
     "smoke:ledger": "tsx scripts/smoke-ledger.ts",
     "backfill:css": "tsx scripts/backfill-css-artifacts.ts",
+    "backfill:block-gap": "tsx scripts/backfill-block-gap.ts",
     "seed:credits": "tsx scripts/backfill-credit-seed.ts"
   },
   "dependencies": {
