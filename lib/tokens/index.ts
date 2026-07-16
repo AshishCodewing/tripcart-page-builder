@@ -262,6 +262,11 @@ export const defaultTheme: Theme = {
       fontSize: "var:preset|font-size|medium",
       lineHeight: "var:preset|line-height|normal",
     },
+    // Root block-gap drives the `.tc-entry-content` vertical-rhythm owl in
+    // tc-normalize.css (compiled to `--tc--style--block-gap` on :root). The
+    // `lg` spacing token (--size-6 ≈ 1.5rem) matches the tc-normalize
+    // fallback; editing it (or the token) re-themes the gap on both surfaces.
+    spacing: { blockGap: "var:preset|spacing|lg" },
     elements: {
       heading: {
         typography: {

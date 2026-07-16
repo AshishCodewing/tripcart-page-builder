@@ -93,7 +93,13 @@ export function RenderProjectFragment({
     )
   }
 
-  const wrapperClasses = root.classes.join(" ")
+  // Tag the content root as the block-gap flow scope (WP `.entry-content`
+  // analog). The scoped owl in tc-normalize.css keys off this class, so page
+  // content gets vertical rhythm while the site chrome — rendered `bare`
+  // (no wrapper) — stays outside the scope and untouched.
+  const wrapperClasses = [root.classes.join(" "), "tc-entry-content"]
+    .filter(Boolean)
+    .join(" ")
   return (
     <>
       {css}
