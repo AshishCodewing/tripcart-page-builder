@@ -6,7 +6,7 @@ import { Geist_Mono, Inter } from "next/font/google"
 // previews, etc. The canvas iframe loads it separately via canvas.styles.
 import "open-props/open-props.min.css"
 import "open-props/colors-hsl.min.css"
-import "./globals.css"
+import "../globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ToastProvider } from "@/components/ui/toast"
 import { Toaster } from "@/components/ui/toaster"
