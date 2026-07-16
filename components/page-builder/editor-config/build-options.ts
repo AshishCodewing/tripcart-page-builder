@@ -21,16 +21,21 @@ import type { Template } from "@/generated/prisma/client"
 
 import { STYLE_SECTORS } from "./style-sectors"
 
-// Stylesheets the GrapesJS canvas iframe loads — produced by
-// scripts/sync-vendor-css.mjs (predev / prebuild / postinstall) so the URLs
-// are framework-agnostic and stable. We don't use `import "...?url"` because
+// Stylesheets the GrapesJS canvas iframe loads. The Open Props files are
+// produced by scripts/sync-vendor-css.mjs (predev / prebuild / postinstall)
+// into the gitignored /vendor/ mirror; `tc-normalize.css` is a tracked,
+// hand-authored asset in public/. We don't use `import "...?url"` because
 // Turbopack treats CSS imports as side-effects, not URL imports. Published
 // pages must also serve these files for authored content to render correctly.
+//
+// Order: token definitions first (open-props + the -hsl triplets the theme
+// uses), then our themed normalize floor. tc-normalize's `:where()` rules are
+// specificity 0-0-0, so it sits under both the theme's :root vars (injected via
+// CssComposer) and any authored styles regardless of load order.
 const CANVAS_STYLE_URLS = [
-  "/vendor/open-props-sizes.min.css",
-  "/vendor/open-props-fonts.min.css",
-  "/vendor/open-props-borders.min.css",
+  "/vendor/open-props.min.css",
   "/vendor/open-props-colors-hsl.min.css",
+  "/tc-normalize.css",
 ]
 
 export const buildGjsOptions = (

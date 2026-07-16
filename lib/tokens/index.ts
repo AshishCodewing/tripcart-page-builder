@@ -19,24 +19,56 @@
  */
 
 import { presetVarName, type PresetCategory } from "@/lib/theme/compile"
-import type { FontSizeToken, Theme, Token } from "@/lib/theme/schema"
+import type {
+  ColorToken,
+  FontSizeToken,
+  Theme,
+  Token,
+} from "@/lib/theme/schema"
 
 export type ActivePresetId = Partial<Record<PresetCategory, string>>
 
-const colorPalette: Token[] = [
-  { slug: "background", name: "Background", value: "hsl(var(--gray-0-hsl))" },
-  { slug: "foreground", name: "Foreground", value: "hsl(var(--gray-12-hsl))" },
-  { slug: "card", name: "Card", value: "hsl(var(--gray-0-hsl))" },
+// `dark` values follow the Open Props adaptive convention: neutrals invert
+// along the gray ramp (light surfaces → high-numbered greys, dark text →
+// low-numbered greys), while brand/semantic hues (primary, destructive,
+// warning, success, ring) intentionally omit `dark` and stay fixed across
+// both schemes. The compiler emits `dark` under prefers-color-scheme.
+const colorPalette: ColorToken[] = [
+  {
+    slug: "background",
+    name: "Background",
+    value: "hsl(var(--gray-0-hsl))",
+    dark: "hsl(var(--gray-9-hsl))",
+  },
+  {
+    slug: "foreground",
+    name: "Foreground",
+    value: "hsl(var(--gray-12-hsl))",
+    dark: "hsl(var(--gray-1-hsl))",
+  },
+  {
+    slug: "card",
+    name: "Card",
+    value: "hsl(var(--gray-0-hsl))",
+    dark: "hsl(var(--gray-8-hsl))",
+  },
   {
     slug: "cardForeground",
     name: "Card Foreground",
     value: "hsl(var(--gray-12-hsl))",
+    dark: "hsl(var(--gray-1-hsl))",
   },
-  { slug: "popover", name: "Popover", value: "hsl(var(--gray-0-hsl))" },
+  {
+    slug: "popover",
+    name: "Popover",
+    value: "hsl(var(--gray-0-hsl))",
+    dark: "hsl(var(--gray-8-hsl))",
+  },
   {
     slug: "popoverForeground",
     name: "Popover Foreground",
     value: "hsl(var(--gray-12-hsl))",
+    dark: "hsl(var(--gray-1-hsl))",
   },
   { slug: "primary", name: "Primary", value: "hsl(var(--blue-6-hsl))" },
   {
@@ -44,23 +76,41 @@ const colorPalette: Token[] = [
     name: "Primary Foreground",
     value: "hsl(var(--gray-0-hsl))",
   },
-  { slug: "secondary", name: "Secondary", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "secondary",
+    name: "Secondary",
+    value: "hsl(var(--gray-2-hsl))",
+    dark: "hsl(var(--gray-8-hsl))",
+  },
   {
     slug: "secondaryForeground",
     name: "Secondary Foreground",
     value: "hsl(var(--gray-12-hsl))",
+    dark: "hsl(var(--gray-1-hsl))",
   },
-  { slug: "muted", name: "Muted", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "muted",
+    name: "Muted",
+    value: "hsl(var(--gray-2-hsl))",
+    dark: "hsl(var(--gray-8-hsl))",
+  },
   {
     slug: "mutedForeground",
     name: "Muted Foreground",
     value: "hsl(var(--gray-7-hsl))",
+    dark: "hsl(var(--gray-4-hsl))",
   },
-  { slug: "accent", name: "Accent", value: "hsl(var(--gray-2-hsl))" },
+  {
+    slug: "accent",
+    name: "Accent",
+    value: "hsl(var(--gray-2-hsl))",
+    dark: "hsl(var(--gray-8-hsl))",
+  },
   {
     slug: "accentForeground",
     name: "Accent Foreground",
     value: "hsl(var(--gray-12-hsl))",
+    dark: "hsl(var(--gray-1-hsl))",
   },
   { slug: "destructive", name: "Destructive", value: "hsl(var(--red-6-hsl))" },
   { slug: "warning", name: "Warning", value: "hsl(var(--yellow-6-hsl))" },
@@ -79,11 +129,13 @@ const colorPalette: Token[] = [
     slug: "border",
     name: "Border",
     value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 10%, transparent)",
+    dark: "color-mix(in oklch, hsl(var(--gray-0-hsl)) 12%, transparent)",
   },
   {
     slug: "input",
     name: "Input",
     value: "color-mix(in oklch, hsl(var(--gray-12-hsl)) 15%, transparent)",
+    dark: "color-mix(in oklch, hsl(var(--gray-0-hsl)) 18%, transparent)",
   },
   { slug: "ring", name: "Ring", value: "hsl(var(--blue-6-hsl))" },
 ]

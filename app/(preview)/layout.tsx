@@ -19,6 +19,9 @@ import { Geist_Mono, Inter } from "next/font/google"
 //
 // The tenant theme stylesheet, the draft gate, and site chrome are layered on
 // per-tenant / per-segment below, in `preview/[tenantId]/...`.
+// Open Props tokens (raw scale + shadows + easings) and the `-hsl` triplets
+// the compiled theme references. `tc-normalize` (linked in <body> below) is the
+// element-defaults floor and consumes both these and the tenant theme tokens.
 import "open-props/open-props.min.css"
 import "open-props/colors-hsl.min.css"
 
@@ -47,7 +50,15 @@ export default function PreviewRootLayout({
         MozOsxFontSmoothing: "grayscale",
       }}
     >
-      <body>{children}</body>
+      <body>
+        {/* Tracked static asset in public/ — the themed Open Props normalize
+            floor. A <link> (not an npm import) because the SAME file is served
+            by URL to the canvas iframe; a bundler import would fork it. React 19
+            `precedence` hoists + dedupes it into <head>. */}
+        {/* eslint-disable-next-line @next/next/no-css-tags -- shared public URL, intentionally not bundled */}
+        <link rel="stylesheet" href="/tc-normalize.css" precedence="default" />
+        {children}
+      </body>
     </html>
   )
 }

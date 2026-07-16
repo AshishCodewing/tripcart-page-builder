@@ -11,12 +11,25 @@ import { fileURLToPath } from "node:url"
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, "..")
 
-/** [src relative to project root, dst relative to project root] */
+/**
+ * [src relative to project root, dst relative to project root]
+ *
+ * The full `open-props.min.css` is the superset the canvas needs: sizes, fonts,
+ * borders, the raw color scale, shadows, and easings — everything the tenant
+ * theme and `public/tc-normalize.css` reference. `colors-hsl` is loaded
+ * alongside it because the theme tokens use `hsl(var(--gray-N-hsl))`, and the
+ * `-hsl` triplets are NOT in `open-props.min.css`. This mirrors what the
+ * preview layout (app/(preview)) imports, so both surfaces resolve identically.
+ */
 const copies = [
-  ["node_modules/open-props/sizes.min.css",      "public/vendor/open-props-sizes.min.css"],
-  ["node_modules/open-props/fonts.min.css",      "public/vendor/open-props-fonts.min.css"],
-  ["node_modules/open-props/borders.min.css",    "public/vendor/open-props-borders.min.css"],
-  ["node_modules/open-props/colors-hsl.min.css", "public/vendor/open-props-colors-hsl.min.css"],
+  [
+    "node_modules/open-props/open-props.min.css",
+    "public/vendor/open-props.min.css",
+  ],
+  [
+    "node_modules/open-props/colors-hsl.min.css",
+    "public/vendor/open-props-colors-hsl.min.css",
+  ],
 ]
 
 for (const [src, dst] of copies) {

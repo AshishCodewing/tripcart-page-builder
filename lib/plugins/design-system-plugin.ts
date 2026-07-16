@@ -46,14 +46,42 @@ import type { Theme } from "@/lib/theme/schema"
 export const designSystemPlugin = (editor: Editor): void => {
   let managedSelectors = new Set<string>()
 
+  // Same at-rule descriptor for set + get so the dark rule round-trips to
+  // the one CssRule GrapesJS keys by (selector + media params).
+  const DARK_MEDIA = {
+    atRuleType: "media",
+    atRuleParams: "(prefers-color-scheme: dark)",
+  } as const
+
   const inject = (theme: Theme): void => {
-    const { rootVars, rules } = compileTheme(theme)
+    const { rootVars, darkVars, rules } = compileTheme(theme)
+    const hasDark = Object.keys(darkVars).length > 0
 
     // :root variables — protected so users can't accidentally delete
-    // the rule from the Style Manager.
-    editor.CssComposer.setRule(":root", rootVars)
+    // the rule from the Style Manager. `color-scheme: light` is only set
+    // when a dark palette exists (mirrors compiledThemeToCss).
+    editor.CssComposer.setRule(
+      ":root",
+      hasDark ? { ...rootVars, "color-scheme": "light" } : rootVars
+    )
     const rootRule = editor.CssComposer.getRule(":root")
     if (rootRule) rootRule.set("protected", true)
+
+    // Dark overrides under prefers-color-scheme — the Open Props adaptive
+    // convention. Works inside the canvas iframe with no JS/class toggle.
+    // Protected so the tc-remote adapter keeps it out of per-page blobs.
+    if (hasDark) {
+      editor.CssComposer.setRule(
+        ":root",
+        { ...darkVars, "color-scheme": "dark" },
+        DARK_MEDIA
+      )
+      const darkRule = editor.CssComposer.getRule(":root", DARK_MEDIA)
+      if (darkRule) darkRule.set("protected", true)
+    } else if (editor.CssComposer.getRule(":root", DARK_MEDIA)) {
+      // Theme lost its dark palette — wipe any stale media overrides.
+      editor.CssComposer.setRule(":root", {}, DARK_MEDIA)
+    }
 
     // Element / component style rules. Marked protected so the
     // tc-local storage adapter filters them out of per-page blobs.
