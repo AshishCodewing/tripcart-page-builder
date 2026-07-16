@@ -32,6 +32,20 @@ describe("attrsToReactProps", () => {
     })
   })
 
+  it("maps hyphen-less HTML attributes React expects camelCased (datetime, hreflang, cellpadding)", () => {
+    expect(
+      attrsToReactProps({
+        datetime: "2026-07-16",
+        hreflang: "en",
+        cellpadding: "0",
+      })
+    ).toEqual({
+      dateTime: "2026-07-16",
+      hrefLang: "en",
+      cellPadding: "0",
+    })
+  })
+
   it("camelizes the whole bag once viewBox flips on SVG context", () => {
     expect(
       attrsToReactProps({ viewBox: "0 0 10 10", "clip-path": "url(#c)" })

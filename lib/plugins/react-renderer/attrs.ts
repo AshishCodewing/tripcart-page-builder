@@ -60,6 +60,31 @@ const ATTR_CASE_MAP: Record<string, string> = {
   minlength: "minLength",
   autofocus: "autoFocus",
   autocomplete: "autoComplete",
+  // Single-word (hyphen-less) HTML attributes React expects camelCased. These
+  // can't be fixed by the mechanical kebab→camel step because they contain no
+  // hyphen, so they must be listed explicitly or React warns (e.g. `datetime`
+  // on <time>, `hreflang` on <a>, `cellpadding` on <table>).
+  datetime: "dateTime",
+  hreflang: "hrefLang",
+  cellpadding: "cellPadding",
+  cellspacing: "cellSpacing",
+  charset: "charSet",
+  autocapitalize: "autoCapitalize",
+  autocorrect: "autoCorrect",
+  enterkeyhint: "enterKeyHint",
+  radiogroup: "radioGroup",
+  contextmenu: "contextMenu",
+  itemid: "itemID",
+  itemprop: "itemProp",
+  itemref: "itemRef",
+  itemscope: "itemScope",
+  itemtype: "itemType",
+  nomodule: "noModule",
+  popovertarget: "popoverTarget",
+  popovertargetaction: "popoverTargetAction",
+  fetchpriority: "fetchPriority",
+  imagesizes: "imageSizes",
+  imagesrcset: "imageSrcSet",
 }
 
 // Common HTML props that React treats as camelCase.
