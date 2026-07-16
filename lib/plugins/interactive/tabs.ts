@@ -50,6 +50,10 @@ type TabsCmp = Cmp & {
   findPanels(): Component[]
   addTab(content?: unknown): void
 }
+type ListCmp = Cmp & {
+  __syncOrientation(): void
+  __syncLabel(): void
+}
 
 const tabsCss = `
 tc-tabs { display: block; }
@@ -84,6 +88,28 @@ tc-tabs { display: block; }
 }
 
 .tc-tabs__panel[hidden] { display: none; }
+
+/* Vertical orientation (aria-orientation="vertical"). Flat single-token
+   selectors only — see feedback_grapesjs_flat_selectors. The wrapper +
+   list get modifier classes in sync with the trait; .tc-tabs__panels'
+   flex is inert while the wrapper is display:block (horizontal). */
+.tc-tabs--vertical {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4, 1.5rem);
+}
+
+.tc-tabs__list--vertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  border-right: 1px solid
+    var(--tc--preset--color--border, color-mix(in oklch, currentColor 14%, transparent));
+  border-bottom: 0;
+  margin-right: var(--size-3, 1rem);
+  margin-bottom: 0;
+}
+
+.tc-tabs__panels { flex: 1 1 auto; min-width: 0; }
 `
 
 const tabsMedia = `
@@ -209,6 +235,15 @@ export const tabsPlugin = (editor: Editor): void => {
         draggable: false,
         removable: false,
         copyable: false,
+        // Bound to a prop (not the attribute) so horizontal — the ARIA
+        // default — can stay implicit: we emit aria-orientation only for
+        // vertical. The runtime enhancer reads it for Up/Down key nav
+        // (lib/web-components/tabs.ts onKeydown).
+        orientation: "horizontal",
+        // Accessible name for the tablist (APG: a tablist should have one).
+        // Prop-bound + synced so an empty value omits aria-label rather than
+        // emitting aria-label="".
+        ariaLabel: "",
         traits: [
           {
             type: "button",
@@ -218,7 +253,56 @@ export const tabsPlugin = (editor: Editor): void => {
             full: true,
             command: ADD_TAB_CMD,
           },
+          {
+            type: "text",
+            name: "ariaLabel",
+            label: "Accessible label",
+            placeholder: "e.g. Customer reviews",
+            changeProp: true,
+          },
+          {
+            type: "select",
+            name: "orientation",
+            label: "Orientation",
+            changeProp: true,
+            options: [
+              { id: "horizontal", label: "Horizontal" },
+              { id: "vertical", label: "Vertical" },
+            ],
+          },
         ],
+      },
+
+      init(this: ListCmp) {
+        // Reflect any author/AI-supplied attributes into the traits so the
+        // Settings panel + layout classes match the markup, then keep the
+        // attributes in sync with the traits.
+        const attrs = this.getAttributes()
+        if (attrs["aria-orientation"] === "vertical") {
+          this.set("orientation", "vertical")
+        }
+        if (attrs["aria-label"]) this.set("ariaLabel", attrs["aria-label"])
+        this.on("change:orientation", this.__syncOrientation)
+        this.on("change:ariaLabel", this.__syncLabel)
+        this.__syncOrientation()
+      },
+
+      __syncLabel(this: ListCmp) {
+        const label = String(this.get("ariaLabel") ?? "").trim()
+        if (label) this.addAttributes({ "aria-label": label })
+        else this.removeAttributes("aria-label")
+      },
+
+      __syncOrientation(this: ListCmp) {
+        const vertical = this.get("orientation") === "vertical"
+        if (vertical) this.addAttributes({ "aria-orientation": "vertical" })
+        else this.removeAttributes("aria-orientation")
+        if (vertical) this.addClass("tc-tabs__list--vertical")
+        else this.removeClass("tc-tabs__list--vertical")
+        const tabs = this.closestType(T_TABS)
+        if (!tabs) return
+        if (vertical) tabs.addClass("tc-tabs--vertical")
+        else tabs.removeClass("tc-tabs--vertical")
       },
     },
   })

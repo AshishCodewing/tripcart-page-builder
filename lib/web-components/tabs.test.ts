@@ -97,6 +97,40 @@ describe("<tc-tabs> switching", () => {
   })
 })
 
+describe("<tc-tabs> keyboard (APG)", () => {
+  it("Home/End jump to first/last tab", () => {
+    const el = mount()
+    const list = el.querySelector('[role="tablist"]')!
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", bubbles: true })
+    )
+    expect(tabs(el)[2].getAttribute("aria-selected")).toBe("true")
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", bubbles: true })
+    )
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+  })
+
+  it("vertical tablist navigates with Up/Down, ignores Left/Right", () => {
+    const el = mount()
+    const list = el.querySelector('[role="tablist"]')!
+    list.setAttribute("aria-orientation", "vertical")
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+    )
+    // Horizontal keys do nothing in a vertical tablist.
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+    )
+    expect(tabs(el)[1].getAttribute("aria-selected")).toBe("true")
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })
+    )
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+  })
+})
+
 describe("<tc-tabs> editing mode", () => {
   it("still shows one panel and switches on click", () => {
     const el = mount({ editing: true })

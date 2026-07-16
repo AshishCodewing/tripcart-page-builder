@@ -99,6 +99,92 @@ describe("tc-tabs plugin — panel pairing", () => {
     expect(new Set(pairing(tabEls)).size).toBe(3)
   })
 
+  it("default scaffold omits aria-orientation (horizontal is the ARIA default)", () => {
+    editor = grapesjs.init({
+      headless: true,
+      storageManager: false,
+      plugins: [tabsPlugin],
+    })
+    editor.addComponents({ type: "tc-tabs" })
+    const list = editor.getWrapper()!.findType("tc-tab-list")[0]!
+    expect(list.getAttributes()["aria-orientation"]).toBeUndefined()
+    expect(list.getClasses()).not.toContain("tc-tabs__list--vertical")
+  })
+
+  it("orientation trait toggles aria-orientation + layout classes", () => {
+    editor = grapesjs.init({
+      headless: true,
+      storageManager: false,
+      plugins: [tabsPlugin],
+    })
+    editor.addComponents({ type: "tc-tabs" })
+    const tabs = editor.getWrapper()!.findType("tc-tabs")[0]!
+    const list = tabs.findType("tc-tab-list")[0]!
+
+    list.set("orientation", "vertical")
+    expect(list.getAttributes()["aria-orientation"]).toBe("vertical")
+    expect(list.getClasses()).toContain("tc-tabs__list--vertical")
+    expect(tabs.getClasses()).toContain("tc-tabs--vertical")
+
+    list.set("orientation", "horizontal")
+    expect(list.getAttributes()["aria-orientation"]).toBeUndefined()
+    expect(list.getClasses()).not.toContain("tc-tabs__list--vertical")
+    expect(tabs.getClasses()).not.toContain("tc-tabs--vertical")
+  })
+
+  it("reflects author-supplied aria-orientation into the trait + classes", () => {
+    const { tabs } = load(`
+      <tc-tabs>
+        <div role="tablist" aria-orientation="vertical">
+          <button role="tab"><span>One</span></button>
+          <button role="tab"><span>Two</span></button>
+        </div>
+        <div class="tc-tabs__panels">
+          <div role="tabpanel"><p>First</p></div>
+          <div role="tabpanel"><p>Second</p></div>
+        </div>
+      </tc-tabs>`)
+    const list = tabs.findType("tc-tab-list")[0]!
+    expect(list.get("orientation")).toBe("vertical")
+    expect(list.getClasses()).toContain("tc-tabs__list--vertical")
+    expect(tabs.getClasses()).toContain("tc-tabs--vertical")
+  })
+
+  it("accessible-label trait toggles aria-label, omitting it when empty", () => {
+    editor = grapesjs.init({
+      headless: true,
+      storageManager: false,
+      plugins: [tabsPlugin],
+    })
+    editor.addComponents({ type: "tc-tabs" })
+    const list = editor.getWrapper()!.findType("tc-tab-list")[0]!
+
+    expect(list.getAttributes()["aria-label"]).toBeUndefined()
+
+    list.set("ariaLabel", "Customer reviews")
+    expect(list.getAttributes()["aria-label"]).toBe("Customer reviews")
+
+    list.set("ariaLabel", "   ")
+    expect(list.getAttributes()["aria-label"]).toBeUndefined()
+  })
+
+  it("reflects author-supplied aria-label into the trait", () => {
+    const { tabs } = load(`
+      <tc-tabs>
+        <div role="tablist" aria-label="Plans">
+          <button role="tab"><span>One</span></button>
+          <button role="tab"><span>Two</span></button>
+        </div>
+        <div class="tc-tabs__panels">
+          <div role="tabpanel"><p>First</p></div>
+          <div role="tabpanel"><p>Second</p></div>
+        </div>
+      </tc-tabs>`)
+    const list = tabs.findType("tc-tab-list")[0]!
+    expect(list.get("ariaLabel")).toBe("Plans")
+    expect(list.getAttributes()["aria-label"]).toBe("Plans")
+  })
+
   it("default scaffold (3 tabs, 0 panels) still creates 3 panels", () => {
     editor = grapesjs.init({
       headless: true,
