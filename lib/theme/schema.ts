@@ -32,6 +32,7 @@ import type {
   borderStyleSchema,
   boxStyleSchema,
   colorStyleSchema,
+  colorTokenSchema,
   elementsSchema,
   fontSizeTokenSchema,
   pseudoStyleBlockSchema,
@@ -49,6 +50,9 @@ export type ThemeVersion = 1
 export type CssValue = string
 
 export type Token = z.infer<typeof tokenSchema>
+
+/** Color token with an optional `dark` value (prefers-color-scheme override). */
+export type ColorToken = z.infer<typeof colorTokenSchema>
 
 /** `fluid` set means the compiler emits a `clamp(min, value, max)` size. */
 export type FontSizeToken = z.infer<typeof fontSizeTokenSchema>

@@ -33,10 +33,21 @@ export const fontSizeTokenSchema = tokenSchema.extend({
     .optional(),
 })
 
+/**
+ * Color tokens carry an optional `dark` value. When present, the compiler
+ * emits it under `@media (prefers-color-scheme: dark)` (the Open Props
+ * adaptive convention) so the token flips automatically on OS dark mode —
+ * no `.dark` class, works in the preview document and canvas iframe alike.
+ * A token with no `dark` value stays fixed across both schemes.
+ */
+export const colorTokenSchema = tokenSchema.extend({
+  dark: z.string().optional(),
+})
+
 export const tokenRegistrySchema = z.object({
   color: z
     .object({
-      palette: z.array(tokenSchema).optional(),
+      palette: z.array(colorTokenSchema).optional(),
     })
     .optional(),
   typography: z

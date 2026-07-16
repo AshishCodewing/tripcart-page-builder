@@ -20,6 +20,7 @@
 
 import { toKebab } from "@/lib/toKebab"
 import type {
+  ColorToken,
   CustomTree,
   ElementName,
   FontSizeToken,
@@ -54,6 +55,13 @@ export type CompiledRule = {
 
 export type CompiledTheme = {
   rootVars: Record<string, string>
+  /**
+   * `:root` overrides emitted under `@media (prefers-color-scheme: dark)`.
+   * Populated only from color tokens that carry a `dark` value; empty when
+   * the theme has no dark palette (in which case no media block is emitted
+   * and `color-scheme` is left untouched).
+   */
+  darkVars: Record<string, string>
   rules: CompiledRule[]
 }
 
@@ -96,6 +104,25 @@ const writePresetVars = (
   if (!tokens) return
   for (const token of tokens) {
     out[presetVarName(category, token.slug)] = token.value
+  }
+}
+
+/**
+ * Color palette writer. Like `writePresetVars` but also routes each token's
+ * optional `dark` value into `darkOut`, keyed by the same `--tc--preset--
+ * color--<slug>` name, so the caller can wrap it in a prefers-color-scheme
+ * media block.
+ */
+const writeColorVars = (
+  rootOut: Record<string, string>,
+  darkOut: Record<string, string>,
+  tokens: readonly ColorToken[] | undefined
+): void => {
+  if (!tokens) return
+  for (const token of tokens) {
+    const name = presetVarName("color", token.slug)
+    rootOut[name] = token.value
+    if (token.dark) darkOut[name] = token.dark
   }
 }
 
@@ -249,12 +276,29 @@ const emitWithPseudos = (
  */
 export const compiledThemeToCss = ({
   rootVars,
+  darkVars,
   rules,
 }: CompiledTheme): string => {
-  const rootBody = Object.entries(rootVars)
-    .map(([name, value]) => `  ${name}: ${value};`)
-    .join("\n")
-  const rootBlock = rootBody.length > 0 ? `:root {\n${rootBody}\n}` : ""
+  const hasDark = Object.keys(darkVars).length > 0
+
+  // `color-scheme: light` is only asserted when a dark palette exists, so
+  // light-only themes keep the browser default and native controls are
+  // untouched. The dark block flips it to `dark` alongside the token
+  // overrides — Open Props' adaptive convention.
+  const rootLines = Object.entries(rootVars).map(
+    ([name, value]) => `  ${name}: ${value};`
+  )
+  if (hasDark) rootLines.push("  color-scheme: light;")
+  const rootBlock =
+    rootLines.length > 0 ? `:root {\n${rootLines.join("\n")}\n}` : ""
+
+  const darkBlock = hasDark
+    ? `@media (prefers-color-scheme: dark) {\n  :root {\n${Object.entries(
+        darkVars
+      )
+        .map(([name, value]) => `    ${name}: ${value};`)
+        .join("\n")}\n    color-scheme: dark;\n  }\n}`
+    : ""
 
   const ruleBlocks = rules
     .map(({ selector, style }) => {
@@ -266,14 +310,15 @@ export const compiledThemeToCss = ({
     .filter(Boolean)
     .join("\n\n")
 
-  return [rootBlock, ruleBlocks].filter(Boolean).join("\n\n")
+  return [rootBlock, darkBlock, ruleBlocks].filter(Boolean).join("\n\n")
 }
 
 export const compileTheme = (theme: Theme): CompiledTheme => {
   const rootVars: Record<string, string> = {}
+  const darkVars: Record<string, string> = {}
   const { settings, custom, styles } = theme
 
-  writePresetVars(rootVars, "color", settings.color?.palette)
+  writeColorVars(rootVars, darkVars, settings.color?.palette)
 
   const ty = settings.typography
   writePresetVars(rootVars, "font-family", ty?.fontFamilies)
@@ -339,5 +384,5 @@ export const compileTheme = (theme: Theme): CompiledTheme => {
     }
   }
 
-  return { rootVars, rules }
+  return { rootVars, darkVars, rules }
 }
