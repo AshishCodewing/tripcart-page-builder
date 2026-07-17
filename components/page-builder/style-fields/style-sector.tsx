@@ -12,32 +12,38 @@ import {
 
 import { CrossGrid, type Side } from "./box-sides-field"
 import PropertyField from "./property-field"
+import { filterSectorProperties } from "./style-search"
 import { useStyleContext } from "./use-style-context"
-import { isPropertyVisible } from "./visibility"
 
 export default function StyleSector({
   sector,
   openId,
   onOpenChange,
+  query = "",
 }: {
   sector: Sector
   openId: string | null
   onOpenChange: (id: string | null) => void
+  query?: string
 }) {
-  const open = openId === sector.getId()
   const ctx = useStyleContext()
-  const properties = sector
-    .getProperties()
-    .filter((p) => isPropertyVisible(p.getName(), ctx))
+  const searching = query.trim().length > 0
+  const properties = filterSectorProperties(sector, ctx, query)
 
   // If every property in the sector was filtered out, hide the sector entirely
-  // — an empty collapsible reads as a bug.
+  // — an empty collapsible reads as a bug. During a search this also drops
+  // sectors with no matching properties.
   if (properties.length === 0) return null
+
+  // While searching, every surviving sector expands so the matches are visible
+  // at a glance; otherwise the single-open accordion behaviour is preserved.
+  const open = searching || openId === sector.getId()
 
   const hasSetValue = properties.some((p) => p.hasValue({ noParent: true }))
   const inherited = properties.some((p) => p.hasValueParent())
 
   const handleOpenChange = (next: boolean) => {
+    if (searching) return
     onOpenChange(next ? sector.getId() : null)
     sector.setOpen(next)
   }

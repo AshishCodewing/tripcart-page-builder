@@ -3,15 +3,25 @@
 import * as React from "react"
 import { StylesProvider, useEditor } from "@grapesjs/react"
 import type { Component, Sector } from "grapesjs"
-import { Boxes } from "lucide-react"
+import { Boxes, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import {
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
 import StyleSector from "../style-fields/style-sector"
-import { StyleContextProvider } from "../style-fields/use-style-context"
+import { filterSectorProperties } from "../style-fields/style-search"
+import {
+  StyleContextProvider,
+  useStyleContext,
+} from "../style-fields/use-style-context"
 
 export default function StyleManager() {
   return (
@@ -34,6 +44,8 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
     () => editor.getSelected() ?? null
   )
   const [openId, setOpenId] = React.useState<string | null>(null)
+  const [query, setQuery] = React.useState("")
+  const ctx = useStyleContext()
 
   // The provider re-renders on `style:custom`, but that fires only when the
   // styles container itself changes — selecting/deselecting a component is
@@ -44,6 +56,9 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
       setHasTarget(editor.StyleManager.getSelected() != null)
       setSelected(editor.getSelected() ?? null)
       setOpenId(null)
+      // Reset the search when the target changes, mirroring grapesjs-filter-styles
+      // (which clears its filter on component:selected).
+      setQuery("")
     }
     editor.on("style:target", refresh)
     editor.on("component:selected", refresh)
@@ -103,16 +118,55 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
     )
   }
 
+  const searching = query.trim().length > 0
+  const hasMatches = sectors.some(
+    (sector) => filterSectorProperties(sector, ctx, query).length > 0
+  )
+
   return (
     <div className="flex flex-col border-t">
-      {sectors.map((sector) => (
-        <StyleSector
-          key={sector.getId()}
-          sector={sector}
-          openId={openId}
-          onOpenChange={setOpenId}
-        />
-      ))}
+      <div className="border-b p-2">
+        <InputGroup className="h-8">
+          <InputGroupAddon>
+            <Search className="size-3.5" />
+          </InputGroupAddon>
+          <InputGroupInput
+            inputSize="sm"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search styles…"
+            aria-label="Search styles"
+            className="text-xs [&::-webkit-search-cancel-button]:appearance-none"
+          />
+          {searching && (
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+              >
+                <X />
+              </InputGroupButton>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
+      </div>
+      {searching && !hasMatches ? (
+        <p className="px-3 py-4 text-xs text-muted-foreground">
+          No styles match &ldquo;{query.trim()}&rdquo;.
+        </p>
+      ) : (
+        sectors.map((sector) => (
+          <StyleSector
+            key={sector.getId()}
+            sector={sector}
+            openId={openId}
+            onOpenChange={setOpenId}
+            query={query}
+          />
+        ))
+      )}
     </div>
   )
 }
