@@ -131,11 +131,9 @@
 }
 :where(h1) {
   font-size: var(--font-size-8);
-  max-inline-size: var(--size-header-1);
 }
 :where(h2) {
   font-size: var(--font-size-6);
-  max-inline-size: var(--size-header-2);
 }
 :where(h3) {
   font-size: var(--font-size-5);
@@ -145,9 +143,6 @@
 }
 :where(h5) {
   font-size: var(--font-size-3);
-}
-:where(h3, h4, h5, h6, dt) {
-  max-inline-size: var(--size-header-3);
 }
 :where(p, ul, ol, dl, h6) {
   font-size: var(--font-size-2);
@@ -295,12 +290,8 @@
 :where(li) {
   padding-inline-start: var(--size-2);
 }
-:where(li, dd, figcaption) {
-  max-inline-size: var(--size-content-2);
-}
 :where(p) {
   text-wrap: pretty;
-  max-inline-size: var(--size-content-3);
 }
 
 /* ---- Typographic rhythm (Tailwind-prose port) ----------------------------
@@ -438,7 +429,6 @@
 }
 :where(small) {
   font-size: max(0.5em, var(--font-size-0));
-  max-inline-size: var(--size-content-1);
 }
 :where(hr) {
   background-color: var(--tc--preset--color--muted);
@@ -462,7 +452,6 @@
 :where(blockquote) {
   display: grid;
   gap: var(--size-3);
-  max-inline-size: var(--size-content-2);
   padding-block: var(--size-3);
   padding-inline: var(--size-4);
 }
@@ -567,7 +556,6 @@
 :where(td) {
   text-wrap: pretty;
   background: var(--tc--preset--color--background);
-  max-inline-size: var(--size-content-2);
 }
 :where(td, th) {
   padding: var(--size-2);
