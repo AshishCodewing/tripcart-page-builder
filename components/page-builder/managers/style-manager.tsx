@@ -13,6 +13,12 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
@@ -145,20 +151,28 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
             className="text-xs [&::-webkit-search-cancel-button]:appearance-none"
           />
           <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-xs"
-              aria-pressed={modifiedOnly}
-              aria-label="Show only modified styles"
-              title="Show only modified styles"
-              onClick={() => setModifiedOnly((v) => !v)}
-              className={
-                modifiedOnly
-                  ? "bg-accent text-primary"
-                  : "text-muted-foreground"
-              }
-            >
-              <Filter />
-            </InputGroupButton>
+            <TooltipProvider delay={300}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <InputGroupButton
+                      size="icon-xs"
+                      aria-pressed={modifiedOnly}
+                      aria-label="Show only modified styles"
+                      onClick={() => setModifiedOnly((v) => !v)}
+                      className={
+                        modifiedOnly
+                          ? "bg-accent text-primary"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      <Filter />
+                    </InputGroupButton>
+                  }
+                />
+                <TooltipContent>Show only modified styles</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {searching && (
               <InputGroupButton
                 size="icon-xs"
