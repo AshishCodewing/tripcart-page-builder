@@ -12,32 +12,42 @@ import {
 
 import { CrossGrid, type Side } from "./box-sides-field"
 import PropertyField from "./property-field"
+import { filterSectorProperties } from "./style-search"
 import { useStyleContext } from "./use-style-context"
-import { isPropertyVisible } from "./visibility"
 
 export default function StyleSector({
   sector,
   openId,
   onOpenChange,
+  query = "",
+  modifiedOnly = false,
 }: {
   sector: Sector
   openId: string | null
   onOpenChange: (id: string | null) => void
+  query?: string
+  modifiedOnly?: boolean
 }) {
-  const open = openId === sector.getId()
   const ctx = useStyleContext()
-  const properties = sector
-    .getProperties()
-    .filter((p) => isPropertyVisible(p.getName(), ctx))
+  // Either input (a query or the "modified only" toggle) puts the panel into
+  // filtering mode: sectors auto-expand and stay open while active.
+  const filtering = query.trim().length > 0 || modifiedOnly
+  const properties = filterSectorProperties(sector, ctx, query, modifiedOnly)
 
   // If every property in the sector was filtered out, hide the sector entirely
-  // — an empty collapsible reads as a bug.
+  // — an empty collapsible reads as a bug. While filtering this also drops
+  // sectors with no matching properties.
   if (properties.length === 0) return null
+
+  // While filtering, every surviving sector expands so the matches are visible
+  // at a glance; otherwise the single-open accordion behaviour is preserved.
+  const open = filtering || openId === sector.getId()
 
   const hasSetValue = properties.some((p) => p.hasValue({ noParent: true }))
   const inherited = properties.some((p) => p.hasValueParent())
 
   const handleOpenChange = (next: boolean) => {
+    if (filtering) return
     onOpenChange(next ? sector.getId() : null)
     sector.setOpen(next)
   }
