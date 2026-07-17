@@ -303,96 +303,131 @@
   max-inline-size: var(--size-content-3);
 }
 
-/* ---- Typographic rhythm ---------------------------------------------------
- * Element-targeted margins on TEXT-FLOW tags only, scoped to the content area
- * (`.tc-entry-content`, and `[data-gjs-type="wrapper"]` for the editor canvas).
- * This is the Tailwind-`prose` / Elementor model: typography spacing is a
- * CONTENT concern applied to text elements, NOT a sibling owl on every block.
- * Structural spacing (between sections/columns/wrappers) is a LAYOUT concern
- * owned by the container (`gap` on flex/grid rows + section padding), so it is
- * deliberately NOT handled here — an owl (`> * + *`) would wrongly space
- * wrappers and double up against their own gap/padding.
+/* ---- Typographic rhythm (Tailwind-prose port) ----------------------------
+ * Faithful port of @tailwindcss/typography's `prose` vertical rhythm: every
+ * text-flow tag carries BOTH a top and bottom block margin, and the prose
+ * collapse resets (heading+block, hr+block, first/last flush) tame the edges.
+ * Element-targeted, scoped to the content area (`.tc-entry-content`, plus
+ * `[data-gjs-type="wrapper"]` for the editor canvas) — spacing is a CONTENT
+ * concern on text tags, NOT a sibling owl on every block. Descendant combinator
+ * (not `>`) so rhythm reaches text at any depth; safe because it only targets
+ * text tags, never wrappers.
  *
- * Descendant combinator (not `>`) so rhythm reaches text at any depth
- * (e.g. `article > header > p`); safe precisely because it targets text tags,
- * never wrappers. Body blocks are top-margin-only (gaps never double, no
- * first/last-child reset needed). All spacing derives from one knob,
- * --tc--_gap (= the theme's --tc--style--block-gap, falling back to
- * --size-fluid-2), so a private var avoids repeating the fallback and keeps
- * every tier proportional. Spacing tiers mirror Tailwind prose: body blocks
- * (paragraphs/lists/media) at the full gap, list rows + nested lists tighter,
- * headings scaled PER LEVEL. `hr` keeps its own margins. Kept at :where()
- * 0-0-0 so themes, [data-gjs-type] components (0-1-0) and authored classes
- * always win — this stays a floor, after the `margin: 0` reset.
+ * Every value derives from one knob, --tc--_gap (= the theme's
+ * --tc--style--block-gap, fallback --size-fluid-2), treated as prose's 1x unit
+ * (its paragraph margin, 1.25em). Other elements are that ratio: e.g. h2-top
+ * 2em → 1.6x, li 0.5em → 0.4x, hr 3em → 2.4x, blockquote 1.6em → 1.28x.
+ *
+ * NOTE on flex/grid: adjacent top+bottom margins collapse in normal block flow
+ * (so paragraph-to-paragraph nets one gap), but they do NOT collapse when a
+ * text tag is a direct flex/grid child — there margin adds to the container's
+ * own `gap`. Structural spacing between sections/columns is owned by that
+ * container gap; keep text in flow inside wrappers to avoid doubling.
+ *
+ * Kept at :where() 0-0-0 so themes, [data-gjs-type] components (0-1-0) and
+ * authored classes always win — this stays a floor, after the `margin: 0`
+ * reset. Reset rules come LAST so they win at equal :where() specificity.
  */
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) {
   --tc--_gap: var(--tc--style--block-gap, var(--size-fluid-2));
 }
-:where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(p, ul, ol, dl, blockquote, pre, figure, table) {
-  margin-block-start: var(--tc--_gap);
+/* Body blocks — full gap, top + bottom (prose p/ul/ol/dl = 1.25em → 1x). */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(p, ul, ol, dl) {
+  margin-block: var(--tc--_gap);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(blockquote) {
+  margin-block: calc(var(--tc--_gap) * 1.28);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(pre) {
+  margin-block: calc(var(--tc--_gap) * 1.37);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(table, figure) {
+  margin-block: calc(var(--tc--_gap) * 1.6);
 }
 /* Block media not already inside a <figure> (a figure spaces its own contents
- * via its grid gap, so an extra top-margin there would double up). */
+ * via its grid gap, so an extra margin there would double up). */
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
   :where(img, video, picture):not(:where(figure *)) {
-  margin-block-start: var(--tc--_gap);
+  margin-block: calc(var(--tc--_gap) * 1.6);
 }
-/* List rows and definition descriptions: tighter than block gap. `li + li`
- * (adjacent) spaces rows without adding a lead against the list's own top
- * margin. Prose uses ~0.5em (li) vs 1.25em (paragraph) → ~0.4x here. */
-:where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(li + li, dd) {
-  margin-block-start: calc(var(--tc--_gap) * 0.4);
-}
-/* Nested lists compress (prose ~0.75em vs 1.25em → ~0.6x). Comes after the
- * top-level ul/ol rule so it wins for nested lists at equal specificity. */
-:where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(ul, ol) :where(ul, ol) {
-  margin-block-start: calc(var(--tc--_gap) * 0.6);
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(hr) {
+  margin-block: calc(var(--tc--_gap) * 2.4);
 }
 
-/* Headings — PER-LEVEL top + bottom (prose model), as multiples of the gap.
- * Top lead scales DOWN with heading rank (h1 largest → h6 smallest) so higher
- * headings read as bigger section breaks. Bottom binds the heading to the text
- * below; the `heading + block` rule below zeroes the following block's own
- * top-margin so the heading's bottom margin — not the block's — governs the
- * post-heading gap (net effect matches prose: big space before, snug after).
- * Consecutive headings (h2→h3) still collapse to the lower heading's top. */
+/* Lists — rows and nested lists tighter (prose li 0.5em → 0.4x, nested lists
+ * 0.75em → 0.6x). The nested rule comes after the top-level ul/ol so it wins
+ * for nested lists at equal specificity. */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(li) {
+  margin-block: calc(var(--tc--_gap) * 0.4);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"])
+  :where(ul, ol)
+  :where(ul, ol) {
+  margin-block: calc(var(--tc--_gap) * 0.6);
+}
+/* Paragraphs inside list items (prose li p = 0.75em → 0.6x). */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(li) :where(p) {
+  margin-block: calc(var(--tc--_gap) * 0.6);
+}
+/* Definition list rows (prose dt top 1.25em → 1x, dd top 0.5em → 0.4x). */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(dt) {
+  margin-block-start: var(--tc--_gap);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(dd) {
+  margin-block-start: calc(var(--tc--_gap) * 0.4);
+}
+
+/* Headings — PER-LEVEL top + bottom (prose model). Top lead scales DOWN with
+ * rank (h1 biggest section break → h6 smallest); bottom binds the heading to
+ * the text below. Prose stops at h4; h5/h6 extend the pattern since this ramp
+ * uses all six. Ratios: h1-bottom 0.888em → 0.71x; h2 2em/1em → 1.6x/0.8x;
+ * h3 1.6em/0.6em → 1.28x/0.48x; h4 1.5em/0.5em → 1.2x/0.4x. */
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h1) {
-  margin-block-start: calc(var(--tc--_gap) * 2.5);
-  margin-block-end: calc(var(--tc--_gap) * 0.6);
+  margin-block-start: 0;
+  margin-block-end: calc(var(--tc--_gap) * 0.71);
 }
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h2) {
-  margin-block-start: calc(var(--tc--_gap) * 2);
-  margin-block-end: calc(var(--tc--_gap) * 0.6);
+  margin-block-start: calc(var(--tc--_gap) * 1.6);
+  margin-block-end: calc(var(--tc--_gap) * 0.8);
 }
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h3) {
-  margin-block-start: calc(var(--tc--_gap) * 1.6);
-  margin-block-end: calc(var(--tc--_gap) * 0.5);
+  margin-block-start: calc(var(--tc--_gap) * 1.28);
+  margin-block-end: calc(var(--tc--_gap) * 0.48);
 }
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h4) {
-  margin-block-start: calc(var(--tc--_gap) * 1.4);
+  margin-block-start: calc(var(--tc--_gap) * 1.2);
   margin-block-end: calc(var(--tc--_gap) * 0.4);
 }
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h5, h6) {
-  margin-block-start: calc(var(--tc--_gap) * 1.25);
+  margin-block-start: calc(var(--tc--_gap) * 1.2);
   margin-block-end: calc(var(--tc--_gap) * 0.4);
 }
-/* Defer the post-heading gap to the heading's own bottom margin. */
+
+/* Prose resets — collapse the top after a heading / hr so the preceding
+ * element's own bottom margin governs the gap (consecutive headings collapse
+ * to the upper one's bottom). figure & blockquote lay out their own contents
+ * via grid gap, so zero rhythm on their direct children. Finally, the FIRST
+ * and LAST elements at ANY depth go flush (prose's `> :first/last-child`,
+ * extended through wrappers since our content root's first/last child is a
+ * wrapper, not the text). These win over every margin rule above. */
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
   :where(h1, h2, h3, h4, h5, h6)
-  + :where(p, ul, ol, dl, blockquote, pre, figure, table, img, video, picture) {
+  + :where(*) {
   margin-block-start: 0;
 }
-/* Kill the leading gap: the FIRST element inside the content area — and the
- * first inside any nested container — gets no top margin, so content starts
- * flush against the top rather than inheriting a lead that collapses upward
- * (prose's `> :first-child` reset, extended through wrappers since our content
- * root's first child is a wrapper, not the heading/paragraph itself). Comes
- * last so it wins over every margin rule above at equal :where() specificity. */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(hr) + :where(*) {
+  margin-block-start: 0;
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"])
+  :where(figure, blockquote)
+  > :where(*) {
+  margin-block: 0;
+}
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(:first-child) {
   margin-block-start: 0;
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(:last-child) {
+  margin-block-end: 0;
 }
 
 :where(dt, summary) {
