@@ -304,52 +304,86 @@
 }
 
 /* ---- Typographic rhythm ---------------------------------------------------
- * Element-targeted top-margins on TEXT-FLOW tags only, scoped to the content
- * area (`.tc-entry-content`, and `[data-gjs-type="wrapper"]` for the editor
- * canvas). This is the Tailwind-`prose` / Elementor model: typography spacing
- * is a CONTENT concern applied to text elements, NOT a sibling owl on every
- * block. Structural spacing (between sections/columns/wrappers) is a LAYOUT
- * concern owned by the container (`gap` on flex/grid rows + section padding),
- * so it is deliberately NOT handled here — an owl (`> * + *`) would wrongly
- * space wrappers and double up against their own gap/padding.
+ * Element-targeted margins on TEXT-FLOW tags only, scoped to the content area
+ * (`.tc-entry-content`, and `[data-gjs-type="wrapper"]` for the editor canvas).
+ * This is the Tailwind-`prose` / Elementor model: typography spacing is a
+ * CONTENT concern applied to text elements, NOT a sibling owl on every block.
+ * Structural spacing (between sections/columns/wrappers) is a LAYOUT concern
+ * owned by the container (`gap` on flex/grid rows + section padding), so it is
+ * deliberately NOT handled here — an owl (`> * + *`) would wrongly space
+ * wrappers and double up against their own gap/padding.
  *
  * Descendant combinator (not `>`) so rhythm reaches text at any depth
  * (e.g. `article > header > p`); safe precisely because it targets text tags,
- * never wrappers. Top-margins only, so gaps never double and no first/last-
- * child reset is needed. Headings get a larger lead so they read as section
- * breaks that bind to the text below. `hr` keeps its own margins. Spacing
- * tiers mirror Tailwind prose: block level (paragraphs/lists/media) at the
- * full block-gap, list rows + nested lists tighter. Driven by
- * --tc--style--block-gap. Kept at :where() 0-0-0 so themes, [data-gjs-type]
- * components (0-1-0) and authored classes always win — this stays a floor,
- * after the `margin: 0` reset.
+ * never wrappers. Body blocks are top-margin-only (gaps never double, no
+ * first/last-child reset needed). All spacing derives from one knob,
+ * --tc--_gap (= the theme's --tc--style--block-gap, falling back to
+ * --size-fluid-2), so a private var avoids repeating the fallback and keeps
+ * every tier proportional. Spacing tiers mirror Tailwind prose: body blocks
+ * (paragraphs/lists/media) at the full gap, list rows + nested lists tighter,
+ * headings scaled PER LEVEL. `hr` keeps its own margins. Kept at :where()
+ * 0-0-0 so themes, [data-gjs-type] components (0-1-0) and authored classes
+ * always win — this stays a floor, after the `margin: 0` reset.
  */
-:where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(p, ul, ol, dl, blockquote, pre, figure, table) {
-  margin-block-start: var(--tc--style--block-gap, var(--size-fluid-2));
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) {
+  --tc--_gap: var(--tc--style--block-gap, var(--size-fluid-2));
 }
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(h1, h2, h3, h4, h5, h6) {
-  margin-block-start: calc(var(--tc--style--block-gap, var(--size-fluid-2)) * 1.5);
+  :where(p, ul, ol, dl, blockquote, pre, figure, table) {
+  margin-block-start: var(--tc--_gap);
 }
 /* Block media not already inside a <figure> (a figure spaces its own contents
  * via its grid gap, so an extra top-margin there would double up). */
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
   :where(img, video, picture):not(:where(figure *)) {
-  margin-block-start: var(--tc--style--block-gap, var(--size-fluid-2));
+  margin-block-start: var(--tc--_gap);
 }
 /* List rows and definition descriptions: tighter than block gap. `li + li`
  * (adjacent) spaces rows without adding a lead against the list's own top
  * margin. Prose uses ~0.5em (li) vs 1.25em (paragraph) → ~0.4x here. */
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
   :where(li + li, dd) {
-  margin-block-start: calc(var(--tc--style--block-gap, var(--size-fluid-2)) * 0.4);
+  margin-block-start: calc(var(--tc--_gap) * 0.4);
 }
 /* Nested lists compress (prose ~0.75em vs 1.25em → ~0.6x). Comes after the
  * top-level ul/ol rule so it wins for nested lists at equal specificity. */
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
   :where(ul, ol) :where(ul, ol) {
-  margin-block-start: calc(var(--tc--style--block-gap, var(--size-fluid-2)) * 0.6);
+  margin-block-start: calc(var(--tc--_gap) * 0.6);
+}
+
+/* Headings — PER-LEVEL top + bottom (prose model), as multiples of the gap.
+ * Top lead scales DOWN with heading rank (h1 largest → h6 smallest) so higher
+ * headings read as bigger section breaks. Bottom binds the heading to the text
+ * below; the `heading + block` rule below zeroes the following block's own
+ * top-margin so the heading's bottom margin — not the block's — governs the
+ * post-heading gap (net effect matches prose: big space before, snug after).
+ * Consecutive headings (h2→h3) still collapse to the lower heading's top. */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h1) {
+  margin-block-start: calc(var(--tc--_gap) * 2.5);
+  margin-block-end: calc(var(--tc--_gap) * 0.6);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h2) {
+  margin-block-start: calc(var(--tc--_gap) * 2);
+  margin-block-end: calc(var(--tc--_gap) * 0.6);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h3) {
+  margin-block-start: calc(var(--tc--_gap) * 1.6);
+  margin-block-end: calc(var(--tc--_gap) * 0.5);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h4) {
+  margin-block-start: calc(var(--tc--_gap) * 1.4);
+  margin-block-end: calc(var(--tc--_gap) * 0.4);
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(h5, h6) {
+  margin-block-start: calc(var(--tc--_gap) * 1.25);
+  margin-block-end: calc(var(--tc--_gap) * 0.4);
+}
+/* Defer the post-heading gap to the heading's own bottom margin. */
+:where(.tc-entry-content, [data-gjs-type="wrapper"])
+  :where(h1, h2, h3, h4, h5, h6)
+  + :where(p, ul, ol, dl, blockquote, pre, figure, table, img, video, picture) {
+  margin-block-start: 0;
 }
 
 :where(dt, summary) {
