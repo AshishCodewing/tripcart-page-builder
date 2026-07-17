@@ -17,6 +17,7 @@ import { tcRemoteStorage } from "@/lib/plugins/tc-storage-adapter"
 import { templateRefPlugin } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
 import { postFieldsPlugin } from "@/lib/plugins/post-fields"
+import { spacingOverlayPlugin } from "@/lib/plugins/spacing-overlay"
 import type { Template } from "@/generated/prisma/client"
 
 import { STYLE_SECTORS } from "./style-sectors"
@@ -127,6 +128,10 @@ export const buildGjsOptions = (
     postFieldsPlugin({ enabled: options.allowPostFields }),
     styleFilterPlugin,
     styleBgPlugin,
+    // DevTools-style padding (green) / margin (orange) overlay on hover and on
+    // the selected component. Replaces GrapesJS's built-in offset viewer, which
+    // renders only partial/near-invisible boxes in this @grapesjs/react setup.
+    spacingOverlayPlugin,
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
