@@ -303,26 +303,32 @@
   max-inline-size: var(--size-content-3);
 }
 
-/* ---- Block-gap vertical rhythm --------------------------------------------
- * WordPress `.is-layout-flow > * + *` model, scoped to the content area
- * (`.tc-entry-content`, our analog of WP's `.entry-content`) so the site
- * header/footer chrome — which lives OUTSIDE this scope — is never touched.
- * `[data-gjs-type="wrapper"]` is the same scope inside the editor canvas,
- * where the wrapper root is not stripped.
+/* ---- Typographic rhythm ---------------------------------------------------
+ * Element-targeted top-margins on TEXT-FLOW tags only, scoped to the content
+ * area (`.tc-entry-content`, and `[data-gjs-type="wrapper"]` for the editor
+ * canvas). This is the Tailwind-`prose` / Elementor model: typography spacing
+ * is a CONTENT concern applied to text elements, NOT a sibling owl on every
+ * block. Structural spacing (between sections/columns/wrappers) is a LAYOUT
+ * concern owned by the container (`gap` on flex/grid rows + section padding),
+ * so it is deliberately NOT handled here — an owl (`> * + *`) would wrongly
+ * space wrappers and double up against their own gap/padding.
  *
- * Uniform gap between sibling blocks (WP block-gap semantics — headings get
- * the same gap as paragraphs; no prose-style asymmetry). Nested reach is
- * limited to SEMANTIC sectioning tags, never `div`, so flex column rows
- * (`div.gjs-grid-row`) keep their own cross-axis layout. Kept at :where()
- * 0-0-0 so themes, [data-gjs-type] components (0-1-0) and authored classes
- * always win — this stays a floor. Comes after the `margin: 0` reset, so at
- * equal specificity source order applies it.
+ * Descendant combinator (not `>`) so rhythm reaches text at any depth
+ * (e.g. `article > header > p`); safe precisely because it targets text tags,
+ * never wrappers. Top-margins only, so gaps never double and no first/last-
+ * child reset is needed. Headings get a larger lead so they read as section
+ * breaks that bind to the text below. `hr` keeps its own margins; `li` stays
+ * tight (lists space internally). Driven by --tc--style--block-gap. Kept at
+ * :where() 0-0-0 so themes, [data-gjs-type] components (0-1-0) and authored
+ * classes always win — this stays a floor, after the `margin: 0` reset.
  */
-:where(.tc-entry-content, [data-gjs-type="wrapper"]) > :where(* + *),
 :where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(article, section, header, footer, aside, form)
-  > :where(* + *) {
+  :where(p, ul, ol, dl, blockquote, pre, figure, table) {
   margin-block-start: var(--tc--style--block-gap, var(--size-fluid-2));
+}
+:where(.tc-entry-content, [data-gjs-type="wrapper"])
+  :where(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: calc(var(--tc--style--block-gap, var(--size-fluid-2)) * 1.5);
 }
 
 :where(dt, summary) {
