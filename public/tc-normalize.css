@@ -385,6 +385,15 @@
   + :where(p, ul, ol, dl, blockquote, pre, figure, table, img, video, picture) {
   margin-block-start: 0;
 }
+/* Kill the leading gap: the FIRST element inside the content area — and the
+ * first inside any nested container — gets no top margin, so content starts
+ * flush against the top rather than inheriting a lead that collapses upward
+ * (prose's `> :first-child` reset, extended through wrappers since our content
+ * root's first child is a wrapper, not the heading/paragraph itself). Comes
+ * last so it wins over every margin rule above at equal :where() specificity. */
+:where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(:first-child) {
+  margin-block-start: 0;
+}
 
 :where(dt, summary) {
   font-weight: var(--font-weight-7);
