@@ -60,20 +60,30 @@ function propertyMatchesQuery(property: Property, query: string): boolean {
  * The properties a sector should render for the given context + search query.
  * Always constrained to context-visible properties (flex/grid/position gating).
  * With a query, a sector-name match reveals all of them; otherwise only the
- * properties whose searchable text contains the query survive. Shared by the
+ * properties whose searchable text contains the query survive. When
+ * `modifiedOnly` is set, the result is further narrowed to properties with a
+ * value set directly on the target (mirrors grapesjs-filter-styles' "show
+ * modified only" toggle, which ANDs with the text search). Shared by the
  * sector renderer and the Style Manager's empty-state check so the two can't
  * drift.
  */
 export function filterSectorProperties(
   sector: Sector,
   ctx: StyleContext,
-  query: string
+  query: string,
+  modifiedOnly = false
 ): ReturnType<Sector["getProperties"]> {
-  const visible = sector
+  let props = sector
     .getProperties()
     .filter((p) => isPropertyVisible(p.getName(), ctx))
   const q = query.trim().toLowerCase()
-  if (!q) return visible
-  if (sector.getName().toLowerCase().includes(q)) return visible
-  return visible.filter((p) => propertyMatchesQuery(p, q))
+  // A sector-name match keeps every visible property; otherwise narrow to the
+  // properties whose searchable text contains the query.
+  if (q && !sector.getName().toLowerCase().includes(q)) {
+    props = props.filter((p) => propertyMatchesQuery(p, q))
+  }
+  if (modifiedOnly) {
+    props = props.filter((p) => p.hasValue({ noParent: true }))
+  }
+  return props
 }

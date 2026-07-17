@@ -3,7 +3,7 @@
 import * as React from "react"
 import { StylesProvider, useEditor } from "@grapesjs/react"
 import type { Component, Sector } from "grapesjs"
-import { Boxes, Search, X } from "lucide-react"
+import { Boxes, Filter, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +45,8 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   )
   const [openId, setOpenId] = React.useState<string | null>(null)
   const [query, setQuery] = React.useState("")
+  // "Show modified only" — narrows the panel to properties set on the target.
+  const [modifiedOnly, setModifiedOnly] = React.useState(false)
   const ctx = useStyleContext()
 
   // The provider re-renders on `style:custom`, but that fires only when the
@@ -56,9 +58,10 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
       setHasTarget(editor.StyleManager.getSelected() != null)
       setSelected(editor.getSelected() ?? null)
       setOpenId(null)
-      // Reset the search when the target changes, mirroring grapesjs-filter-styles
+      // Reset the filters when the target changes, mirroring grapesjs-filter-styles
       // (which clears its filter on component:selected).
       setQuery("")
+      setModifiedOnly(false)
     }
     editor.on("style:target", refresh)
     editor.on("component:selected", refresh)
@@ -119,8 +122,10 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
   }
 
   const searching = query.trim().length > 0
+  const filtering = searching || modifiedOnly
   const hasMatches = sectors.some(
-    (sector) => filterSectorProperties(sector, ctx, query).length > 0
+    (sector) =>
+      filterSectorProperties(sector, ctx, query, modifiedOnly).length > 0
   )
 
   return (
@@ -139,8 +144,22 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
             aria-label="Search styles"
             className="text-xs [&::-webkit-search-cancel-button]:appearance-none"
           />
-          {searching && (
-            <InputGroupAddon align="inline-end">
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              size="icon-xs"
+              aria-pressed={modifiedOnly}
+              aria-label="Show only modified styles"
+              title="Show only modified styles"
+              onClick={() => setModifiedOnly((v) => !v)}
+              className={
+                modifiedOnly
+                  ? "bg-accent text-primary"
+                  : "text-muted-foreground"
+              }
+            >
+              <Filter />
+            </InputGroupButton>
+            {searching && (
               <InputGroupButton
                 size="icon-xs"
                 onClick={() => setQuery("")}
@@ -148,13 +167,15 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
               >
                 <X />
               </InputGroupButton>
-            </InputGroupAddon>
-          )}
+            )}
+          </InputGroupAddon>
         </InputGroup>
       </div>
-      {searching && !hasMatches ? (
+      {filtering && !hasMatches ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
-          No styles match &ldquo;{query.trim()}&rdquo;.
+          {searching
+            ? `No styles match “${query.trim()}”.`
+            : "No styles set on this element."}
         </p>
       ) : (
         sectors.map((sector) => (
@@ -164,6 +185,7 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
             openId={openId}
             onOpenChange={setOpenId}
             query={query}
+            modifiedOnly={modifiedOnly}
           />
         ))
       )}
