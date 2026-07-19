@@ -1,7 +1,10 @@
 import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
-import { prisma } from "@/lib/prisma"
+import { eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { tenants } from "@/lib/schema"
 
 // Shared layout for every preview route. Reads `tenantId` from the URL
 // segment (set by `/api/preview` when the editor launches a preview
@@ -49,9 +52,9 @@ export default async function PreviewLayout({
   // Bad/stale tenant IDs land here too — skip the link rather than 404
   // the layout, since the page below will notFound() with the right
   // context.
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { themeVersion: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { themeVersion: true },
   })
 
   return (

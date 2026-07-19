@@ -1,6 +1,9 @@
 import Link from "next/link"
 
-import { prisma } from "@/lib/prisma"
+import { asc, eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { pages as pagesTable } from "@/lib/schema"
 
 // Preview-only pages index, scoped to the tenant. Draft mode + theme are
 // gated once by `[tenantId]/layout.tsx`. Public rendering happens elsewhere.
@@ -11,10 +14,10 @@ export default async function PagesIndexPreview({
 }) {
   const { tenantId } = await params
 
-  const pages = await prisma.page.findMany({
-    where: { tenantId },
-    orderBy: [{ path: "asc" }],
-    select: {
+  const pages = await db.query.pages.findMany({
+    where: eq(pagesTable.tenantId, tenantId),
+    orderBy: [asc(pagesTable.path)],
+    columns: {
       id: true,
       path: true,
       title: true,

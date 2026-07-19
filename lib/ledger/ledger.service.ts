@@ -5,25 +5,25 @@
  * pure validation -> idempotent replay -> account existence -> FOR UPDATE lock
  * -> TENANT-only negative guard -> insert + projection update, all atomic.
  */
-import { LedgerAccountType, Prisma } from "@/generated/prisma/client"
-import type { PrismaClient } from "@/generated/prisma/client"
+import type { Database } from "@/lib/db"
+import { LedgerAccountType } from "@/lib/schema"
 import {
   AccountNotFoundError,
   DuplicateTransactionError,
   InsufficientCreditsError,
 } from "./errors"
 import { computeDeltas } from "./ledger.math"
-import type { LedgerRepository } from "./ledger.repository"
+import type {
+  LedgerRepository,
+  TransactionWithEntries,
+} from "./ledger.repository"
 import type { LedgerValidator } from "./ledger.validator"
+import { isUniqueViolation } from "./pg-error"
 import type { LedgerTransactionInput, PostedTransaction } from "./types"
-
-type TransactionWithEntries = Prisma.LedgerTransactionGetPayload<{
-  include: { entries: true }
-}>
 
 export class LedgerService {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly db: Database,
     private readonly repository: LedgerRepository,
     private readonly validator: LedgerValidator
   ) {}
@@ -35,7 +35,7 @@ export class LedgerService {
     this.validator.validate(input)
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.db.transaction(async (tx) => {
         // (a) Idempotent replay: a committed key returns its original result.
         const existing = await this.repository.findTransactionByIdempotencyKey(
           tx,
@@ -107,10 +107,7 @@ export class LedgerService {
    * to DuplicateTransactionError; rethrow everything else untouched.
    */
   private rethrowP2002AsDuplicate(error: unknown): never {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (isUniqueViolation(error)) {
       throw new DuplicateTransactionError()
     }
     throw error

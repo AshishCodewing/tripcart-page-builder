@@ -1,10 +1,11 @@
+import { PgDialect } from "drizzle-orm/pg-core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: { template: { findMany: vi.fn() } },
+vi.mock("@/lib/db", () => ({
+  db: { query: { templates: { findMany: vi.fn() } } },
 }))
 
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
 import {
   assertReservedSlug,
   isReservedChromeSlug,
@@ -17,7 +18,8 @@ import type {
   Rule,
 } from "@/lib/plugins/react-renderer/project/types"
 
-const findMany = vi.mocked(prisma.template.findMany)
+const findMany = vi.mocked(db.query.templates.findMany)
+const dialect = new PgDialect()
 
 const project = (
   root: ComponentDefinition,
@@ -32,13 +34,22 @@ const ref = (slug: string): ComponentDefinition => ({
   attributes: { "data-slug": slug },
 })
 
-/** Build a `findMany` impl keyed on `where.slug` from a fixture map. */
+/**
+ * Build a `findMany` impl keyed on the requested slug from a fixture map. The
+ * Drizzle `where` compiles to bound params (slug, tenantId); the slug is the
+ * one that matches a fixture key.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockTemplates(fixtures: Record<string, { data: any }>): void {
   findMany.mockImplementation(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (async ({ where }: any) =>
-      fixtures[where.slug] ? [fixtures[where.slug]] : []) as never
+    (async ({ where }: any) => {
+      const { params } = dialect.sqlToQuery(where)
+      const slug = (params as unknown[]).find(
+        (p): p is string => typeof p === "string" && p in fixtures
+      )
+      return slug ? [fixtures[slug]] : []
+    }) as never
   )
 }
 

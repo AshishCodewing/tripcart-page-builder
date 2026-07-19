@@ -9,8 +9,11 @@
  * See `docs/reference/templates.md` for the design.
  */
 
-import type { Template, TemplateKind } from "@/generated/prisma/client"
-import { prisma } from "@/lib/prisma"
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { templates } from "@/lib/schema"
+import type { Template, TemplateKind } from "@/lib/schema"
 import type {
   ComponentDefinition,
   ProjectDefinition,
@@ -21,7 +24,7 @@ import type { TemplateRefUsage } from "./template-ref-usage"
 import { TEMPLATE_HIERARCHY, getHierarchyEntry } from "./template-hierarchy"
 
 export async function getTemplateById(id: string) {
-  return prisma.template.findUnique({ where: { id } })
+  return db.query.templates.findFirst({ where: eq(templates.id, id) })
 }
 
 /**
@@ -38,15 +41,16 @@ export async function getTemplateIdBySlug(
   tenantId: string | null,
   slug: string
 ): Promise<string | null> {
-  const where =
+  const scope =
     tenantId === null
-      ? { slug, tenantId: null }
-      : { slug, OR: [{ tenantId }, { tenantId: null }] }
-  const rows = await prisma.template.findMany({
-    where,
-    orderBy: { tenantId: { sort: "asc", nulls: "last" } },
-    take: 1,
-    select: { id: true },
+      ? isNull(templates.tenantId)
+      : or(eq(templates.tenantId, tenantId), isNull(templates.tenantId))
+  const rows = await db.query.templates.findMany({
+    where: and(eq(templates.slug, slug), scope),
+    // Tenant row (non-null) sorts before the global fallback.
+    orderBy: sql`${templates.tenantId} asc nulls last`,
+    limit: 1,
+    columns: { id: true },
   })
   return rows[0]?.id ?? null
 }
@@ -58,9 +62,9 @@ export async function getTemplateIdBySlug(
  * the UI ahead of the global.
  */
 export async function listTemplates(tenantId: string) {
-  return prisma.template.findMany({
-    where: { OR: [{ tenantId }, { tenantId: null }] },
-    orderBy: [{ tenantId: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+  return db.query.templates.findMany({
+    where: or(eq(templates.tenantId, tenantId), isNull(templates.tenantId)),
+    orderBy: [sql`${templates.tenantId} asc nulls last`, asc(templates.title)],
   })
 }
 
@@ -74,9 +78,12 @@ export async function listTemplatesByKind(
   tenantId: string,
   kind: TemplateKind
 ) {
-  return prisma.template.findMany({
-    where: { kind, OR: [{ tenantId }, { tenantId: null }] },
-    orderBy: [{ tenantId: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+  return db.query.templates.findMany({
+    where: and(
+      eq(templates.kind, kind),
+      or(eq(templates.tenantId, tenantId), isNull(templates.tenantId))
+    ),
+    orderBy: [sql`${templates.tenantId} asc nulls last`, asc(templates.title)],
   })
 }
 
@@ -92,10 +99,13 @@ export async function loadTemplate(
   tenantId: string,
   slug: string
 ): Promise<Template | null> {
-  const rows = await prisma.template.findMany({
-    where: { slug, OR: [{ tenantId }, { tenantId: null }] },
-    orderBy: { tenantId: { sort: "asc", nulls: "last" } },
-    take: 1,
+  const rows = await db.query.templates.findMany({
+    where: and(
+      eq(templates.slug, slug),
+      or(eq(templates.tenantId, tenantId), isNull(templates.tenantId))
+    ),
+    orderBy: sql`${templates.tenantId} asc nulls last`,
+    limit: 1,
   })
   return rows[0] ?? null
 }
@@ -117,7 +127,7 @@ export async function loadTemplate(
  */
 export async function templateRefExists(slug: string): Promise<boolean> {
   const vars = JSON.stringify({ s: slug })
-  const rows = await prisma.$queryRaw<{ found: boolean }[]>`
+  const { rows } = await db.execute<{ found: boolean }>(sql`
     SELECT (
       EXISTS (
         SELECT 1 FROM "pages"
@@ -132,7 +142,7 @@ export async function templateRefExists(slug: string): Promise<boolean> {
         WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)
       )
     ) AS "found"
-  `
+  `)
   return rows[0]?.found ?? false
 }
 
@@ -148,9 +158,11 @@ export async function templateRefUsage(
   slug: string
 ): Promise<TemplateRefUsage> {
   const vars = JSON.stringify({ s: slug })
-  const rows = await prisma.$queryRaw<
-    { pages: bigint; posts: bigint; templates: bigint }[]
-  >`
+  const { rows } = await db.execute<{
+    pages: string | number | bigint
+    posts: string | number | bigint
+    templates: string | number | bigint
+  }>(sql`
     SELECT
       (SELECT COUNT(*) FROM "pages"
          WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "pages",
@@ -158,7 +170,7 @@ export async function templateRefUsage(
          WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "posts",
       (SELECT COUNT(*) FROM "templates"
          WHERE jsonb_path_exists("data", '$.** ? (@."data-slug" == $s)', ${vars}::jsonb)) AS "templates"
-  `
+  `)
   // Postgres COUNT(*) comes back as bigint → coerce to number.
   const pages = Number(rows[0]?.pages ?? 0)
   const posts = Number(rows[0]?.posts ?? 0)

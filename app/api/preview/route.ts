@@ -2,7 +2,10 @@ import { draftMode } from "next/headers"
 import { redirect } from "next/navigation"
 import type { NextRequest } from "next/server"
 
-import { prisma } from "@/lib/prisma"
+import { eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { tenants } from "@/lib/schema"
 
 // Enable draft mode and redirect into the tenant-scoped preview tree.
 //
@@ -33,9 +36,9 @@ export async function GET(request: NextRequest) {
 
   // Validate before redirecting. A stale tenantId in the URL shouldn't
   // produce a permanent 404 link the user has to escape from manually.
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { id: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { id: true },
   })
   if (!tenant) {
     return new Response("Tenant not found.", { status: 404 })

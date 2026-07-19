@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto"
 
-import { prisma } from "@/lib/prisma"
+import { inArray, sql } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { docChunkUrls, docChunks } from "@/lib/schema"
 
 import type { Chunk } from "./split"
 
@@ -27,10 +30,10 @@ function toVectorLiteral(vec: number[]): string {
 
 export async function existingHashes(hashes: string[]): Promise<Set<string>> {
   if (hashes.length === 0) return new Set()
-  const rows = await prisma.$queryRaw<{ contentHash: string }[]>`
-    SELECT "contentHash" FROM doc_chunks
-    WHERE "contentHash" = ANY(${hashes}::text[])
-  `
+  const rows = await db
+    .select({ contentHash: docChunks.contentHash })
+    .from(docChunks)
+    .where(inArray(docChunks.contentHash, hashes))
   return new Set(rows.map((r) => r.contentHash))
 }
 
@@ -55,7 +58,7 @@ export async function insertChunks(
       continue
     }
     const vec = toVectorLiteral(embeddings[i])
-    const result = await prisma.$executeRaw`
+    const result = await db.execute(sql`
       INSERT INTO doc_chunks (
         id, "contentHash", content, "headerPath", kind, "tokenCount", embedding
       ) VALUES (
@@ -68,8 +71,8 @@ export async function insertChunks(
         ${vec}::vector
       )
       ON CONFLICT ("contentHash") DO NOTHING
-    `
-    inserted += Number(result)
+    `)
+    inserted += result.rowCount ?? 0
   }
   if (skipped > 0) {
     console.warn(`[store] skipped ${skipped} empty-embedding chunks`)
@@ -84,10 +87,10 @@ export async function upsertChunkUrls(chunks: Chunk[]): Promise<number> {
   // missing if its embedding came back empty and was skipped by
   // insertChunks; without this guard we'd hit a FK violation.
   const allHashes = [...new Set(chunks.map((c) => c.contentHash))]
-  const existingRows = await prisma.$queryRaw<{ contentHash: string }[]>`
-    SELECT "contentHash" FROM doc_chunks
-    WHERE "contentHash" = ANY(${allHashes}::text[])
-  `
+  const existingRows = await db
+    .select({ contentHash: docChunks.contentHash })
+    .from(docChunks)
+    .where(inArray(docChunks.contentHash, allHashes))
   const valid = new Set(existingRows.map((r) => r.contentHash))
 
   // Dedupe (contentHash, url) pairs and skip any chunk not in `valid`.
@@ -109,13 +112,13 @@ export async function upsertChunkUrls(chunks: Chunk[]): Promise<number> {
 
   let touched = 0
   for (const row of rows) {
-    const result = await prisma.$executeRaw`
+    const result = await db.execute(sql`
       INSERT INTO doc_chunk_urls (id, "chunkHash", url, title, "lastSeenAt")
       VALUES (${row.id}, ${row.chunkHash}, ${row.url}, ${row.title}, NOW())
       ON CONFLICT ("chunkHash", url)
       DO UPDATE SET title = EXCLUDED.title, "lastSeenAt" = NOW()
-    `
-    touched += Number(result)
+    `)
+    touched += result.rowCount ?? 0
   }
   return touched
 }
@@ -125,33 +128,33 @@ export async function searchChunks(
   k: number
 ): Promise<StoredChunk[]> {
   const vec = toVectorLiteral(queryEmbedding)
-  const rows = await prisma.$queryRaw<
-    {
-      id: string
-      contentHash: string
-      content: string
-      headerPath: string
-      kind: string
-      tokenCount: number
-      similarity: number
-    }[]
-  >`
+  const { rows } = await db.execute<{
+    id: string
+    contentHash: string
+    content: string
+    headerPath: string
+    kind: string
+    tokenCount: number
+    similarity: number
+  }>(sql`
     SELECT id, "contentHash", content, "headerPath", kind, "tokenCount",
            1 - (embedding <=> ${vec}::vector) AS similarity
     FROM doc_chunks
     ORDER BY embedding <=> ${vec}::vector
     LIMIT ${k}
-  `
+  `)
 
   if (rows.length === 0) return []
 
   const hashes = rows.map((r) => r.contentHash)
-  const urlRows = await prisma.$queryRaw<
-    { chunkHash: string; url: string; title: string }[]
-  >`
-    SELECT "chunkHash", url, title FROM doc_chunk_urls
-    WHERE "chunkHash" = ANY(${hashes}::text[])
-  `
+  const urlRows = await db
+    .select({
+      chunkHash: docChunkUrls.chunkHash,
+      url: docChunkUrls.url,
+      title: docChunkUrls.title,
+    })
+    .from(docChunkUrls)
+    .where(inArray(docChunkUrls.chunkHash, hashes))
 
   const urlsByHash = new Map<string, { url: string; title: string }[]>()
   for (const r of urlRows) {

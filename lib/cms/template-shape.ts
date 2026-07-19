@@ -2,7 +2,7 @@
  * Pure helpers for normalizing a stored template body's root component.
  *
  * Lives in its own module (type-only imports) so both the server resolver
- * (`lib/cms/templates.ts`, which imports `prisma`) and the client
+ * (`lib/cms/templates.ts`, which imports the DB client) and the client
  * `template-ref` plugin (which imports grapesjs) can share it without
  * dragging one's runtime deps into the other's bundle.
  *

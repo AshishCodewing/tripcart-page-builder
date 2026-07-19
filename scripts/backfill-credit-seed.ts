@@ -8,14 +8,17 @@
  */
 import "dotenv/config"
 
+import { asc } from "drizzle-orm"
+
 import { seedTenantCredits } from "@/lib/billing/seed"
 import { balances, UNITS_PER_CREDIT } from "@/lib/ledger"
-import { prisma } from "@/lib/prisma"
+import { db, pool } from "@/lib/db"
+import { tenants as tenantsTable } from "@/lib/schema"
 
 async function main() {
-  const tenants = await prisma.tenant.findMany({
-    select: { id: true, name: true, slug: true },
-    orderBy: { createdAt: "asc" },
+  const tenants = await db.query.tenants.findMany({
+    columns: { id: true, name: true, slug: true },
+    orderBy: asc(tenantsTable.createdAt),
   })
   if (tenants.length === 0) {
     console.log("no tenants found — nothing to seed")
@@ -45,10 +48,10 @@ async function main() {
 }
 
 main()
-  .then(() => prisma.$disconnect())
+  .then(() => pool.end())
   .then(() => process.exit(0))
   .catch(async (e) => {
     console.error(`\n❌ ${e instanceof Error ? e.message : e}`)
-    await prisma.$disconnect()
+    await pool.end()
     process.exit(1)
   })

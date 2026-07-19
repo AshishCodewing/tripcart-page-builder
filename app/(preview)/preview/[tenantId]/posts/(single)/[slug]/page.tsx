@@ -4,7 +4,10 @@ import { PagePreview } from "@/components/page-builder/page-preview"
 import { resolveSinglePostRender } from "@/lib/cms/post-template"
 import { resolvePageTree } from "@/lib/cms/templates"
 import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
-import { prisma } from "@/lib/prisma"
+import { and, eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { posts } from "@/lib/schema"
 
 // Preview-only single post. Public rendering happens elsewhere.
 //
@@ -27,12 +30,8 @@ export default async function BlogPostPreview({
   params: Promise<{ tenantId: string; slug: string }>
 }) {
   const { tenantId, slug } = await params
-  const post = await prisma.post.findUnique({
-    where: { tenantId_slug: { tenantId, slug } },
-    include: {
-      categories: { select: { name: true, slug: true } },
-      tags: { select: { name: true, slug: true } },
-    },
+  const post = await db.query.posts.findFirst({
+    where: and(eq(posts.tenantId, tenantId), eq(posts.slug, slug)),
   })
   if (!post) notFound()
 

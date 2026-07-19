@@ -11,13 +11,21 @@
  */
 import "dotenv/config"
 
+import { eq, inArray } from "drizzle-orm"
+
 import {
   ACCOUNT_CODES,
   createLedger,
   InsufficientCreditsError,
   LedgerFactory,
 } from "@/lib/ledger"
-import { prisma } from "@/lib/prisma"
+import { db, pool } from "@/lib/db"
+import {
+  accountBalances,
+  ledgerAccounts,
+  ledgerEntries,
+  ledgerTransactions,
+} from "@/lib/schema"
 
 async function main() {
   const { ledger, accounts, balances } = createLedger()
@@ -123,7 +131,6 @@ async function main() {
     console.log("\n✅ all smoke checks passed")
   } finally {
     await cleanup({
-      prisma,
       balances,
       createdTxIds,
       walletId,
@@ -134,7 +141,6 @@ async function main() {
 }
 
 async function cleanup(ctx: {
-  prisma: typeof prisma
   balances: ReturnType<typeof createLedger>["balances"]
   createdTxIds: string[]
   walletId?: string
@@ -144,18 +150,18 @@ async function cleanup(ctx: {
   try {
     if (ctx.createdTxIds.length > 0) {
       // entries first (FK is RESTRICT), then the transactions.
-      await ctx.prisma.ledgerEntry.deleteMany({
-        where: { transactionId: { in: ctx.createdTxIds } },
-      })
-      await ctx.prisma.ledgerTransaction.deleteMany({
-        where: { id: { in: ctx.createdTxIds } },
-      })
+      await db
+        .delete(ledgerEntries)
+        .where(inArray(ledgerEntries.transactionId, ctx.createdTxIds))
+      await db
+        .delete(ledgerTransactions)
+        .where(inArray(ledgerTransactions.id, ctx.createdTxIds))
     }
     if (ctx.walletId) {
-      await ctx.prisma.accountBalance.deleteMany({
-        where: { accountId: ctx.walletId },
-      })
-      await ctx.prisma.ledgerAccount.deleteMany({ where: { id: ctx.walletId } })
+      await db
+        .delete(accountBalances)
+        .where(eq(accountBalances.accountId, ctx.walletId))
+      await db.delete(ledgerAccounts).where(eq(ledgerAccounts.id, ctx.walletId))
     }
     // We removed entries that touched the shared system accounts, so their
     // projections drifted — recompute from the surviving entries.
@@ -168,10 +174,10 @@ async function cleanup(ctx: {
 }
 
 main()
-  .then(() => prisma.$disconnect())
+  .then(() => pool.end())
   .then(() => process.exit(0))
   .catch(async (e) => {
     console.error(`\n❌ ${e instanceof Error ? e.message : e}`)
-    await prisma.$disconnect()
+    await pool.end()
     process.exit(1)
   })

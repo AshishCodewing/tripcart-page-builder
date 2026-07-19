@@ -10,38 +10,33 @@
  */
 import "dotenv/config"
 
+import { eq, isNull } from "drizzle-orm"
+
 import { compileCssArtifact } from "@/lib/cms/css-artifacts"
 import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
-import { prisma } from "@/lib/prisma"
+import { db, pool } from "@/lib/db"
+import { pages, posts, templates, tenants } from "@/lib/schema"
 import { compiledThemeToCss, compileTheme } from "@/lib/theme/compile"
 import type { Theme } from "@/lib/theme/schema"
 import { defaultTheme } from "@/lib/tokens"
 
 type ContentDelegate = "page" | "post" | "template"
 
+// The three content tables share the columns we touch (id, data, css, cssHash).
+const CONTENT_TABLES = { page: pages, post: posts, template: templates } as const
+
 async function backfillContent(kind: ContentDelegate): Promise<number> {
-  const delegate =
-    kind === "page"
-      ? prisma.page
-      : kind === "post"
-        ? prisma.post
-        : prisma.template
-  // The three delegates share the fields we touch; TS can't unify their
-  // generated types, so go through the narrow shape we actually use.
-  const rows: { id: string; data: unknown }[] = await (
-    delegate.findMany as (
-      args: object
-    ) => Promise<{ id: string; data: unknown }[]>
-  )({ where: { css: null }, select: { id: true, data: true } })
+  const table = CONTENT_TABLES[kind]
+  const rows = await db
+    .select({ id: table.id, data: table.data })
+    .from(table)
+    .where(isNull(table.css))
 
   let failures = 0
   for (const row of rows) {
     try {
       const artifact = compileCssArtifact((row.data ?? {}) as object)
-      await (delegate.update as (args: object) => Promise<unknown>)({
-        where: { id: row.id },
-        data: artifact,
-      })
+      await db.update(table).set(artifact).where(eq(table.id, row.id))
     } catch (e) {
       failures += 1
       console.error(
@@ -55,13 +50,13 @@ async function backfillContent(kind: ContentDelegate): Promise<number> {
 }
 
 async function backfillTenantThemes(): Promise<number> {
-  const tenants = await prisma.tenant.findMany({
-    where: { themeCss: null },
-    select: { id: true, slug: true, theme: true },
+  const tenantRows = await db.query.tenants.findMany({
+    where: isNull(tenants.themeCss),
+    columns: { id: true, slug: true, theme: true },
   })
 
   let failures = 0
-  for (const tenant of tenants) {
+  for (const tenant of tenantRows) {
     try {
       // Mirror getTenantTheme's sentinel: `{}` means "use the bundled
       // defaultTheme" — never feed the raw empty object to compileTheme.
@@ -72,10 +67,10 @@ async function backfillTenantThemes(): Promise<number> {
       const theme = isEmpty ? defaultTheme : (stored as unknown as Theme)
 
       const themeCss = compiledThemeToCss(compileTheme(theme))
-      await prisma.tenant.update({
-        where: { id: tenant.id },
-        data: { themeCss, themeCssHash: cssContentKey(themeCss) },
-      })
+      await db
+        .update(tenants)
+        .set({ themeCss, themeCssHash: cssContentKey(themeCss) })
+        .where(eq(tenants.id, tenant.id))
     } catch (e) {
       failures += 1
       console.error(
@@ -85,7 +80,7 @@ async function backfillTenantThemes(): Promise<number> {
     }
   }
   console.log(
-    `  ✓ tenant themes: ${tenants.length - failures}/${tenants.length} baked`
+    `  ✓ tenant themes: ${tenantRows.length - failures}/${tenantRows.length} baked`
   )
   return failures
 }
@@ -103,10 +98,10 @@ async function main() {
 }
 
 main()
-  .then(() => prisma.$disconnect())
+  .then(() => pool.end())
   .then(() => process.exit(0))
   .catch(async (e) => {
     console.error(`\n❌ ${e instanceof Error ? e.message : e}`)
-    await prisma.$disconnect()
+    await pool.end()
     process.exit(1)
   })

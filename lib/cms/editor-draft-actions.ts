@@ -1,6 +1,9 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { pages, posts, templates } from "@/lib/schema"
 
 import { validateProjectPayload } from "./project-payload"
 import { slimTemplateProject } from "./templates"
@@ -37,23 +40,23 @@ export async function saveEditorDraft(
   switch (kind) {
     case "template": {
       const draftData = slimTemplateProject(validated)
-      await prisma.template.update({
-        where: { id },
-        data: { draftData: draftData as object },
-      })
+      await db
+        .update(templates)
+        .set({ draftData: draftData as object })
+        .where(eq(templates.id, id))
       return
     }
     case "page":
-      await prisma.page.update({
-        where: { id },
-        data: { draftData: validated },
-      })
+      await db
+        .update(pages)
+        .set({ draftData: validated })
+        .where(eq(pages.id, id))
       return
     case "post":
-      await prisma.post.update({
-        where: { id },
-        data: { draftData: validated },
-      })
+      await db
+        .update(posts)
+        .set({ draftData: validated })
+        .where(eq(posts.id, id))
       return
     default: {
       // Exhaustiveness guard — a new EditorKind must wire its own

@@ -11,7 +11,8 @@
  * rows and rebuilds the shared system-account projections it touched, so the
  * suite is safe to run repeatedly and leaves no residue.
  */
-import { afterEach, beforeAll, describe, expect, it } from "vitest"
+import { eq, inArray, sum } from "drizzle-orm"
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 
 import {
   ACCOUNT_CODES,
@@ -23,7 +24,13 @@ import {
   LedgerFactory,
   UNITS_PER_CREDIT,
 } from "@/lib/ledger"
-import { prisma } from "@/lib/prisma"
+import { db, pool } from "@/lib/db"
+import {
+  accountBalances,
+  ledgerAccounts,
+  ledgerEntries,
+  ledgerTransactions,
+} from "@/lib/schema"
 
 const { ledger, accounts, balances } = createLedger()
 
@@ -87,11 +94,11 @@ function usage(p: {
 
 /** Ground-truth balance straight from entries, bypassing the projection. */
 async function sumEntries(accountId: string): Promise<bigint> {
-  const { _sum } = await prisma.ledgerEntry.aggregate({
-    where: { accountId },
-    _sum: { amount: true },
-  })
-  return _sum.amount ?? 0n
+  const [row] = await db
+    .select({ total: sum(ledgerEntries.amount) })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.accountId, accountId))
+  return row?.total ? BigInt(row.total) : 0n
 }
 
 beforeAll(async () => {
@@ -102,20 +109,20 @@ beforeAll(async () => {
 
 afterEach(async () => {
   if (createdTxIds.length > 0) {
-    await prisma.ledgerEntry.deleteMany({
-      where: { transactionId: { in: createdTxIds } },
-    })
-    await prisma.ledgerTransaction.deleteMany({
-      where: { id: { in: createdTxIds } },
-    })
+    await db
+      .delete(ledgerEntries)
+      .where(inArray(ledgerEntries.transactionId, createdTxIds))
+    await db
+      .delete(ledgerTransactions)
+      .where(inArray(ledgerTransactions.id, createdTxIds))
   }
   if (createdWalletIds.length > 0) {
-    await prisma.accountBalance.deleteMany({
-      where: { accountId: { in: createdWalletIds } },
-    })
-    await prisma.ledgerAccount.deleteMany({
-      where: { id: { in: createdWalletIds } },
-    })
+    await db
+      .delete(accountBalances)
+      .where(inArray(accountBalances.accountId, createdWalletIds))
+    await db
+      .delete(ledgerAccounts)
+      .where(inArray(ledgerAccounts.id, createdWalletIds))
   }
   // The deleted entries touched the shared system accounts — recompute their
   // projections from the surviving entries so the next test starts clean.
@@ -123,6 +130,11 @@ afterEach(async () => {
   await balances.rebuild(aiConsumedId)
   createdTxIds = []
   createdWalletIds = []
+})
+
+// Close the pg pool so Vitest doesn't hang on the open connection (issue #1434).
+afterAll(async () => {
+  await pool.end()
 })
 
 describe("postTransaction (integration)", () => {
@@ -150,9 +162,10 @@ describe("postTransaction (integration)", () => {
     expect(await balances.getWalletBalance(tenantId)).toBe(
       100n * UNITS_PER_CREDIT
     )
-    const rows = await prisma.ledgerTransaction.findMany({
-      where: { idempotencyKey: key },
-    })
+    const rows = await db
+      .select()
+      .from(ledgerTransactions)
+      .where(eq(ledgerTransactions.idempotencyKey, key))
     expect(rows).toHaveLength(1)
   })
 
@@ -174,9 +187,10 @@ describe("postTransaction (integration)", () => {
         createdTxIds.push(r.value.id)
       }
     }
-    const rows = await prisma.ledgerTransaction.findMany({
-      where: { idempotencyKey: key },
-    })
+    const rows = await db
+      .select()
+      .from(ledgerTransactions)
+      .where(eq(ledgerTransactions.idempotencyKey, key))
     expect(rows).toHaveLength(1)
     // The balance moved exactly once regardless of who won.
     expect(await balances.getWalletBalance(tenantId)).toBe(
@@ -201,9 +215,10 @@ describe("postTransaction (integration)", () => {
     expect(await balances.getWalletBalance(tenantId)).toBe(
       5n * UNITS_PER_CREDIT
     )
-    const rows = await prisma.ledgerTransaction.findMany({
-      where: { idempotencyKey: overKey },
-    })
+    const rows = await db
+      .select()
+      .from(ledgerTransactions)
+      .where(eq(ledgerTransactions.idempotencyKey, overKey))
     expect(rows).toHaveLength(0)
   })
 
@@ -235,9 +250,10 @@ describe("postTransaction (integration)", () => {
     await expect(ledger.postTransaction(input)).rejects.toBeInstanceOf(
       AccountNotFoundError
     )
-    const rows = await prisma.ledgerTransaction.findMany({
-      where: { idempotencyKey: key },
-    })
+    const rows = await db
+      .select()
+      .from(ledgerTransactions)
+      .where(eq(ledgerTransactions.idempotencyKey, key))
     expect(rows).toHaveLength(0)
   })
 

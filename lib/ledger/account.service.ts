@@ -5,8 +5,9 @@
  * `repository.createAccount`, which seeds the balance row at 0 so the
  * orchestrator's FOR UPDATE always has a row to lock.
  */
-import { LedgerAccountType } from "@/generated/prisma/client"
-import type { LedgerAccount, PrismaClient } from "@/generated/prisma/client"
+import type { Database } from "@/lib/db"
+import { LedgerAccountType } from "@/lib/schema"
+import type { LedgerAccount } from "@/lib/schema"
 import { AccountNotFoundError } from "./errors"
 import type { LedgerRepository } from "./ledger.repository"
 import { ACCOUNT_CODES, SYSTEM_ACCOUNT_CODES } from "./types"
@@ -14,7 +15,7 @@ import type { SystemAccountCode } from "./types"
 
 export class AccountService {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly db: Database,
     private readonly repository: LedgerRepository
   ) {}
 
@@ -22,7 +23,7 @@ export class AccountService {
   async ensureSystemAccounts(): Promise<void> {
     await Promise.all(
       SYSTEM_ACCOUNT_CODES.map((accountCode) =>
-        this.repository.createAccount(this.prisma, {
+        this.repository.createAccount(this.db, {
           tenantId: null,
           accountCode,
           accountType: LedgerAccountType.SYSTEM,
@@ -33,7 +34,7 @@ export class AccountService {
 
   /** Resolve a system code -> id. Throws if the account is missing. */
   async getSystemAccountId(code: SystemAccountCode): Promise<string> {
-    const account = await this.repository.findAccount(this.prisma, {
+    const account = await this.repository.findAccount(this.db, {
       tenantId: null,
       accountCode: code,
     })
@@ -45,12 +46,12 @@ export class AccountService {
 
   /** Create the tenant wallet (+ seeded balance row) if missing; return it. */
   async ensureTenantWallet(tenantId: string): Promise<LedgerAccount> {
-    const existing = await this.repository.findAccount(this.prisma, {
+    const existing = await this.repository.findAccount(this.db, {
       tenantId,
       accountCode: ACCOUNT_CODES.TENANT_WALLET,
     })
     if (existing) return existing
-    return this.repository.createAccount(this.prisma, {
+    return this.repository.createAccount(this.db, {
       tenantId,
       accountCode: ACCOUNT_CODES.TENANT_WALLET,
       accountType: LedgerAccountType.TENANT,
@@ -59,7 +60,7 @@ export class AccountService {
 
   /** Resolve a tenant's wallet -> id. Throws if missing. */
   async getTenantWalletId(tenantId: string): Promise<string> {
-    const wallet = await this.repository.findAccount(this.prisma, {
+    const wallet = await this.repository.findAccount(this.db, {
       tenantId,
       accountCode: ACCOUNT_CODES.TENANT_WALLET,
     })

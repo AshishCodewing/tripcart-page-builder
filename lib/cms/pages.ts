@@ -1,38 +1,45 @@
 import { cache } from "react"
 
-import { prisma } from "@/lib/prisma"
+import { and, asc, eq, ne } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { pages } from "@/lib/schema"
 
 export async function getPageById(id: string) {
-  return prisma.page.findUnique({ where: { id } })
+  return db.query.pages.findFirst({ where: eq(pages.id, id) })
 }
 
 // Per-request-memoized page lookup by (tenantId, path). Wrapped in React's
 // `cache` so multiple consumers in one render pass share a single query.
 // Used by the preview page route.
 export const getPageByPath = cache((tenantId: string, path: string) =>
-  prisma.page.findUnique({ where: { tenantId_path: { tenantId, path } } })
+  db.query.pages.findFirst({
+    where: and(eq(pages.tenantId, tenantId), eq(pages.path, path)),
+  })
 )
 
 export async function listPages(tenantId?: string) {
-  return prisma.page.findMany({
-    where: tenantId ? { tenantId } : undefined,
-    orderBy: [{ path: "asc" }],
-    select: {
+  return db.query.pages.findMany({
+    where: tenantId ? eq(pages.tenantId, tenantId) : undefined,
+    orderBy: [asc(pages.path)],
+    columns: {
       id: true,
       title: true,
       path: true,
       status: true,
       updatedAt: true,
       parentId: true,
-      tenant: { select: { id: true, name: true, slug: true } },
+    },
+    with: {
+      tenant: { columns: { id: true, name: true, slug: true } },
     },
   })
 }
 
 export async function listPageParents(excludeId?: string) {
-  return prisma.page.findMany({
-    where: excludeId ? { id: { not: excludeId } } : undefined,
-    orderBy: [{ path: "asc" }],
-    select: { id: true, title: true, path: true },
+  return db.query.pages.findMany({
+    where: excludeId ? ne(pages.id, excludeId) : undefined,
+    orderBy: [asc(pages.path)],
+    columns: { id: true, title: true, path: true },
   })
 }

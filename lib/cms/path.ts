@@ -1,4 +1,7 @@
-import { prisma } from "@/lib/prisma"
+import { eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { pages } from "@/lib/schema"
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
@@ -48,10 +51,11 @@ export async function buildPath(
   let current: string | null = parentId
   for (let i = 0; i < MAX_DEPTH; i++) {
     if (!current) break
-    const parent: ParentLookup = await prisma.page.findUnique({
-      where: { id: current },
-      select: { slug: true, parentId: true },
-    })
+    const parent: ParentLookup =
+      (await db.query.pages.findFirst({
+        where: eq(pages.id, current),
+        columns: { slug: true, parentId: true },
+      })) ?? null
     if (!parent) throw new Error(`Parent ${current} not found.`)
     segments.unshift(parent.slug)
     current = parent.parentId
@@ -72,10 +76,10 @@ export async function assertNotDescendant(
       throw new Error("A page cannot be its own ancestor.")
     }
     const parent: { parentId: string | null } | null =
-      await prisma.page.findUnique({
-        where: { id: current },
-        select: { parentId: true },
-      })
+      (await db.query.pages.findFirst({
+        where: eq(pages.id, current),
+        columns: { parentId: true },
+      })) ?? null
     if (!parent) return
     current = parent.parentId
   }

@@ -12,8 +12,8 @@ patterns, and parts.
 
 - **Next.js 16** (App Router, RSC) + **React 19** + **TypeScript** (strict)
 - **Tailwind v4** + **shadcn/ui** (theme config lives in `app/globals.css`)
-- **Prisma 7** + **Postgres** (driver adapter via `@prisma/adapter-pg`;
-  client generated into `generated/prisma/`)
+- **Drizzle ORM** + **Postgres** (`pg` driver; hand-written schema in
+  `lib/schema/`, client in `lib/db.ts`)
 - **GrapesJS** for the canvas, with custom plugins (React renderer, theme
   design system, template refs, patterns)
 - Package manager: **pnpm**
@@ -23,7 +23,7 @@ patterns, and parts.
 ```sh
 cp .env.example .env        # fill in DATABASE_URL
 pnpm install
-pnpm prisma migrate dev     # apply migrations locally
+pnpm db:migrate             # apply migrations locally
 pnpm dev                    # Next.js dev server (Turbopack)
 ```
 
@@ -56,7 +56,8 @@ side project (searching GrapesJS/WordPress docs from an MCP server) — see
   (canvas + project halves)
 - `lib/theme/` — theme schema (Zod is the single source of truth),
   compiler, presets
-- `prisma/` — schema and migrations
+- `lib/schema/` — hand-written Drizzle schema; `lib/db.ts` — DB client
+- `drizzle/` — generated SQL migrations (`prisma/migrations/` kept as history)
 - `docs/` — design docs (`docs/handbook/` for subsystem deep-dives,
   `docs/reference/` for pinned technical references)
 

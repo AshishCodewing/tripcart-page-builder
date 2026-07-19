@@ -21,8 +21,11 @@
  */
 import "dotenv/config"
 
+import { eq, sql } from "drizzle-orm"
+
 import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
-import { prisma } from "@/lib/prisma"
+import { db, pool } from "@/lib/db"
+import { tenants as tenantsTable } from "@/lib/schema"
 import { compiledThemeToCss, compileTheme } from "@/lib/theme/compile"
 import type { Theme } from "@/lib/theme/schema"
 import { themeSchema } from "@/lib/theme/schema.zod"
@@ -33,8 +36,8 @@ const BLOCK_GAP_REF = "var:preset|spacing|lg"
 async function main() {
   console.log("backfilling tenant theme block-gap…\n")
 
-  const tenants = await prisma.tenant.findMany({
-    select: { id: true, slug: true, theme: true },
+  const tenants = await db.query.tenants.findMany({
+    columns: { id: true, slug: true, theme: true },
   })
 
   let updated = 0
@@ -75,15 +78,15 @@ async function main() {
       }
 
       const themeCss = compiledThemeToCss(compileTheme(parsed.data))
-      await prisma.tenant.update({
-        where: { id: tenant.id },
-        data: {
+      await db
+        .update(tenantsTable)
+        .set({
           theme: parsed.data,
-          themeVersion: { increment: 1 },
+          themeVersion: sql`${tenantsTable.themeVersion} + 1`,
           themeCss,
           themeCssHash: cssContentKey(themeCss),
-        },
-      })
+        })
+        .where(eq(tenantsTable.id, tenant.id))
       updated += 1
       console.log(`  ✓ ${tenant.slug}`)
     } catch (e) {
@@ -103,10 +106,10 @@ async function main() {
 }
 
 main()
-  .then(() => prisma.$disconnect())
+  .then(() => pool.end())
   .then(() => process.exit(0))
   .catch(async (e) => {
     console.error(`\n❌ ${e instanceof Error ? e.message : e}`)
-    await prisma.$disconnect()
+    await pool.end()
     process.exit(1)
   })

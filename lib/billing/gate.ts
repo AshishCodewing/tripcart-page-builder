@@ -4,8 +4,11 @@
  * after the run from real token counts; the small window where concurrent
  * requests overshoot the balance is accepted and handled by clamping.
  */
+import { eq } from "drizzle-orm"
+
 import { AccountNotFoundError, balances } from "@/lib/ledger"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { tenants } from "@/lib/schema"
 import { seedTenantCredits } from "./seed"
 
 /** JSON body both AI routes return with HTTP 402. */
@@ -23,9 +26,9 @@ export async function hasCredits(tenantId: string): Promise<boolean> {
       // creation-time seed failed). Seed it now, but only for real tenants:
       // the ledger happily creates accounts for arbitrary strings.
       try {
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: tenantId },
-          select: { id: true },
+        const tenant = await db.query.tenants.findFirst({
+          where: eq(tenants.id, tenantId),
+          columns: { id: true },
         })
         if (!tenant) return false
         await seedTenantCredits(tenantId)
