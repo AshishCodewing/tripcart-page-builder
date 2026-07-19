@@ -1,6 +1,9 @@
+import { and, eq, inArray, isNotNull, ne } from "drizzle-orm"
+
 import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
 import type { ProjectDefinition } from "@/lib/plugins/react-renderer/project/types"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { chromeAssignments, templates, tenants } from "@/lib/schema"
 
 import type { TemplateHierarchySlug } from "./template-hierarchy"
 import { resolveChromeBySlug } from "./templates"
@@ -25,9 +28,12 @@ export async function getChromeAssignment(
   tenantId: string,
   segment: TemplateHierarchySlug
 ) {
-  return prisma.chromeAssignment.findUnique({
-    where: { tenantId_segment: { tenantId, segment } },
-    select: { headerSlug: true, footerSlug: true },
+  return db.query.chromeAssignments.findFirst({
+    where: and(
+      eq(chromeAssignments.tenantId, tenantId),
+      eq(chromeAssignments.segment, segment)
+    ),
+    columns: { headerSlug: true, footerSlug: true },
   })
 }
 
@@ -40,12 +46,14 @@ export async function getPartChromeAssignments(
   area: "header" | "footer",
   slug: string
 ): Promise<string[]> {
-  const rows = await prisma.chromeAssignment.findMany({
-    where: {
-      tenantId,
-      ...(area === "header" ? { headerSlug: slug } : { footerSlug: slug }),
-    },
-    select: { segment: true },
+  const rows = await db.query.chromeAssignments.findMany({
+    where: and(
+      eq(chromeAssignments.tenantId, tenantId),
+      area === "header"
+        ? eq(chromeAssignments.headerSlug, slug)
+        : eq(chromeAssignments.footerSlug, slug)
+    ),
+    columns: { segment: true },
   })
   return rows.map((r) => r.segment)
 }
@@ -64,14 +72,17 @@ export async function getSegmentsOwnedByOtherParts(
   slug: string
 ): Promise<Record<string, string>> {
   const isHeader = area === "header"
-  // Set (not null) and pointing at some *other* part's slug.
-  const ownerFilter = { not: null, notIn: [slug] }
-  const rows = await prisma.chromeAssignment.findMany({
-    where: {
-      tenantId,
-      ...(isHeader ? { headerSlug: ownerFilter } : { footerSlug: ownerFilter }),
-    },
-    select: { segment: true, headerSlug: true, footerSlug: true },
+  const ownerCol = isHeader
+    ? chromeAssignments.headerSlug
+    : chromeAssignments.footerSlug
+  const rows = await db.query.chromeAssignments.findMany({
+    where: and(
+      eq(chromeAssignments.tenantId, tenantId),
+      // Set (not null) and pointing at some *other* part's slug.
+      isNotNull(ownerCol),
+      ne(ownerCol, slug)
+    ),
+    columns: { segment: true, headerSlug: true, footerSlug: true },
   })
   if (rows.length === 0) return {}
 
@@ -83,9 +94,13 @@ export async function getSegmentsOwnedByOtherParts(
         .filter((s): s is string => s !== null)
     ),
   ]
-  const owners = await prisma.template.findMany({
-    where: { tenantId, area, slug: { in: ownerSlugs } },
-    select: { slug: true, title: true },
+  const owners = await db.query.templates.findMany({
+    where: and(
+      eq(templates.tenantId, tenantId),
+      eq(templates.area, area),
+      inArray(templates.slug, ownerSlugs)
+    ),
+    columns: { slug: true, title: true },
   })
   const titleBySlug = new Map(owners.map((o) => [o.slug, o.title]))
 
@@ -112,9 +127,9 @@ export async function resolveSegmentChrome(
   tenantId: string,
   segment: TemplateHierarchySlug
 ): Promise<ResolvedChrome> {
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { name: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { name: true },
   })
   if (!tenant) return { header: null, footer: null }
 

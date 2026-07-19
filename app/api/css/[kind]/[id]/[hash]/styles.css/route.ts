@@ -1,4 +1,7 @@
-import { prisma } from "@/lib/prisma"
+import { eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { pages, posts, templates } from "@/lib/schema"
 
 // Serves a stored CSS artifact (see lib/cms/css-artifacts.ts + plan 023) as
 // an immutable stylesheet: `/api/css/{kind}/{id}/{cssHash}/styles.css` with
@@ -31,20 +34,26 @@ const notFound = (reason: string) =>
   })
 
 async function loadArtifact(kind: string, id: string): Promise<string | null> {
-  const select = { css: true } as const
+  const columns = { css: true } as const
   switch (kind) {
     case "page":
       return (
-        (await prisma.page.findUnique({ where: { id }, select }))?.css ?? null
+        (await db.query.pages.findFirst({ where: eq(pages.id, id), columns }))
+          ?.css ?? null
       )
     case "post":
       return (
-        (await prisma.post.findUnique({ where: { id }, select }))?.css ?? null
+        (await db.query.posts.findFirst({ where: eq(posts.id, id), columns }))
+          ?.css ?? null
       )
     case "template":
       return (
-        (await prisma.template.findUnique({ where: { id }, select }))?.css ??
-        null
+        (
+          await db.query.templates.findFirst({
+            where: eq(templates.id, id),
+            columns,
+          })
+        )?.css ?? null
       )
     default:
       return null

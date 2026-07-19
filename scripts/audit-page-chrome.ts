@@ -1,6 +1,9 @@
 import "dotenv/config"
 
-import { prisma } from "@/lib/prisma"
+import { asc } from "drizzle-orm"
+
+import { db, pool } from "@/lib/db"
+import { pages as pagesTable } from "@/lib/schema"
 
 // Read-only audit of how existing pages encode their header/footer "chrome".
 //
@@ -244,15 +247,15 @@ function printTakeaway(reports: PageReport[]): void {
 }
 
 async function main() {
-  const pages = await prisma.page.findMany({
-    select: { tenantId: true, path: true, data: true },
-    orderBy: [{ tenantId: "asc" }, { path: "asc" }],
+  const pages = await db.query.pages.findMany({
+    columns: { tenantId: true, path: true, data: true },
+    orderBy: [asc(pagesTable.tenantId), asc(pagesTable.path)],
   })
 
   // Label referenced slugs with their template kind/area so the summary shows
   // which refs are actually PART chrome vs patterns/layouts.
-  const templates = await prisma.template.findMany({
-    select: { slug: true, kind: true, area: true },
+  const templates = await db.query.templates.findMany({
+    columns: { slug: true, kind: true, area: true },
   })
   const tplBySlug: TplBySlug = new Map(
     templates.map((t) => [t.slug, { kind: t.kind, area: t.area }])
@@ -272,4 +275,4 @@ main()
     console.error(err)
     process.exitCode = 1
   })
-  .finally(() => prisma.$disconnect())
+  .finally(() => pool.end())

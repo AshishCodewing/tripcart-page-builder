@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest"
 
-import { Prisma } from "@/generated/prisma/client"
-
 import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
 
 import { computePublishTimestamp } from "./publish-timestamp"
@@ -38,7 +36,7 @@ describe("buildDraftDataUpdate", () => {
     }
     expect(buildDraftDataUpdate(data)).toEqual({
       data,
-      draftData: Prisma.DbNull,
+      draftData: null,
       css: ".a{color:red;}",
       cssHash: cssContentKey(".a{color:red;}"),
     })

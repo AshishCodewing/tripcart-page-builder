@@ -9,10 +9,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # Points at the throwaway `postgres` service below. `prisma generate`
-      # only needs the var to exist; `migrate deploy` + the integration suite
-      # actually connect. pgvector image: an init migration CREATEs the vector
-      # extension (RAG tables), so stock postgres can't apply the schema.
+      # Points at the throwaway `postgres` service below. `db:migrate` + the
+      # integration suite connect. pgvector image: the baseline migration CREATEs
+      # the vector extension (RAG tables), so stock postgres can't apply the schema.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
     services:
       postgres:
@@ -37,9 +36,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma generate
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm prisma migrate deploy
+      - run: pnpm db:migrate
       - run: pnpm test:integration

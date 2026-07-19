@@ -2,8 +2,10 @@
 
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
+import { eq } from "drizzle-orm"
 
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { posts } from "@/lib/schema"
 
 import { cacheTags } from "./cache-tags"
 import { validateSlug } from "./path"
@@ -22,7 +24,10 @@ export async function createPost(form: FormData): Promise<void> {
   if (!tenantId) throw new Error("Tenant is required.")
   validateSlug(slug)
 
-  const post = await prisma.post.create({ data: { slug, title, tenantId } })
+  const [post] = await db
+    .insert(posts)
+    .values({ slug, title, tenantId })
+    .returning({ id: posts.id })
   redirect(`/admin/posts/${post.id}/edit`)
 }
 
@@ -30,7 +35,7 @@ export async function createPost(form: FormData): Promise<void> {
 // is immutable post-creation — a post belongs to the tenant it was
 // created under, and reassigning it would orphan its theme references.
 export async function savePost(id: string, form: FormData): Promise<void> {
-  const existing = await prisma.post.findUnique({ where: { id } })
+  const existing = await db.query.posts.findFirst({ where: eq(posts.id, id) })
   if (!existing) throw new Error("Post not found.")
 
   const newSlug = String(form.get("slug") ?? existing.slug).trim()
@@ -57,9 +62,9 @@ export async function savePost(id: string, form: FormData): Promise<void> {
   const wasPublished = existing.status === "PUBLISHED"
   const willBePublished = status === "PUBLISHED"
 
-  await prisma.post.update({
-    where: { id },
-    data: {
+  await db
+    .update(posts)
+    .set({
       slug: newSlug,
       title,
       excerpt,
@@ -70,8 +75,8 @@ export async function savePost(id: string, form: FormData): Promise<void> {
         existing.publishedAt
       ),
       ...buildDraftDataUpdate(data),
-    },
-  })
+    })
+    .where(eq(posts.id, id))
 
   updateTag(cacheTags.post(existing.slug))
   if (newSlug !== existing.slug) updateTag(cacheTags.post(newSlug))
@@ -79,12 +84,12 @@ export async function savePost(id: string, form: FormData): Promise<void> {
 }
 
 export async function deletePost(id: string): Promise<void> {
-  const post = await prisma.post.findUnique({
-    where: { id },
-    select: { slug: true, status: true, tenantId: true },
+  const post = await db.query.posts.findFirst({
+    where: eq(posts.id, id),
+    columns: { slug: true, status: true, tenantId: true },
   })
   if (!post) return
-  await prisma.post.delete({ where: { id } })
+  await db.delete(posts).where(eq(posts.id, id))
   updateTag(cacheTags.post(post.slug))
   if (post.status === "PUBLISHED") updateTag(cacheTags.postIndex)
   redirect(`/admin/tenants/${post.tenantId}`)

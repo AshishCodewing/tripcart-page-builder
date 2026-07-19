@@ -35,7 +35,7 @@
  */
 
 import type { Component, Editor } from "grapesjs"
-import type { Template } from "@/generated/prisma/client"
+import type { Template } from "@/lib/schema"
 import type {
   ComponentDefinition,
   Rule,

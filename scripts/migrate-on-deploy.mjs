@@ -1,15 +1,20 @@
-// Applies pending Prisma migrations — then runs idempotent data backfills —
+// Applies pending Drizzle migrations — then runs idempotent data backfills —
 // during a Vercel *production* build.
 //
-// Why this exists: the deployed app reads/writes Neon, but `prisma migrate
-// dev` only ever runs against the local Postgres. Without this step the
-// production schema would drift behind the committed migrations.
+// Why this exists: the deployed app reads/writes Neon, but `drizzle-kit
+// migrate` only ever runs against the local Postgres in dev. Without this step
+// the production schema would drift behind the committed migrations.
+//
+// NOTE (one-time): before the first Drizzle-managed deploy, the production DB
+// must be baselined so drizzle-kit does not try to re-CREATE the existing
+// (Prisma-built) schema — run `node scripts/drizzle-baseline.mjs` against
+// DATABASE_URL_UNPOOLED once. See drizzle/README.md.
 //
 // Two deliberate choices:
 //   1. Migrations run on the DIRECT (unpooled) connection. Neon's pooled
-//      endpoint (PgBouncer) cannot hold the advisory locks Prisma needs, so
-//      we point DATABASE_URL at DATABASE_URL_UNPOOLED for the migrate call
-//      only — the app's runtime keeps using the pooled DATABASE_URL.
+//      endpoint (PgBouncer) cannot hold the locks migrations need, so we point
+//      DATABASE_URL at DATABASE_URL_UNPOOLED for the migrate call only — the
+//      app's runtime keeps using the pooled DATABASE_URL.
 //   2. We only migrate when VERCEL_ENV === "production". Preview deploys
 //      share the same Neon database, so running feature-branch migrations on
 //      every preview would mutate production data prematurely.
@@ -37,7 +42,7 @@ if (!DATABASE_URL_UNPOOLED) {
 }
 
 console.log("[migrate-on-deploy] applying migrations on the direct connection…")
-execSync("prisma migrate deploy", {
+execSync("pnpm exec drizzle-kit migrate", {
   stdio: "inherit",
   env: { ...process.env, DATABASE_URL: DATABASE_URL_UNPOOLED },
 })

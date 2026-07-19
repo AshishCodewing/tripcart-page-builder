@@ -1,6 +1,9 @@
 import Link from "next/link"
 
-import { prisma } from "@/lib/prisma"
+import { desc, eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { posts as postsTable } from "@/lib/schema"
 
 // Preview-only blog index, scoped to the tenant from the URL. Public
 // rendering happens elsewhere. Draft mode is gated once by
@@ -12,10 +15,10 @@ export default async function BlogIndexPreview({
 }) {
   const { tenantId } = await params
 
-  const posts = await prisma.post.findMany({
-    where: { tenantId },
-    orderBy: [{ updatedAt: "desc" }],
-    select: {
+  const posts = await db.query.posts.findMany({
+    where: eq(postsTable.tenantId, tenantId),
+    orderBy: [desc(postsTable.updatedAt)],
+    columns: {
       id: true,
       slug: true,
       title: true,

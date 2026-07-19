@@ -2,7 +2,7 @@
 // No DB access and no "use server" — these run inside the actions in
 // ../template-actions.ts, which keeps the server-action boundary.
 
-import type { TemplateKind } from "@/generated/prisma/enums"
+import type { TemplateKind } from "@/lib/schema"
 
 import { titleToSlug, validateSlug } from "../path"
 import { assertReservedSlug, slimTemplateProject } from "../templates"

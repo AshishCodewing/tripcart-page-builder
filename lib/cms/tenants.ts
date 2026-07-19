@@ -1,11 +1,14 @@
-import { prisma } from "@/lib/prisma"
+import { asc, eq } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { tenants } from "@/lib/schema"
 import { defaultTheme } from "@/lib/tokens"
 import type { Theme } from "@/lib/theme/schema"
 
 export async function listTenants() {
-  return prisma.tenant.findMany({
-    orderBy: [{ name: "asc" }],
-    select: {
+  return db.query.tenants.findMany({
+    orderBy: [asc(tenants.name)],
+    columns: {
       id: true,
       name: true,
       slug: true,
@@ -16,11 +19,11 @@ export async function listTenants() {
 }
 
 export async function getTenantById(id: string) {
-  return prisma.tenant.findUnique({ where: { id } })
+  return db.query.tenants.findFirst({ where: eq(tenants.id, id) })
 }
 
 export async function getTenantBySlug(slug: string) {
-  return prisma.tenant.findUnique({ where: { slug } })
+  return db.query.tenants.findFirst({ where: eq(tenants.slug, slug) })
 }
 
 /**
@@ -32,9 +35,9 @@ export async function getTenantBySlug(slug: string) {
  * by `updateTenantTheme`), so we just cast on read.
  */
 export async function getTenantTheme(tenantId: string): Promise<Theme> {
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { theme: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { theme: true },
   })
   if (!tenant) throw new Error(`Tenant ${tenantId} not found.`)
 

@@ -3,8 +3,11 @@
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { eq, sql } from "drizzle-orm"
+
 import { seedTenantCredits } from "@/lib/billing/seed"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { tenants } from "@/lib/schema"
 import { cssContentKey } from "@/lib/plugins/react-renderer/project/css-helpers"
 import { compiledThemeToCss, compileTheme } from "@/lib/theme/compile"
 import { themeSchema } from "@/lib/theme/schema.zod"
@@ -22,17 +25,24 @@ export async function createTenant(form: FormData): Promise<void> {
   if (!name) throw new Error("Name is required.")
   validateSlug(slug)
 
-  const existingSlug = await prisma.tenant.findUnique({ where: { slug } })
+  const existingSlug = await db.query.tenants.findFirst({
+    where: eq(tenants.slug, slug),
+  })
   if (existingSlug)
     throw new Error(`A tenant with slug "${slug}" already exists.`)
 
   if (domain) {
-    const existingDomain = await prisma.tenant.findUnique({ where: { domain } })
+    const existingDomain = await db.query.tenants.findFirst({
+      where: eq(tenants.domain, domain),
+    })
     if (existingDomain)
       throw new Error(`A tenant with domain "${domain}" already exists.`)
   }
 
-  const tenant = await prisma.tenant.create({ data: { name, slug, domain } })
+  const [tenant] = await db
+    .insert(tenants)
+    .values({ name, slug, domain })
+    .returning({ id: tenants.id })
 
   // Best-effort: the billing gate re-seeds a missing wallet on first use.
   try {
@@ -46,7 +56,7 @@ export async function createTenant(form: FormData): Promise<void> {
 }
 
 export async function updateTenant(id: string, form: FormData): Promise<void> {
-  const existing = await prisma.tenant.findUnique({ where: { id } })
+  const existing = await db.query.tenants.findFirst({ where: eq(tenants.id, id) })
   if (!existing) throw new Error("Tenant not found.")
 
   const name = String(form.get("name") ?? existing.name).trim()
@@ -58,28 +68,29 @@ export async function updateTenant(id: string, form: FormData): Promise<void> {
   validateSlug(slug)
 
   if (slug !== existing.slug) {
-    const clash = await prisma.tenant.findUnique({ where: { slug } })
+    const clash = await db.query.tenants.findFirst({
+      where: eq(tenants.slug, slug),
+    })
     if (clash) throw new Error(`A tenant with slug "${slug}" already exists.`)
   }
 
   if (domain && domain !== existing.domain) {
-    const clash = await prisma.tenant.findUnique({ where: { domain } })
+    const clash = await db.query.tenants.findFirst({
+      where: eq(tenants.domain, domain),
+    })
     if (clash)
       throw new Error(`A tenant with domain "${domain}" already exists.`)
   }
 
-  await prisma.tenant.update({
-    where: { id },
-    data: { name, slug, domain },
-  })
+  await db.update(tenants).set({ name, slug, domain }).where(eq(tenants.id, id))
 
   updateTag(cacheTags.tenants)
 }
 
 export async function deleteTenant(id: string): Promise<void> {
-  const tenant = await prisma.tenant.findUnique({ where: { id } })
+  const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, id) })
   if (!tenant) return
-  await prisma.tenant.delete({ where: { id } })
+  await db.delete(tenants).where(eq(tenants.id, id))
   updateTag(cacheTags.tenants)
   redirect("/admin/tenants")
 }
@@ -103,9 +114,9 @@ export async function updateTenantTheme(
     throw new Error(`Invalid theme payload: ${parsed.error.message}`)
   }
 
-  const existing = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { id: true },
+  const existing = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { id: true },
   })
   if (!existing) throw new Error(`Tenant ${tenantId} not found.`)
 
@@ -115,18 +126,18 @@ export async function updateTenantTheme(
   // artifact-pipeline mirror of Page/Post/Template `css` (plan 023).
   const themeCss = compiledThemeToCss(compileTheme(parsed.data))
 
-  await prisma.tenant.update({
-    where: { id: tenantId },
-    data: {
+  await db
+    .update(tenants)
+    .set({
       theme: parsed.data,
       // Bump the version so the compiled-theme CSS URL changes. The
       // route handler serves the current theme for any URL; the version
       // exists only to invalidate browser/CDN caches by URL rotation.
-      themeVersion: { increment: 1 },
+      themeVersion: sql`${tenants.themeVersion} + 1`,
       themeCss,
       themeCssHash: cssContentKey(themeCss),
-    },
-  })
+    })
+    .where(eq(tenants.id, tenantId))
 
   updateTag(cacheTags.tenantTheme(tenantId))
   updateTag(cacheTags.nav)

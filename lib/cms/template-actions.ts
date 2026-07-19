@@ -2,9 +2,10 @@
 
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
+import { and, eq, inArray } from "drizzle-orm"
 
-import { Prisma } from "@/generated/prisma/client"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { templates, tenants } from "@/lib/schema"
 
 import { buildDraftDataUpdate } from "./actions-shared"
 import { cacheTags } from "./cache-tags"
@@ -24,7 +25,7 @@ import {
   parseTemplateMetadata,
 } from "./template-actions/parse"
 import { assertSlugRenameable, dedupeSlug } from "./template-actions/slug"
-import { buildChromeAssignmentOps } from "./template-actions/chrome-assignment"
+import { reconcileChromeAssignments } from "./template-actions/chrome-assignment"
 
 /**
  * Persist edits to a Template from the editor shell.
@@ -43,7 +44,9 @@ import { buildChromeAssignmentOps } from "./template-actions/chrome-assignment"
  * on the next render.
  */
 export async function saveTemplate(id: string, form: FormData): Promise<void> {
-  const existing = await prisma.template.findUnique({ where: { id } })
+  const existing = await db.query.templates.findFirst({
+    where: eq(templates.id, id),
+  })
   if (!existing) throw new Error("Template not found.")
 
   const { title, kind, area, synced, slug, slugChanged } =
@@ -58,9 +61,9 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
 
   const body = parseTemplateBody(form)
 
-  await prisma.template.update({
-    where: { id },
-    data: {
+  await db
+    .update(templates)
+    .set({
       title,
       slug,
       kind,
@@ -70,8 +73,8 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       // the next load seeds from `data`, and bakes the CSS artifact.
       // Metadata-only saves (no `data` field) leave all of it untouched.
       ...buildDraftDataUpdate(body as object | undefined),
-    },
-  })
+    })
+    .where(eq(templates.id, id))
 
   updateTag(cacheTags.template(existing.slug))
   if (slugChanged) updateTag(cacheTags.template(slug))
@@ -93,8 +96,8 @@ export async function saveTemplate(id: string, form: FormData): Promise<void> {
       .filter((v): v is string => typeof v === "string")
       .filter(isHierarchySlug)
 
-    await prisma.$transaction(
-      buildChromeAssignmentOps(existing.tenantId, slug, area, selected)
+    await db.transaction((tx) =>
+      reconcileChromeAssignments(tx, existing.tenantId!, slug, area, selected)
     )
   }
 }
@@ -163,18 +166,18 @@ export async function createTemplate(
   assertReservedSlug(baseSlug, kind)
   const slug = await dedupeSlug(tenantId, baseSlug)
 
-  const created = await prisma.template.create({
-    // PARTs are area-tagged and synced by intent (schema); LAYOUT/PATTERN
-    // keep area null and the schema-default synced = false.
-    data: {
+  // PARTs are area-tagged and synced by intent (schema); LAYOUT/PATTERN
+  // keep area null and the schema-default synced = false.
+  const [created] = await db
+    .insert(templates)
+    .values({
       tenantId,
       slug,
       title,
       kind,
       ...(kind === "PART" ? { area: areaField, synced: true } : {}),
-    },
-    select: { id: true },
-  })
+    })
+    .returning({ id: templates.id })
 
   updateTag(cacheTags.template(slug))
   redirect(`/admin/templates/${created.id}/edit`)
@@ -199,23 +202,24 @@ export async function customizeDefaultPart(
     throw new Error(`"${slug}" is not a default chrome part.`)
 
   // Idempotent: a concurrent create or an already-customized part just opens.
-  const existing = await prisma.template.findUnique({
-    where: { tenantId_slug: { tenantId, slug } },
-    select: { id: true },
+  const existing = await db.query.templates.findFirst({
+    where: and(eq(templates.tenantId, tenantId), eq(templates.slug, slug)),
+    columns: { id: true },
   })
   if (existing) redirect(`/admin/templates/${existing.id}/edit`)
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { name: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { name: true },
   })
   const siteName = tenant?.name ?? ""
   const project =
     slug === "header" ? defaultHeader(siteName) : defaultFooter(siteName)
   const body = slimTemplateProject(project) as object
 
-  const created = await prisma.template.create({
-    data: {
+  const [created] = await db
+    .insert(templates)
+    .values({
       tenantId,
       slug,
       title: slug === "header" ? "Header" : "Footer",
@@ -224,9 +228,8 @@ export async function customizeDefaultPart(
       synced: true,
       data: body,
       ...compileCssArtifact(body),
-    },
-    select: { id: true },
-  })
+    })
+    .returning({ id: templates.id })
 
   updateTag(cacheTags.template(slug))
   redirect(`/admin/templates/${created.id}/edit`)
@@ -251,22 +254,22 @@ export async function customizeDefaultLayout(
   if (!entry) throw new Error(`"${slug}" is not a template-hierarchy default.`)
 
   // Idempotent: a concurrent create or an already-customized layout just opens.
-  const existing = await prisma.template.findUnique({
-    where: { tenantId_slug: { tenantId, slug } },
-    select: { id: true },
+  const existing = await db.query.templates.findFirst({
+    where: and(eq(templates.tenantId, tenantId), eq(templates.slug, slug)),
+    columns: { id: true },
   })
   if (existing) redirect(`/admin/templates/${existing.id}/edit`)
 
-  const created = await prisma.template.create({
-    data: {
+  const [created] = await db
+    .insert(templates)
+    .values({
       tenantId,
       slug,
       title: entry.title,
       kind: "LAYOUT",
       description: entry.description,
-    },
-    select: { id: true },
-  })
+    })
+    .returning({ id: templates.id })
 
   updateTag(cacheTags.template(slug))
   redirect(`/admin/templates/${created.id}/edit`)
@@ -289,9 +292,9 @@ export async function duplicateDefaultPart(
   if (!isReservedChromeSlug(slug))
     throw new Error(`"${slug}" is not a default chrome part.`)
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { name: true },
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId),
+    columns: { name: true },
   })
   const siteName = tenant?.name ?? ""
   const project =
@@ -300,17 +303,15 @@ export async function duplicateDefaultPart(
 
   const newSlug = await dedupeSlug(tenantId, `${slug}-copy`)
 
-  await prisma.template.create({
-    data: {
-      tenantId,
-      slug: newSlug,
-      title: `${slug === "header" ? "Header" : "Footer"} (copy)`,
-      kind: "PART",
-      area: slug,
-      synced: true,
-      data: body,
-      ...compileCssArtifact(body),
-    },
+  await db.insert(templates).values({
+    tenantId,
+    slug: newSlug,
+    title: `${slug === "header" ? "Header" : "Footer"} (copy)`,
+    kind: "PART",
+    area: slug,
+    synced: true,
+    data: body,
+    ...compileCssArtifact(body),
   })
 
   updateTag(cacheTags.template(newSlug))
@@ -337,15 +338,15 @@ export async function duplicateBuiltinPattern(
 
   const slug = await dedupeSlug(tenantId, `${blockId}-copy`)
 
-  const created = await prisma.template.create({
-    data: {
+  const [created] = await db
+    .insert(templates)
+    .values({
       tenantId,
       slug,
       title: `${descriptor.label} (copy)`,
       kind: "PATTERN",
-    },
-    select: { id: true },
-  })
+    })
+    .returning({ id: templates.id })
 
   updateTag(cacheTags.template(slug))
   redirect(
@@ -376,8 +377,9 @@ export async function createTemplateFromSelection(
     styles,
   }
 
-  const created = await prisma.template.create({
-    data: {
+  const [created] = await db
+    .insert(templates)
+    .values({
       tenantId,
       slug,
       title,
@@ -386,16 +388,15 @@ export async function createTemplateFromSelection(
       synced,
       data: body as object,
       ...compileCssArtifact(body),
-    },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      kind: true,
-      area: true,
-      synced: true,
-    },
-  })
+    })
+    .returning({
+      id: templates.id,
+      slug: templates.slug,
+      title: templates.title,
+      kind: templates.kind,
+      area: templates.area,
+      synced: templates.synced,
+    })
 
   updateTag(cacheTags.template(slug))
   return created
@@ -418,13 +419,13 @@ export async function createTemplateFromSelection(
  * fall back to the all-tenants listing.
  */
 export async function deleteTemplate(id: string): Promise<void> {
-  const tpl = await prisma.template.findUnique({
-    where: { id },
-    select: { slug: true, kind: true, tenantId: true },
+  const tpl = await db.query.templates.findFirst({
+    where: eq(templates.id, id),
+    columns: { slug: true, kind: true, tenantId: true },
   })
   if (!tpl) return
 
-  await prisma.template.delete({ where: { id } })
+  await db.delete(templates).where(eq(templates.id, id))
   updateTag(cacheTags.template(tpl.slug))
 
   if (!tpl.tenantId) redirect("/admin/tenants")
@@ -441,11 +442,11 @@ export async function deleteTemplate(id: string): Promise<void> {
  */
 export async function bulkDeleteTemplates(ids: string[]): Promise<void> {
   if (ids.length === 0) return
-  const rows = await prisma.template.findMany({
-    where: { id: { in: ids } },
-    select: { slug: true },
+  const rows = await db.query.templates.findMany({
+    where: inArray(templates.id, ids),
+    columns: { slug: true },
   })
-  await prisma.template.deleteMany({ where: { id: { in: ids } } })
+  await db.delete(templates).where(inArray(templates.id, ids))
   for (const row of rows) updateTag(cacheTags.template(row.slug))
 }
 
@@ -458,27 +459,27 @@ export async function bulkDeleteTemplates(ids: string[]): Promise<void> {
  * the route so the new row appears; no redirect into the editor.
  */
 export async function duplicateTemplate(id: string): Promise<void> {
-  const tpl = await prisma.template.findUnique({ where: { id } })
+  const tpl = await db.query.templates.findFirst({
+    where: eq(templates.id, id),
+  })
   if (!tpl) throw new Error("Template not found.")
 
   const slug = await dedupeSlug(tpl.tenantId, `${tpl.slug}-copy`)
 
-  await prisma.template.create({
-    data: {
-      tenantId: tpl.tenantId,
-      slug,
-      title: `${tpl.title} (copy)`,
-      kind: tpl.kind,
-      area: tpl.area,
-      synced: tpl.synced,
-      description: tpl.description,
-      preview: tpl.preview,
-      data: tpl.data as Prisma.InputJsonValue,
-      // The clone's data is byte-identical to the source's, so the baked
-      // artifact carries over as-is (including a pre-pipeline null).
-      css: tpl.css,
-      cssHash: tpl.cssHash,
-    },
+  await db.insert(templates).values({
+    tenantId: tpl.tenantId,
+    slug,
+    title: `${tpl.title} (copy)`,
+    kind: tpl.kind,
+    area: tpl.area,
+    synced: tpl.synced,
+    description: tpl.description,
+    preview: tpl.preview,
+    data: tpl.data as object,
+    // The clone's data is byte-identical to the source's, so the baked
+    // artifact carries over as-is (including a pre-pipeline null).
+    css: tpl.css,
+    cssHash: tpl.cssHash,
   })
 
   updateTag(cacheTags.template(slug))

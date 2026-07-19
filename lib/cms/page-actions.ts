@@ -2,8 +2,10 @@
 
 import { updateTag } from "next/cache"
 import { redirect } from "next/navigation"
+import { eq } from "drizzle-orm"
 
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { pages } from "@/lib/schema"
 
 import { cacheTags } from "./cache-tags"
 import {
@@ -32,9 +34,10 @@ export async function createPage(form: FormData): Promise<void> {
 
   const path = await buildPath(slug, parentId)
 
-  const page = await prisma.page.create({
-    data: { slug, path, parentId, title, tenantId },
-  })
+  const [page] = await db
+    .insert(pages)
+    .values({ slug, path, parentId, title, tenantId })
+    .returning({ id: pages.id })
 
   updateTag(cacheTags.nav)
   redirect(`/admin/pages/${page.id}/edit`)
@@ -44,7 +47,7 @@ export async function createPage(form: FormData): Promise<void> {
 // is immutable post-creation — a page belongs to the tenant it was
 // created under, and reassigning it would orphan its theme references.
 export async function savePage(id: string, form: FormData): Promise<void> {
-  const existing = await prisma.page.findUnique({ where: { id } })
+  const existing = await db.query.pages.findFirst({ where: eq(pages.id, id) })
   if (!existing) throw new Error("Page not found.")
 
   const newSlug = String(form.get("slug") ?? existing.slug).trim()
@@ -92,9 +95,9 @@ export async function savePage(id: string, form: FormData): Promise<void> {
   const wasPublished = existing.status === "PUBLISHED"
   const willBePublished = status === "PUBLISHED"
 
-  await prisma.page.update({
-    where: { id },
-    data: {
+  await db
+    .update(pages)
+    .set({
       slug: newSlug,
       parentId: newParentId,
       path,
@@ -106,8 +109,8 @@ export async function savePage(id: string, form: FormData): Promise<void> {
         existing.publishedAt
       ),
       ...buildDraftDataUpdate(data),
-    },
-  })
+    })
+    .where(eq(pages.id, id))
 
   updateTag(cacheTags.page(existing.path))
   if (path !== existing.path) updateTag(cacheTags.page(path))
@@ -115,22 +118,18 @@ export async function savePage(id: string, form: FormData): Promise<void> {
 }
 
 export async function deletePage(id: string): Promise<void> {
-  const page = await prisma.page.findUnique({
-    where: { id },
-    select: {
-      path: true,
-      status: true,
-      tenantId: true,
-      _count: { select: { children: true } },
-    },
+  const page = await db.query.pages.findFirst({
+    where: eq(pages.id, id),
+    columns: { path: true, status: true, tenantId: true },
   })
   if (!page) return
-  if (page._count.children > 0) {
+  const childCount = await db.$count(pages, eq(pages.parentId, id))
+  if (childCount > 0) {
     throw new Error(
       "Cannot delete a page that has child pages. Reparent or delete them first."
     )
   }
-  await prisma.page.delete({ where: { id } })
+  await db.delete(pages).where(eq(pages.id, id))
   updateTag(cacheTags.page(page.path))
   if (page.status === "PUBLISHED") updateTag(cacheTags.nav)
   redirect(`/admin/tenants/${page.tenantId}`)

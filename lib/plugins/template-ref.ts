@@ -55,7 +55,7 @@
  */
 
 import type { Component, Editor } from "grapesjs"
-import type { Template } from "@/generated/prisma/client"
+import type { Template } from "@/lib/schema"
 import type { TemplateBody } from "@/lib/cms/templates"
 import type { ComponentDefinition } from "@/lib/plugins/react-renderer/project/types"
 import { applyTemplateStyles } from "@/lib/plugins/template-styles"

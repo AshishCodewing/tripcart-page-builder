@@ -1,11 +1,21 @@
 // Slug helpers shared across the template server actions. Plain async
 // functions (no "use server"); the actions own the boundary.
 
-import { prisma } from "@/lib/prisma"
+import { and, eq, isNull, ne } from "drizzle-orm"
+
+import { db } from "@/lib/db"
+import { templates } from "@/lib/schema"
 
 import { validateSlug } from "../path"
 import { templateRefUsage } from "../templates"
 import { formatTemplateRefUsage } from "../template-ref-usage"
+
+// Prisma's `{ tenantId }` filter means IS NULL when tenantId is null; Drizzle
+// needs the null case spelled out.
+const tenantScope = (tenantId: string | null) =>
+  tenantId === null
+    ? isNull(templates.tenantId)
+    : eq(templates.tenantId, tenantId)
 
 // Resolve slug collisions within a tenant scope by appending -2, -3, …
 // Uses findFirst (not the compound unique key) so globals — where tenantId is
@@ -17,9 +27,9 @@ export async function dedupeSlug(
   let slug = baseSlug
   let suffix = 2
   while (
-    await prisma.template.findFirst({
-      where: { tenantId, slug },
-      select: { id: true },
+    await db.query.templates.findFirst({
+      where: and(tenantScope(tenantId), eq(templates.slug, slug)),
+      columns: { id: true },
     })
   ) {
     slug = `${baseSlug}-${suffix}`
@@ -40,9 +50,13 @@ export async function assertSlugRenameable(
 ): Promise<void> {
   validateSlug(newSlug)
   // Per-tenant slug uniqueness (globals share the null-tenant space).
-  const clash = await prisma.template.findFirst({
-    where: { tenantId, slug: newSlug, id: { not: id } },
-    select: { id: true },
+  const clash = await db.query.templates.findFirst({
+    where: and(
+      tenantScope(tenantId),
+      eq(templates.slug, newSlug),
+      ne(templates.id, id)
+    ),
+    columns: { id: true },
   })
   if (clash) {
     throw new Error(`A template with slug "${newSlug}" already exists.`)
