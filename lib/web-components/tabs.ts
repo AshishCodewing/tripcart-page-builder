@@ -22,6 +22,10 @@ export function tcTabs(win: Win) {
     #panels: HTMLElement[] = []
     #tablist: HTMLElement | null = null
     #active = 0
+    // Focused tab index. Same as #active in automatic mode; in manual
+    // activation (data-activation="manual") arrow keys move focus without
+    // activating, so the two diverge until Enter/Space.
+    #focus = 0
     #observer: MutationObserver | null = null
     #buildQueued = false
 
@@ -124,6 +128,7 @@ export function tcTabs(win: Win) {
 
     #activate(idx: number) {
       this.#active = idx
+      this.#focus = idx
       const editing = this.isEditing
       this.#tabs.forEach((tab, i) => {
         const selected = i === idx
@@ -137,6 +142,15 @@ export function tcTabs(win: Win) {
         if (panel) panel.hidden = i !== idx
       })
       this.emit("tc-tab-change", { index: idx })
+    }
+
+    // Move focus (and the roving tabindex) to a tab WITHOUT activating it —
+    // manual-activation arrow navigation. Selection/aria-selected/panels are
+    // left untouched until the user presses Enter/Space.
+    #focusTo(idx: number) {
+      this.#focus = idx
+      this.#tabs.forEach((tab, i) => (tab.tabIndex = i === idx ? 0 : -1))
+      this.#tabs[idx].focus()
     }
 
     onClick(event: MouseEvent) {
@@ -153,16 +167,32 @@ export function tcTabs(win: Win) {
       // default (unset) is horizontal. keyNav also handles Home/End.
       const vertical =
         this.#tablist?.getAttribute("aria-orientation") === "vertical"
+      // APG has two activation models. Automatic (default): moving focus
+      // activates. Manual (data-activation="manual"): arrows move focus only;
+      // Enter/Space activates the focused tab.
+      const manual =
+        this.#tablist?.getAttribute("data-activation") === "manual"
+
+      if (manual && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault()
+        this.#activate(this.#focus)
+        return
+      }
+
       const next = this.keyNav(
         event,
-        this.#active,
+        manual ? this.#focus : this.#active,
         this.#tabs.length,
         vertical ? "ArrowUp" : "ArrowLeft",
         vertical ? "ArrowDown" : "ArrowRight"
       )
       if (next < 0) return
-      this.#activate(next)
-      this.#tabs[next].focus()
+      if (manual) {
+        this.#focusTo(next)
+      } else {
+        this.#activate(next)
+        this.#tabs[next].focus()
+      }
     }
   }
 }

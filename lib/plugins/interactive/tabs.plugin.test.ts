@@ -185,6 +185,82 @@ describe("tc-tabs plugin — panel pairing", () => {
     expect(list.getAttributes()["aria-label"]).toBe("Plans")
   })
 
+  it("activation trait toggles data-activation, omitting it for automatic", () => {
+    editor = grapesjs.init({
+      headless: true,
+      storageManager: false,
+      plugins: [tabsPlugin],
+    })
+    editor.addComponents({ type: "tc-tabs" })
+    const list = editor.getWrapper()!.findType("tc-tab-list")[0]!
+
+    // Automatic is the default — implicit, no attribute.
+    expect(list.getAttributes()["data-activation"]).toBeUndefined()
+
+    list.set("activation", "manual")
+    expect(list.getAttributes()["data-activation"]).toBe("manual")
+
+    list.set("activation", "automatic")
+    expect(list.getAttributes()["data-activation"]).toBeUndefined()
+  })
+
+  it("reflects author-supplied data-activation into the trait", () => {
+    const { tabs } = load(`
+      <tc-tabs>
+        <div role="tablist" data-activation="manual">
+          <button role="tab"><span>One</span></button>
+          <button role="tab"><span>Two</span></button>
+        </div>
+        <div class="tc-tabs__panels">
+          <div role="tabpanel"><p>First</p></div>
+          <div role="tabpanel"><p>Second</p></div>
+        </div>
+      </tc-tabs>`)
+    const list = tabs.findType("tc-tab-list")[0]!
+    expect(list.get("activation")).toBe("manual")
+    expect(list.getAttributes()["data-activation"]).toBe("manual")
+  })
+
+  it("open-by-default trait sets aria-selected and clears siblings", () => {
+    editor = grapesjs.init({
+      headless: true,
+      storageManager: false,
+      plugins: [tabsPlugin],
+    })
+    editor.addComponents({ type: "tc-tabs" })
+    const tabs = editor.getWrapper()!.findType("tc-tabs")[0]!
+    const tabEls = tabs.findType("tc-tab")
+
+    tabEls[1].set("defaultSelected", true)
+    expect(tabEls[1].getAttributes()["aria-selected"]).toBe("true")
+
+    // Choosing another default is exclusive — the previous one is cleared.
+    tabEls[2].set("defaultSelected", true)
+    expect(tabEls[2].getAttributes()["aria-selected"]).toBe("true")
+    expect(tabEls[1].getAttributes()["aria-selected"]).toBeUndefined()
+    expect(tabEls[1].get("defaultSelected")).toBe(false)
+
+    // Unchecking removes the attribute (runtime falls back to the first tab).
+    tabEls[2].set("defaultSelected", false)
+    expect(tabEls[2].getAttributes()["aria-selected"]).toBeUndefined()
+  })
+
+  it("reflects author-supplied aria-selected into the open-by-default trait", () => {
+    const { tabEls } = load(`
+      <tc-tabs>
+        <div role="tablist">
+          <button role="tab"><span>One</span></button>
+          <button role="tab" aria-selected="true"><span>Two</span></button>
+        </div>
+        <div class="tc-tabs__panels">
+          <div role="tabpanel"><p>First</p></div>
+          <div role="tabpanel"><p>Second</p></div>
+        </div>
+      </tc-tabs>`)
+    expect(tabEls[0].get("defaultSelected")).toBe(false)
+    expect(tabEls[1].get("defaultSelected")).toBe(true)
+  })
+
   it("default scaffold (3 tabs, 0 panels) still creates 3 panels", () => {
     editor = grapesjs.init({
       headless: true,

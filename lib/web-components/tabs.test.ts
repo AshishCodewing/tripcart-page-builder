@@ -8,8 +8,11 @@ beforeAll(() => {
 })
 
 // The element ENHANCES existing role-based markup (it does not generate it).
-function mount(opts: { editing?: boolean; linked?: boolean } = {}): HTMLElement {
+function mount(
+  opts: { editing?: boolean; linked?: boolean; manual?: boolean } = {}
+): HTMLElement {
   const editing = opts.editing ? " editing" : ""
+  const activation = opts.manual ? ' data-activation="manual"' : ""
   // `linked` pre-wires aria-controls in a non-default (reversed) order to prove
   // the element honors the id link rather than pairing by index.
   const tabAttrs = (i: number) =>
@@ -17,7 +20,7 @@ function mount(opts: { editing?: boolean; linked?: boolean } = {}): HTMLElement 
   const panelAttrs = (i: number) => (opts.linked ? ` id="p${i}"` : "")
   document.body.innerHTML = `
     <tc-tabs${editing}>
-      <div role="tablist">
+      <div role="tablist"${activation}>
         <button role="tab"${tabAttrs(0)}>One</button>
         <button role="tab"${tabAttrs(1)}>Two</button>
         <button role="tab"${tabAttrs(2)}>Three</button>
@@ -128,6 +131,45 @@ describe("<tc-tabs> keyboard (APG)", () => {
       new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })
     )
     expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+  })
+})
+
+describe("<tc-tabs> manual activation (APG)", () => {
+  const key = (list: Element, k: string) =>
+    list.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }))
+
+  it("arrow moves focus + roving tabindex but does NOT activate", () => {
+    const el = mount({ manual: true })
+    const list = el.querySelector('[role="tablist"]')!
+    key(list, "ArrowRight")
+    // Focus/tabindex moved to tab 1…
+    expect(tabs(el)[1].tabIndex).toBe(0)
+    expect(tabs(el)[0].tabIndex).toBe(-1)
+    expect(document.activeElement).toBe(tabs(el)[1])
+    // …but selection stays on tab 0.
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+    expect(tabs(el)[1].getAttribute("aria-selected")).toBe("false")
+    expect(visible(el)[0].textContent).toBe("First")
+  })
+
+  it("Enter activates the focused tab", () => {
+    const el = mount({ manual: true })
+    const list = el.querySelector('[role="tablist"]')!
+    key(list, "ArrowRight")
+    key(list, "Enter")
+    expect(tabs(el)[1].getAttribute("aria-selected")).toBe("true")
+    expect(visible(el)).toHaveLength(1)
+    expect(visible(el)[0].textContent).toBe("Second")
+  })
+
+  it("Space activates the focused tab", () => {
+    const el = mount({ manual: true })
+    const list = el.querySelector('[role="tablist"]')!
+    key(list, "End") // focus last, no activation
+    expect(tabs(el)[0].getAttribute("aria-selected")).toBe("true")
+    key(list, " ")
+    expect(tabs(el)[2].getAttribute("aria-selected")).toBe("true")
+    expect(visible(el)[0].textContent).toBe("Third")
   })
 })
 

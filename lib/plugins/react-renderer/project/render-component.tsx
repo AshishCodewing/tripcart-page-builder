@@ -6,10 +6,31 @@ import { createElement, type ElementType } from "react"
 import { attrsToReactProps } from "../attrs"
 import { booleanAttrPresent, selectDefaultValue } from "../form-controls"
 import { getComponentId } from "./util"
+import type { ComponentNode } from "./parser"
 import type { RenderComponentProps } from "./types"
 
+const isTab = (c: ComponentNode) =>
+  c.type === "tc-tab" || c.attributes.role === "tab"
+const isTabPanel = (c: ComponentNode) =>
+  c.type === "tc-tab-panel" || c.attributes.role === "tabpanel"
+
+// The initially-open tab for a `tc-tabs` subtree — the first tab carrying
+// `aria-selected="true"` (set by the "Open by default" trait), else the first
+// tab. Mirrors the runtime enhancer (lib/web-components/tabs.ts #wire) so the
+// server markup already matches what the web component would produce.
+const resolveActiveTabIndex = (tabs: ComponentNode): number => {
+  const list = tabs.components.find(
+    (c) => c.type === "tc-tab-list" || c.attributes.role === "tablist"
+  )
+  const tabEls = (list?.components ?? []).filter(isTab)
+  const preset = tabEls.findIndex(
+    (t) => t.attributes["aria-selected"] === "true"
+  )
+  return preset >= 0 ? preset : 0
+}
+
 export const RenderComponent = (props: RenderComponentProps) => {
-  const { component, config, children, parentId, index } = props
+  const { component, config, children, parentId, index, tabsCtx } = props
   if (!component) return null
 
   const { type, content } = component
@@ -45,6 +66,14 @@ export const RenderComponent = (props: RenderComponentProps) => {
     })
   }
 
+  // Entering a `tc-tabs` establishes a new context for its subtree; other nodes
+  // just forward whatever context they're already in (nearest tc-tabs wins, so
+  // nested tabs resolve independently).
+  const childTabsCtx =
+    component.type === "tc-tabs"
+      ? { activeIndex: resolveActiveTabIndex(component) }
+      : tabsCtx
+
   const childCmps = component.components
   const childNodes = childCmps.length
     ? childCmps.map((child, i) => (
@@ -54,6 +83,7 @@ export const RenderComponent = (props: RenderComponentProps) => {
           component={child}
           parentId={key}
           index={i}
+          tabsCtx={childTabsCtx}
         />
       ))
     : [content]
@@ -62,6 +92,25 @@ export const RenderComponent = (props: RenderComponentProps) => {
   const finalProps: Record<string, unknown> = {
     ...reactProps,
     ...(nodeId ? { id: nodeId } : {}),
+  }
+
+  // Flash-free initial state: emit the active tab + hidden panels server-side
+  // (the runtime enhancer loads only after hydration, so without this every
+  // panel is briefly visible). `index` is the node's position among its
+  // siblings, which for tabs/panels is their ordinal within the tablist/panels
+  // wrapper — the same ordinal the runtime activates by.
+  if (tabsCtx && index != null) {
+    if (isTab(component)) {
+      const active = index === tabsCtx.activeIndex
+      finalProps["aria-selected"] = active ? "true" : "false"
+      if (active) {
+        finalProps.className = [finalProps.className, "tc-tabs__tab--active"]
+          .filter(Boolean)
+          .join(" ")
+      }
+    } else if (isTabPanel(component) && index !== tabsCtx.activeIndex) {
+      finalProps.hidden = true
+    }
   }
 
   // React treats raw form controls as (un)controlled inputs (children on
