@@ -94,4 +94,8 @@ export interface RenderComponentProps extends RenderCommonProps {
   children?: ReactNode
   parentId?: string
   index?: number
+  // Set while rendering inside a `tc-tabs` subtree so tabs/panels can emit their
+  // resolved initial state (active tab + hidden panels) server-side, avoiding a
+  // flash before the web component enhances. See RenderComponent.
+  tabsCtx?: { activeIndex: number }
 }

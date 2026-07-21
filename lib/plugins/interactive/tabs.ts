@@ -38,6 +38,7 @@ type TabCmp = Cmp & {
   tabContent?: Component
   __initTab(): void
   __onRemove(): void
+  __syncDefaultSelected(): void
   getTabsType(): TabsCmp | undefined
   getTabContent(): Component | undefined
   getUnlinkedPanel(): Component | undefined
@@ -53,6 +54,7 @@ type TabsCmp = Cmp & {
 type ListCmp = Cmp & {
   __syncOrientation(): void
   __syncLabel(): void
+  __syncActivation(): void
 }
 
 const tabsCss = `
@@ -140,10 +142,45 @@ export const tabsPlugin = (editor: Editor): void => {
         attributes: { role: "tab", type: "button" },
         classes: ["tc-tabs__tab"],
         components: "<span>Tab</span>",
+        // Which tab opens first. Mirrored to aria-selected="true" (the ARIA
+        // default the runtime reads, lib/web-components/tabs.ts #wire); exactly
+        // one tab may be the default, so setting it clears the siblings.
+        defaultSelected: false,
+        traits: [
+          {
+            type: "checkbox",
+            name: "defaultSelected",
+            label: "Open by default",
+            changeProp: true,
+          },
+        ],
       },
 
       init(this: TabCmp) {
         this.on("removed", this.__onRemove)
+        // Reflect author/AI-supplied aria-selected into the trait, then keep the
+        // attribute in sync (radio-group: only one default across the tablist).
+        if (this.getAttributes()["aria-selected"] === "true") {
+          this.set("defaultSelected", true)
+        }
+        this.on("change:defaultSelected", this.__syncDefaultSelected)
+      },
+
+      __syncDefaultSelected(this: TabCmp) {
+        if (!this.get("defaultSelected")) {
+          this.removeAttributes("aria-selected")
+          return
+        }
+        this.addAttributes({ "aria-selected": "true" })
+        // Clear every sibling — silent prop write avoids re-triggering this
+        // handler, and we drop their attribute directly.
+        this.getTabsType()
+          ?.findTabs()
+          .forEach((sib) => {
+            if (sib === this) return
+            sib.set("defaultSelected", false, { silent: true })
+            sib.removeAttributes("aria-selected")
+          })
       },
 
       // Pair this tab with a panel and wire the id link. Reuse the panel this
@@ -209,7 +246,9 @@ export const tabsPlugin = (editor: Editor): void => {
         return tabs.findPanels().filter((c) => c.getId() === id)[0]
       },
 
-      // A cloned tab must get its OWN fresh panel, not point at the original's.
+      // A cloned tab must get its OWN fresh panel, not point at the original's,
+      // and must not inherit the "open by default" flag (only one default per
+      // tablist).
       clone(this: TabCmp, ...args: unknown[]) {
         const cloned = (
           defaultModel.prototype as unknown as {
@@ -217,6 +256,8 @@ export const tabsPlugin = (editor: Editor): void => {
           }
         ).clone.apply(this, args)
         cloned.addAttributes({ [ARIA_CONTROLS]: "" })
+        cloned.set("defaultSelected", false, { silent: true })
+        cloned.removeAttributes("aria-selected")
         return cloned
       },
     },
@@ -244,6 +285,11 @@ export const tabsPlugin = (editor: Editor): void => {
         // Prop-bound + synced so an empty value omits aria-label rather than
         // emitting aria-label="".
         ariaLabel: "",
+        // APG activation model. Automatic (default) — moving focus activates —
+        // stays implicit (no attribute); manual emits data-activation="manual",
+        // which the runtime enhancer reads (lib/web-components/tabs.ts onKeydown)
+        // to require Enter/Space after arrow navigation.
+        activation: "automatic",
         traits: [
           {
             type: "button",
@@ -270,6 +316,16 @@ export const tabsPlugin = (editor: Editor): void => {
               { id: "vertical", label: "Vertical" },
             ],
           },
+          {
+            type: "select",
+            name: "activation",
+            label: "Activation",
+            changeProp: true,
+            options: [
+              { id: "automatic", label: "Automatic" },
+              { id: "manual", label: "Manual" },
+            ],
+          },
         ],
       },
 
@@ -282,8 +338,12 @@ export const tabsPlugin = (editor: Editor): void => {
           this.set("orientation", "vertical")
         }
         if (attrs["aria-label"]) this.set("ariaLabel", attrs["aria-label"])
+        if (attrs["data-activation"] === "manual") {
+          this.set("activation", "manual")
+        }
         this.on("change:orientation", this.__syncOrientation)
         this.on("change:ariaLabel", this.__syncLabel)
+        this.on("change:activation", this.__syncActivation)
         this.__syncOrientation()
       },
 
@@ -291,6 +351,15 @@ export const tabsPlugin = (editor: Editor): void => {
         const label = String(this.get("ariaLabel") ?? "").trim()
         if (label) this.addAttributes({ "aria-label": label })
         else this.removeAttributes("aria-label")
+      },
+
+      __syncActivation(this: ListCmp) {
+        // Automatic is the default, so keep it implicit (no attribute).
+        if (this.get("activation") === "manual") {
+          this.addAttributes({ "data-activation": "manual" })
+        } else {
+          this.removeAttributes("data-activation")
+        }
       },
 
       __syncOrientation(this: ListCmp) {
