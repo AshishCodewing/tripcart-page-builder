@@ -5,12 +5,13 @@ export type RetrievedChunk = StoredChunk
 
 export async function retrieveDocs(
   query: string,
-  k = 5
+  k = 5,
+  source?: string
 ): Promise<RetrievedChunk[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
   const embedding = await embedQuery(trimmed)
-  return searchChunks(embedding, k)
+  return searchChunks(embedding, k, source)
 }
 
 export function formatChunkCitation(chunk: RetrievedChunk): string {

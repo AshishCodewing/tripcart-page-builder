@@ -23,11 +23,18 @@ export const docChunks = pgTable(
     content: text("content").notNull(),
     headerPath: text("headerPath").notNull(),
     kind: text("kind").notNull(),
+    // Corpus bucket (e.g. "grapesjs", "prosemirror"). Lets a per-corpus MCP
+    // tool filter retrieval so ProseMirror results don't mix with GrapesJS.
+    // Existing rows backfill to "grapesjs" via the NOT NULL DEFAULT.
+    source: text("source").notNull().default("grapesjs"),
     tokenCount: integer("tokenCount").notNull(),
     embedding: vector("embedding", { dimensions: 3072 }).notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("doc_chunks_contentHash_key").on(t.contentHash)]
+  (t) => [
+    uniqueIndex("doc_chunks_contentHash_key").on(t.contentHash),
+    index("doc_chunks_source_idx").on(t.source),
+  ]
 )
 
 export const docChunkUrls = pgTable(

@@ -4,6 +4,10 @@
       "command": "pnpm",
       "args": ["run", "--silent", "mcp:rag"]
     },
+    "prosemirror-docs": {
+      "command": "pnpm",
+      "args": ["run", "--silent", "mcp:prosemirror"]
+    },
     "playwright": {
       "command": "pnpm",
       "args": ["dlx", "@playwright/mcp@latest"]

@@ -9,10 +9,11 @@ import {
 
 import { formatChunkCitation, retrieveDocs } from "@/lib/rag/retrieve"
 
-const TOOL_NAME = "search_grapesjs_docs"
+const TOOL_NAME = "search_prosemirror_docs"
+const SOURCE = "prosemirror"
 
 const server = new Server(
-  { name: "grapesjs-docs", version: "0.1.0" },
+  { name: "prosemirror-docs", version: "0.1.0" },
   { capabilities: { tools: {} } }
 )
 
@@ -21,7 +22,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: TOOL_NAME,
       description:
-        "Search the GrapesJS documentation via local RAG. Returns the top-k chunks with source URLs and similarity. Call this whenever answering questions about GrapesJS APIs, plugins, blocks, components, commands, or runtime behavior — prefer it over guessing or web search.",
+        "Search the ProseMirror documentation (guide, reference manual, and examples) via local RAG. Returns the top-k chunks with source URLs and similarity. Call this whenever answering questions about ProseMirror — schema/nodes/marks, documents, transforms/steps, EditorState, plugins, the view component, commands, keymaps, input rules, or collaborative editing — prefer it over guessing or web search.",
       inputSchema: {
         type: "object",
         properties: {
@@ -58,7 +59,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     }
   }
 
-  const chunks = await retrieveDocs(query, k, "grapesjs")
+  const chunks = await retrieveDocs(query, k, SOURCE)
   if (chunks.length === 0) {
     return { content: [{ type: "text", text: "No matches." }] }
   }
@@ -76,4 +77,4 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 const transport = new StdioServerTransport()
 await server.connect(transport)
 // stdout is reserved for MCP protocol frames — log to stderr only.
-console.error("[mcp-rag] grapesjs-docs server connected on stdio")
+console.error("[mcp-rag] prosemirror-docs server connected on stdio")

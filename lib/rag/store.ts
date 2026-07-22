@@ -39,7 +39,8 @@ export async function existingHashes(hashes: string[]): Promise<Set<string>> {
 
 export async function insertChunks(
   chunks: Chunk[],
-  embeddings: number[][]
+  embeddings: number[][],
+  source = "grapesjs"
 ): Promise<number> {
   if (chunks.length !== embeddings.length) {
     throw new Error(
@@ -60,13 +61,14 @@ export async function insertChunks(
     const vec = toVectorLiteral(embeddings[i])
     const result = await db.execute(sql`
       INSERT INTO doc_chunks (
-        id, "contentHash", content, "headerPath", kind, "tokenCount", embedding
+        id, "contentHash", content, "headerPath", kind, source, "tokenCount", embedding
       ) VALUES (
         ${randomUUID()},
         ${c.contentHash},
         ${c.content},
         ${c.headerPath},
         ${c.kind},
+        ${source},
         ${c.tokenCount},
         ${vec}::vector
       )
@@ -125,9 +127,11 @@ export async function upsertChunkUrls(chunks: Chunk[]): Promise<number> {
 
 export async function searchChunks(
   queryEmbedding: number[],
-  k: number
+  k: number,
+  source?: string
 ): Promise<StoredChunk[]> {
   const vec = toVectorLiteral(queryEmbedding)
+  const sourceFilter = source ? sql`WHERE source = ${source}` : sql``
   const { rows } = await db.execute<{
     id: string
     contentHash: string
@@ -140,6 +144,7 @@ export async function searchChunks(
     SELECT id, "contentHash", content, "headerPath", kind, "tokenCount",
            1 - (embedding <=> ${vec}::vector) AS similarity
     FROM doc_chunks
+    ${sourceFilter}
     ORDER BY embedding <=> ${vec}::vector
     LIMIT ${k}
   `)
