@@ -61,10 +61,9 @@ describe("tc-tabs server-rendered initial state", () => {
   it("open-by-default tab: only that panel is visible, that tab is active", () => {
     const html = render(tabs(1)) // "Two" / "Second" is default
 
-    // Active tab carries the active class + aria-selected.
-    expect(openTag(html, "Two")).toContain("tc-tabs__tab--active")
+    // Active state is carried solely by aria-selected (no active class).
     expect(openTag(html, "Two")).toContain('aria-selected="true"')
-    expect(openTag(html, "One")).not.toContain("tc-tabs__tab--active")
+    expect(openTag(html, "Two")).not.toContain("tc-tabs__tab--active")
     expect(openTag(html, "One")).toContain('aria-selected="false"')
 
     // Non-default panels are hidden server-side; the default one is not.
@@ -76,8 +75,8 @@ describe("tc-tabs server-rendered initial state", () => {
   it("no default: falls back to the first tab", () => {
     const html = render(tabs(null))
 
-    expect(openTag(html, "One")).toContain("tc-tabs__tab--active")
     expect(openTag(html, "One")).toContain('aria-selected="true"')
+    expect(openTag(html, "One")).not.toContain("tc-tabs__tab--active")
     expect(openTag(html, "First")).not.toContain("hidden")
     expect(openTag(html, "Second")).toContain("hidden")
     expect(openTag(html, "Third")).toContain("hidden")

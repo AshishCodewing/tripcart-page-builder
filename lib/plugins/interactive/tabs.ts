@@ -57,10 +57,16 @@ type ListCmp = Cmp & {
   __syncActivation(): void
 }
 
+// Structural defaults. Selectors target the custom element + stable ARIA
+// roles/attributes — NEVER author-chosen class names, which the AI or a user
+// may replace. Cosmetic rules sit in :where() so they carry ZERO specificity
+// and any author / Style-Manager rule overrides them trivially. The panel-hide
+// rule is intentionally NOT in :where (real specificity) so a stray author
+// display rule can't accidentally reveal an inactive panel.
 const tabsCss = `
-tc-tabs { display: block; }
+:where(tc-tabs) { display: block; }
 
-.tc-tabs__list {
+:where(tc-tabs [role="tablist"]) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--size-2, 0.5rem);
@@ -69,7 +75,7 @@ tc-tabs { display: block; }
   margin-bottom: var(--size-3, 1rem);
 }
 
-.tc-tabs__tab {
+:where(tc-tabs [role="tab"]) {
   appearance: none;
   border: 0;
   background: transparent;
@@ -82,14 +88,16 @@ tc-tabs { display: block; }
   cursor: pointer;
 }
 
-.tc-tabs__tab:hover { color: var(--tc--preset--color--foreground, currentColor); }
+:where(tc-tabs [role="tab"]:hover) {
+  color: var(--tc--preset--color--foreground, currentColor);
+}
 
-.tc-tabs__tab--active {
+:where(tc-tabs [role="tab"][aria-selected="true"]) {
   color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
   border-bottom-color: var(--tc--preset--color--primary, hsl(var(--indigo-6-hsl)));
 }
 
-.tc-tabs__panel[hidden] { display: none; }
+tc-tabs [role="tabpanel"][hidden] { display: none; }
 
 /* Vertical orientation (aria-orientation="vertical"). Flat single-token
    selectors only — see feedback_grapesjs_flat_selectors. The wrapper +
