@@ -57,6 +57,25 @@ describe("buildCopilotSystemPrompts", () => {
     expect("metadata" in selection).toBe(false)
   })
 
+  it("inlines a small selected component's HTML verbatim", () => {
+    const html = "<button>Buy now</button>"
+    const prompts = build({ selectedComponent: { id: "btn", html } })
+    expect(prompts[1].content).toContain(html)
+    expect(prompts[1].content).not.toContain("markup omitted")
+  })
+
+  it("omits an oversize selected component's HTML, keeping only the id reference", () => {
+    // The markup is redundant with tier-1 pageHtml (addressable by id); beyond
+    // the cap we send only a pointer so we don't pay for it twice per turn.
+    const html = "<div>" + "x".repeat(5000) + "</div>"
+    const prompts = build({ selectedComponent: { id: "big", html } })
+    const selection = prompts[1].content
+    expect(selection).toContain("Selected Component (id: big)")
+    expect(selection).toContain("markup omitted")
+    expect(selection).toContain(`${html.length} chars`)
+    expect(selection).not.toContain(html)
+  })
+
   it("orders [static, website-state, selection] and caches only the stable prefix", () => {
     const prompts = build({
       pageHtml: "<div/>",
