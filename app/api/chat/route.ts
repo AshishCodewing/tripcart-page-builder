@@ -47,6 +47,9 @@ export async function POST(request: Request) {
 
   const params = await chatParamsFromRequest(request)
   const abortController = new AbortController()
+  // A closed client connection must cancel the agent loop: otherwise the run
+  // (and its OpenRouter spend + billing) continues after the user hit Stop.
+  request.signal.addEventListener("abort", () => abortController.abort())
 
   // Structured GrapesJS editor state the client attaches per message (see
   // components/ai/chat.tsx). Absent on the very first render / non-editor calls.
