@@ -102,12 +102,12 @@ export const RenderComponent = (props: RenderComponentProps) => {
   if (tabsCtx && index != null) {
     if (isTab(component)) {
       const active = index === tabsCtx.activeIndex
+      // `aria-selected` is the sole active-state hook: the default CSS styles
+      // `[role="tab"][aria-selected="true"]` (see lib/plugins/interactive/
+      // tabs.ts) and the runtime enhancer reads it, so no active class is
+      // emitted — one attribute drives both the flash-free SSR state and the
+      // post-hydration state.
       finalProps["aria-selected"] = active ? "true" : "false"
-      if (active) {
-        finalProps.className = [finalProps.className, "tc-tabs__tab--active"]
-          .filter(Boolean)
-          .join(" ")
-      }
     } else if (isTabPanel(component) && index !== tabsCtx.activeIndex) {
       finalProps.hidden = true
     }
