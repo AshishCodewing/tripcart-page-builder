@@ -106,6 +106,11 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
     }
 
     let html: string
+    // Base for resolving relative links. Use the post-redirect final URL so
+    // that a directory page reached without its trailing slash (e.g. /docs
+    // → 301 /docs/) resolves relative hrefs like `guide/` correctly. Falls
+    // back to the requested URL when the runtime doesn't expose res.url.
+    let baseUrl = url
     try {
       const res = await fetch(url, {
         headers: { "user-agent": userAgent, accept: "text/html" },
@@ -117,6 +122,7 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
       }
       const contentType = res.headers.get("content-type") ?? ""
       if (!contentType.includes("text/html")) return
+      if (res.url) baseUrl = res.url
       html = await res.text()
     } catch (err) {
       console.warn(
@@ -128,7 +134,7 @@ export async function crawlDocs(opts: CrawlOptions): Promise<RawPage[]> {
     pages.push({ url, html, fetchedAt: new Date().toISOString() })
     onPage?.(url, pages.length)
 
-    for (const link of extractLinks(html, url)) {
+    for (const link of extractLinks(html, baseUrl)) {
       enqueue(link)
     }
   }
