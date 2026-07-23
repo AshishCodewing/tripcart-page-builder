@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
 import {
+  applyInlineStyle,
   currentRange,
   findAnchor,
   normalizeBlockFormat,
@@ -111,6 +112,83 @@ describe("wrapSelection", () => {
 
     expect(currentRange(rte)).toBeNull()
     expect(wrapSelection(rte, (span) => span.classList.add("x"))).toBe(false)
+  })
+})
+
+describe("applyInlineStyle", () => {
+  beforeEach(() => {
+    document.body.innerHTML = ""
+  })
+
+  it("wraps a plain selection in a single span", () => {
+    const { rte, el } = makeRte("hello world")
+    selectAll(el)
+
+    applyInlineStyle(rte, "font-size", "var(--tc--preset--font-size--large)")
+
+    expect(el.querySelectorAll("span")).toHaveLength(1)
+    expect(el.querySelector("span")!.style.fontSize).toBe(
+      "var(--tc--preset--font-size--large)"
+    )
+  })
+
+  it("updates an existing wrapping span instead of nesting", () => {
+    const { rte, el } = makeRte("hello")
+    selectAll(el)
+    applyInlineStyle(rte, "font-size", "var(--tc--preset--font-size--small)")
+
+    // Re-select the now-wrapped span's contents and apply a different size.
+    const span = el.querySelector("span")!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    const sel = document.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    applyInlineStyle(rte, "font-size", "var(--tc--preset--font-size--large)")
+
+    expect(el.querySelectorAll("span")).toHaveLength(1)
+    expect(el.querySelector("span")!.style.fontSize).toBe(
+      "var(--tc--preset--font-size--large)"
+    )
+  })
+
+  it("strips the same property from inner spans it wraps over", () => {
+    const { rte, el } = makeRte(
+      'a <span style="font-size: 10px">b</span> c'
+    )
+    selectAll(el)
+
+    applyInlineStyle(rte, "font-size", "var(--tc--preset--font-size--large)")
+
+    // One outer span carries the new size; the inner size span is gone.
+    const spans = el.querySelectorAll("span")
+    expect(spans).toHaveLength(1)
+    expect(spans[0].style.fontSize).toBe(
+      "var(--tc--preset--font-size--large)"
+    )
+    expect(el.textContent).toBe("a b c")
+  })
+
+  it("merges a second property onto a lone selected span", () => {
+    const { rte, el } = makeRte("word")
+    selectAll(el)
+    applyInlineStyle(rte, "font-size", "var(--tc--preset--font-size--large)")
+
+    // Select the whole span node (boundaries in the parent around it).
+    const span = el.querySelector("span")!
+    const range = document.createRange()
+    range.selectNode(span)
+    const sel = document.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    applyInlineStyle(rte, "color", "var(--tc--preset--color--primary)")
+
+    expect(el.querySelectorAll("span")).toHaveLength(1)
+    const only = el.querySelector("span")!
+    expect(only.style.fontSize).toBe("var(--tc--preset--font-size--large)")
+    expect(only.style.color).toBe("var(--tc--preset--color--primary)")
   })
 })
 

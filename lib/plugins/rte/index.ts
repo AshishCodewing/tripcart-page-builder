@@ -22,8 +22,10 @@ export {
 export {
   BLOCK_FORMATS,
   applyBlockFormat,
+  applyInlineStyle,
   captureRange,
   currentRange,
+  exactWrappingSpan,
   findAnchor,
   normalizeBlockFormat,
   readBlockFormat,

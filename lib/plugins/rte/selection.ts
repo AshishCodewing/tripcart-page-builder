@@ -75,6 +75,112 @@ export const wrapSelection = (
   wrapSelectionEl(rte, "span", apply as (el: HTMLElement) => void)
 
 /**
+ * Remove `property` from every descendant `<span>` of `el`, unwrapping any
+ * span left with no inline style. Without this a superset `<span>` (e.g.
+ * `font-size: large`) is overridden by a stale inner `<span>` from an earlier
+ * apply (`font-size: small`) — the runaway-nesting bug.
+ */
+const stripDescendantProperty = (el: HTMLElement, property: string): void => {
+  for (const span of Array.from(el.querySelectorAll("span"))) {
+    span.style.removeProperty(property)
+    if (span.getAttribute("style")?.trim()) continue
+    const parent = span.parentNode
+    if (!parent) continue
+    while (span.firstChild) parent.insertBefore(span.firstChild, span)
+    parent.removeChild(span)
+  }
+}
+
+/** The single `<span>` a fragment consists of, if that's all it is. */
+const loneSpan = (frag: DocumentFragment): HTMLElement | null => {
+  if (frag.childNodes.length !== 1) return null
+  const only = frag.firstChild
+  return only && only.nodeType === 1 && (only as Element).tagName === "SPAN"
+    ? (only as HTMLElement)
+    : null
+}
+
+/**
+ * The `<span>` the selection covers exactly — either an ancestor whose text is
+ * the whole selection, or a single selected `<span>` node — so a re-apply
+ * updates it in place. Null when the selection isn't a clean span boundary.
+ */
+export const exactWrappingSpan = (
+  rte: Rte,
+  range: Range
+): HTMLElement | null => {
+  const selected = range.toString()
+  if (!selected) return null
+
+  // The range selects exactly one child node and it's a span (this is the
+  // shape left behind right after `insertHTML`, where the boundaries sit in
+  // the parent around the inserted span).
+  const { startContainer, endContainer, startOffset, endOffset } = range
+  if (
+    startContainer === endContainer &&
+    startContainer.nodeType === 1 &&
+    endOffset - startOffset === 1
+  ) {
+    const only = startContainer.childNodes[startOffset]
+    if (only && only.nodeType === 1 && (only as Element).tagName === "SPAN") {
+      return only as HTMLElement
+    }
+  }
+
+  // An ancestor span whose entire text is the selection (the caret sits inside
+  // the span and covers all of it).
+  let node: Node | null = range.commonAncestorContainer
+  if (node.nodeType === 3) node = node.parentNode
+  while (node && node !== rte.el) {
+    if (
+      node.nodeType === 1 &&
+      (node as Element).tagName === "SPAN" &&
+      node.textContent === selected
+    ) {
+      return node as HTMLElement
+    }
+    node = node.parentNode
+  }
+  return null
+}
+
+/**
+ * Apply one inline style declaration to the selection.
+ *
+ * Unlike `wrapSelection`, this does not blindly nest a new `<span>` on every
+ * call: if the selection already maps to a wrapping span it mutates it in
+ * place, and it merges onto a lone selected span rather than wrapping it. In
+ * all cases it strips the same property from descendant spans so the value it
+ * sets actually wins the cascade.
+ */
+export const applyInlineStyle = (
+  rte: Rte,
+  property: string,
+  value: string
+): boolean => {
+  const range = currentRange(rte)
+  if (!range || range.collapsed) return false
+
+  const existing = exactWrappingSpan(rte, range)
+  if (existing) {
+    existing.style.setProperty(property, value)
+    stripDescendantProperty(existing, property)
+    return true
+  }
+
+  const frag = range.extractContents()
+  // Reuse a lone selected span so a second property (e.g. colour after size)
+  // merges onto one span instead of nesting a second.
+  const lone = loneSpan(frag)
+  const span = lone ?? rte.doc.createElement("span")
+  if (!lone) span.appendChild(frag)
+  span.style.setProperty(property, value)
+  stripDescendantProperty(span, property)
+  rte.insertHTML(span)
+  return true
+}
+
+/**
  * The `<a>` enclosing the selection (or `range`), or null. Walks up to
  * `rte.el`. Uses a tag-name check rather than `instanceof HTMLAnchorElement`:
  * the node lives in the canvas iframe, whose `HTMLAnchorElement` is a

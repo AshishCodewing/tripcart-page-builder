@@ -6,11 +6,11 @@ import { Link as LinkIcon } from "lucide-react"
 import {
   BLOCK_FORMATS,
   applyBlockFormat,
+  applyInlineStyle,
   findAnchor,
   readBlockFormat,
   restoreRange,
   unlinkAt,
-  wrapSelection,
   wrapSelectionEl,
   type Rte,
 } from "@/lib/plugins/rte"
@@ -54,14 +54,18 @@ export type RteFieldProps = {
   onApplied: () => void
 }
 
-/** Wrap the selection in a span carrying one inline declaration. */
+/**
+ * Set one inline declaration on the selection. Uses `applyInlineStyle`, which
+ * updates an existing wrapping span in place instead of nesting a fresh span
+ * on every apply.
+ */
 const applyStyle = (
   { rte, getRange, onApplied }: RteFieldProps,
   property: string,
   value: string
 ) => {
   restoreRange(rte, getRange())
-  wrapSelection(rte, (span) => span.style.setProperty(property, value))
+  applyInlineStyle(rte, property, value)
   onApplied()
 }
 
