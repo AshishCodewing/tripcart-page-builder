@@ -13,6 +13,7 @@ import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { tabsPlugin } from "@/lib/plugins/interactive"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
+import { rtePlugin } from "@/lib/plugins/rte"
 import { tcRemoteStorage } from "@/lib/plugins/tc-storage-adapter"
 import { templateRefPlugin } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
@@ -77,6 +78,12 @@ export const buildGjsOptions = (
   styleManager: {
     sectors: STYLE_SECTORS,
   },
+  // Skip GrapesJS' default action bar — <RteToolbar /> renders the shadcn UI
+  // into the container GrapesJS still creates, positions and toggles for us.
+  // The engine (execCommand + the action registry) is unchanged.
+  richTextEditor: {
+    custom: true,
+  },
   // Default panels removed in favor of the WP-style React chrome.
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.
@@ -125,6 +132,11 @@ export const buildGjsOptions = (
     // `single` LAYOUT re-identifies its nodes); the draggable blocks appear
     // only when editing a LAYOUT (`allowPostFields`).
     postFieldsPlugin({ enabled: options.allowPostFields }),
+    // Extra rich-text actions (lists, align, indent, …) on top of the six
+    // GrapesJS registers by default. Registration is deferred to `onReady`
+    // inside the plugin — `RichTextEditor.add` needs the global RTE instance
+    // the module builds during its own load.
+    rtePlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],
