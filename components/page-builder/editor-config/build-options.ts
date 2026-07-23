@@ -78,12 +78,9 @@ export const buildGjsOptions = (
   styleManager: {
     sectors: STYLE_SECTORS,
   },
-  // Skip GrapesJS' default action bar — <RteToolbar /> renders the shadcn UI
-  // into the container GrapesJS still creates, positions and toggles for us.
-  // The engine (execCommand + the action registry) is unchanged.
-  richTextEditor: {
-    custom: true,
-  },
+  // The RTE engine is ProseMirror, swapped in via `editor.setCustomRte(...)`
+  // inside `rtePlugin`. GrapesJS renders no action bar of its own for a custom
+  // RTE — <RteToolbar /> positions the shadcn UI itself over the edited node.
   // Default panels removed in favor of the WP-style React chrome.
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.
@@ -132,10 +129,9 @@ export const buildGjsOptions = (
     // `single` LAYOUT re-identifies its nodes); the draggable blocks appear
     // only when editing a LAYOUT (`allowPostFields`).
     postFieldsPlugin({ enabled: options.allowPostFields }),
-    // Extra rich-text actions (lists, align, indent, …) on top of the six
-    // GrapesJS registers by default. Registration is deferred to `onReady`
-    // inside the plugin — `RichTextEditor.add` needs the global RTE instance
-    // the module builds during its own load.
+    // Swaps the RTE engine for ProseMirror via `editor.setCustomRte(...)`.
+    // The shadcn toolbar (<RteToolbar />) drives the live EditorView through
+    // the `tc-rte:*` events this plugin emits.
     rtePlugin,
     styleFilterPlugin,
     styleBgPlugin,

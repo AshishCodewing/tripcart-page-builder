@@ -1,18 +1,19 @@
 "use client"
 
 import * as React from "react"
+import type { EditorView } from "prosemirror-view"
 import { Link as LinkIcon } from "lucide-react"
 
 import {
   BLOCK_FORMATS,
-  applyBlockFormat,
-  applyInlineStyle,
-  findAnchor,
-  readBlockFormat,
-  restoreRange,
-  unlinkAt,
-  wrapSelectionEl,
-  type Rte,
+  applyLink,
+  applyTextStyle,
+  blockFormat,
+  linkAt,
+  removeLink,
+  runCmd,
+  setBlockFormat,
+  type TextStyleAttr,
 } from "@/lib/plugins/rte"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,49 +41,28 @@ import { cn } from "@/lib/utils"
 
 /**
  * Popups portal to `document.body`, outside the RTE toolbar container — and
- * `ComponentTextView.toggleEvents` disables editing on any `mousedown` that
- * reaches the top document. GrapesJS shields its own toolbar with a container
- * -level `stopPropagation`; portalled content has to shield itself.
+ * GrapesJS disables editing on any `mousedown` that reaches the top document.
+ * GrapesJS shields its own toolbar with a container-level `stopPropagation`;
+ * portalled content has to shield itself.
  */
 const keepEditing = (e: React.MouseEvent) => e.stopPropagation()
 
 export type RteFieldProps = {
-  rte: Rte
-  /** Last selection made inside the edited element (popups steal focus). */
-  getRange: () => Range | null
-  /** Re-measure the toolbar / refresh action states after a change. */
-  onApplied: () => void
+  /** The live ProseMirror view being edited. */
+  view: EditorView
 }
 
-/**
- * Set one inline declaration on the selection. Uses `applyInlineStyle`, which
- * updates an existing wrapping span in place instead of nesting a fresh span
- * on every apply.
- */
-const applyStyle = (
-  { rte, getRange, onApplied }: RteFieldProps,
-  property: string,
-  value: string
-) => {
-  restoreRange(rte, getRange())
-  applyInlineStyle(rte, property, value)
-  onApplied()
-}
-
-export function BlockFormatSelect(props: RteFieldProps) {
-  const { rte, getRange, onApplied } = props
-  // Read on render: the parent re-renders on every `rte:custom`, which fires
-  // after each caret move, so this tracks the block under the cursor.
-  const current = readBlockFormat(rte)
+export function BlockFormatSelect({ view }: RteFieldProps) {
+  // Read on render: the toolbar re-renders on every `tc-rte:update` (each
+  // selection change), so this tracks the block under the cursor.
+  const current = blockFormat(view.state)
 
   return (
     <Select
       value={current}
       onValueChange={(next) => {
-        if (!next || typeof next !== "string") return
-        restoreRange(rte, getRange())
-        applyBlockFormat(rte, next)
-        onApplied()
+        if (typeof next !== "string" || !next) return
+        runCmd(view, setBlockFormat(next))
       }}
     >
       <SelectTrigger
@@ -110,22 +90,21 @@ export function BlockFormatSelect(props: RteFieldProps) {
 
 /**
  * Theme-token dropdown (font size / family). Values are the preset custom
- * properties, so re-theming the tenant restyles existing content — unlike the
- * `<font size="1..7">` tags the upstream plugin's execCommand produced.
- *
- * Acts as a command menu, not a state: the value resets after each apply
- * because the selection's computed size isn't read back.
+ * properties, so re-theming the tenant restyles existing content. Acts as a
+ * command menu, not a state: the value resets after each apply.
  */
 function TokenSelect({
-  field,
+  view,
   label,
-  property,
+  attr,
+  cssProp,
   tokens,
   className,
 }: {
-  field: RteFieldProps
+  view: EditorView
   label: string
-  property: string
+  attr: TextStyleAttr
+  cssProp: string
   tokens: { slug: string; name?: string }[]
   className?: string
 }) {
@@ -137,8 +116,8 @@ function TokenSelect({
     <Select
       value={value}
       onValueChange={(next) => {
-        if (!next || typeof next !== "string") return
-        applyStyle(field, property, next)
+        if (typeof next !== "string" || !next) return
+        applyTextStyle(view, attr, next)
         setValue("")
       }}
     >
@@ -154,7 +133,7 @@ function TokenSelect({
         {tokens.map((token) => (
           <SelectItem
             key={token.slug}
-            value={`var(--tc--preset--${property}--${kebab(token.slug)})`}
+            value={`var(--tc--preset--${cssProp}--${kebab(token.slug)})`}
             className="text-xs"
           >
             {token.name || token.slug}
@@ -174,30 +153,32 @@ const LINK_TARGETS = [
   { value: "_blank", label: "New window" },
 ] as const
 
-export function FontSizeSelect(props: RteFieldProps) {
+export function FontSizeSelect({ view }: RteFieldProps) {
   const tokens = useThemeSelector(
     (s) => s.theme.settings.typography?.fontSizes
   )
   return (
     <TokenSelect
-      field={props}
+      view={view}
       label="Size"
-      property="font-size"
+      attr="fontSize"
+      cssProp="font-size"
       tokens={tokens ?? []}
       className="w-20"
     />
   )
 }
 
-export function FontFamilySelect(props: RteFieldProps) {
+export function FontFamilySelect({ view }: RteFieldProps) {
   const tokens = useThemeSelector(
     (s) => s.theme.settings.typography?.fontFamilies
   )
   return (
     <TokenSelect
-      field={props}
+      view={view}
       label="Font"
-      property="font-family"
+      attr="fontFamily"
+      cssProp="font-family"
       tokens={tokens ?? []}
       className="w-24"
     />
@@ -207,16 +188,16 @@ export function FontFamilySelect(props: RteFieldProps) {
 /**
  * Font colour / highlight. Theme swatches come first (they commit
  * `var(--tc--preset--color--…)`), with the full picker below for one-off
- * colours — same composite the Style Manager's colour field uses.
+ * colours. Both write onto the `textStyle` mark.
  */
 export function ColorControl({
-  field,
-  property,
+  view,
+  attr,
   label,
   children,
 }: {
-  field: RteFieldProps
-  property: "color" | "background-color"
+  view: EditorView
+  attr: Extract<TextStyleAttr, "color" | "backgroundColor">
   label: string
   children: React.ReactNode
 }) {
@@ -247,10 +228,10 @@ export function ColorControl({
           value={value}
           onChange={(next, opts) => {
             setValue(next)
-            // Dragging the canvas emits partial commits; wrapping on each one
-            // would litter the markup with a span per frame.
+            // Dragging the canvas emits partial commits; applying on each one
+            // would thrash the mark on every frame.
             if (opts?.partial) return
-            applyStyle(field, property, next)
+            applyTextStyle(view, attr, next)
             setOpen(false)
           }}
         >
@@ -264,88 +245,51 @@ export function ColorControl({
 }
 
 /**
- * Link control: a toggle (pressed while the caret is inside an `<a>`) that
- * opens a popover to set the anchor's URL, title and target. Replaces the
- * default `link` action, whose `result` closes the RTE and only ever creates a
- * bare `<a href="">`.
- *
- * `active` comes from the built-in `link` action's `currentState`, so the
- * pressed styling tracks the caret exactly like the other toggles.
+ * Link control: a toggle (pressed while the caret is inside a link) that opens
+ * a popover to set the anchor's URL, title and target — driven by the `link`
+ * mark in the ProseMirror schema.
  */
-export function LinkControl({
-  field,
-  active,
-}: {
-  field: RteFieldProps
-  active: boolean
-}) {
-  const { rte, getRange, onApplied } = field
+export function LinkControl({ view }: RteFieldProps) {
+  const active = !!linkAt(view.state)
   const [open, setOpen] = React.useState(false)
   const [href, setHref] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [target, setTarget] = React.useState<string>("_self")
-  // Whether the popover opened on an existing link (drives the Remove button).
   const [hasLink, setHasLink] = React.useState(false)
 
   const onOpenChange = (next: boolean) => {
     if (next) {
-      // Prefill from the anchor under the caret. Read from the captured range
-      // rather than the live selection: opening the popover moves focus out of
-      // the iframe.
-      const anchor = findAnchor(rte, getRange())
-      const anchorTarget = anchor?.getAttribute("target")
-      setHasLink(!!anchor)
-      setHref(anchor?.getAttribute("href") ?? "")
-      setTitle(anchor?.getAttribute("title") ?? "")
+      const link = linkAt(view.state)
+      const linkTarget = link?.target
+      setHasLink(!!link)
+      setHref(link?.href ?? "")
+      setTitle(link?.title ?? "")
       setTarget(
-        anchorTarget && LINK_TARGETS.some((t) => t.value === anchorTarget)
-          ? anchorTarget
+        linkTarget && LINK_TARGETS.some((t) => t.value === linkTarget)
+          ? linkTarget
           : "_self"
       )
     }
     setOpen(next)
   }
 
-  const writeAttrs = (el: HTMLElement) => {
-    if (href) el.setAttribute("href", href)
-    else el.removeAttribute("href")
-    if (title) el.setAttribute("title", title)
-    else el.removeAttribute("title")
-    if (target && target !== "_self") {
-      el.setAttribute("target", target)
-      // Standard hardening when opening a new browsing context.
-      if (target === "_blank") el.setAttribute("rel", "noopener noreferrer")
-      else el.removeAttribute("rel")
-    } else {
-      el.removeAttribute("target")
-      el.removeAttribute("rel")
-    }
-  }
-
   const apply = () => {
-    restoreRange(rte, getRange())
-    const anchor = findAnchor(rte)
-    if (anchor) {
-      // Editing an existing link: mutate its attributes in place. GrapesJS
-      // captures the DOM on disableEditing, so this round-trips on blur.
-      writeAttrs(anchor)
-    } else if (!wrapSelectionEl(rte, "a", writeAttrs) && href) {
-      // Collapsed caret with no existing link: insert a fresh link whose text
-      // is the title (or the URL) so there's something to click.
-      const link = rte.doc.createElement("a")
-      writeAttrs(link)
-      link.textContent = title || href
-      rte.insertHTML(link)
-    }
-    onApplied()
+    const rel = target === "_blank" ? "noopener noreferrer" : null
+    applyLink(
+      view,
+      {
+        href: href || null,
+        title: title || null,
+        target: target !== "_self" ? target : null,
+        rel: target !== "_self" ? rel : null,
+      },
+      title || href
+    )
     setOpen(false)
   }
 
   const remove = () => {
-    restoreRange(rte, getRange())
-    const anchor = findAnchor(rte)
-    if (anchor) unlinkAt(anchor)
-    onApplied()
+    runCmd(view, removeLink)
     setOpen(false)
   }
 
@@ -441,12 +385,7 @@ export function LinkControl({
               Remove
             </Button>
           )}
-          <Button
-            type="button"
-            size="sm"
-            className="text-xs"
-            onClick={apply}
-          >
+          <Button type="button" size="sm" className="text-xs" onClick={apply}>
             Apply
           </Button>
         </div>

@@ -2,12 +2,10 @@
 
 import * as React from "react"
 import { useEditorMaybe } from "@grapesjs/react"
-import type {
-  Component,
-  Editor,
-  RichTextEditorAction,
-  RichTextEditorCustomEventProps,
-} from "grapesjs"
+import type { Component } from "grapesjs"
+import { deleteSelection } from "prosemirror-commands"
+import type { Command, EditorState } from "prosemirror-state"
+import type { EditorView } from "prosemirror-view"
 import {
   AlignCenter,
   AlignJustify,
@@ -15,7 +13,6 @@ import {
   AlignRight,
   Baseline,
   Bold,
-  Brush,
   ClipboardPaste,
   Copy,
   Highlighter,
@@ -36,7 +33,22 @@ import {
   Undo2,
 } from "lucide-react"
 
-import { RTE_STATE, captureRange, type Rte } from "@/lib/plugins/rte"
+import {
+  MARK_COMMANDS,
+  alignActive,
+  indent,
+  insertHorizontalRule,
+  listActive,
+  markActive,
+  redoCmd,
+  removeFormat,
+  RTE_EVENTS,
+  runCmd,
+  setAlign,
+  toggleInlineMark,
+  toggleList,
+  undoCmd,
+} from "@/lib/plugins/rte"
 import { Separator } from "@/components/ui/separator"
 import { Toggle } from "@/components/ui/toggle"
 
@@ -47,79 +59,167 @@ import {
   FontFamilySelect,
   FontSizeSelect,
   LinkControl,
-  type RteFieldProps,
 } from "./rte-toolbar-fields"
 
-type ActionSpec = { name: string; title: string; icon: React.ReactNode }
+type ActionSpec = {
+  name: string
+  title: string
+  icon: React.ReactNode
+  /** Imperative apply against the live view. */
+  run: (view: EditorView) => void
+  /** Pressed (toggle) state. */
+  active?: (state: EditorState) => boolean
+  /** Enabled check; defaults to always-enabled. */
+  enabled?: (state: EditorState) => boolean
+}
 
-// Groups in toolbar order. Every name is a registered RTE action: the first
-// group is GrapesJS' own default set, the rest come from lib/plugins/rte.
+/** Build a spec from a ProseMirror Command (dry-run drives the disabled state). */
+const cmd = (
+  base: Omit<ActionSpec, "run" | "enabled">,
+  command: Command
+): ActionSpec => ({
+  ...base,
+  run: (view) => runCmd(view, command),
+  enabled: (state) => command(state),
+})
+
+/** Run a browser clipboard command inside the canvas iframe document. */
+const clipboard =
+  (op: "copy" | "cut") =>
+  (view: EditorView): void => {
+    view.focus()
+    view.dom.ownerDocument.execCommand(op)
+  }
+
+const paste = (view: EditorView): void => {
+  view.focus()
+  navigator.clipboard?.readText().then(
+    (text) => {
+      if (text) view.dispatch(view.state.tr.insertText(text))
+    },
+    () => {}
+  )
+}
+
+const markSpec = (
+  name: keyof typeof MARK_COMMANDS,
+  title: string,
+  icon: React.ReactNode
+): ActionSpec => {
+  const type = MARK_COMMANDS[name]
+  return cmd(
+    { name, title, icon, active: (s) => markActive(s, type) },
+    toggleInlineMark(type)
+  )
+}
+
+// Groups in toolbar order. `link` is not here — it renders as <LinkControl> in
+// the fields row. The block-format / font / colour controls also live there.
 const GROUPS: ActionSpec[][] = [
   [
-    { name: "bold", title: "Bold", icon: <Bold /> },
-    { name: "italic", title: "Italic", icon: <Italic /> },
-    { name: "underline", title: "Underline", icon: <Underline /> },
-    {
-      name: "strikethrough",
-      title: "Strikethrough",
-      icon: <Strikethrough />,
-    },
-    { name: "subscript", title: "Subscript", icon: <Subscript /> },
-    { name: "superscript", title: "Superscript", icon: <Superscript /> },
-  ],
-  // `link` is not here — it's rendered as <LinkControl> (a toggle + popover)
-  // in the fields row below.
-  [{ name: "wrap", title: "Wrap for style", icon: <Brush /> }],
-  [
-    { name: "insertUnorderedList", title: "Bulleted list", icon: <List /> },
-    {
-      name: "insertOrderedList",
-      title: "Numbered list",
-      icon: <ListOrdered />,
-    },
-    { name: "outdent", title: "Outdent", icon: <IndentDecrease /> },
-    { name: "indent", title: "Indent", icon: <IndentIncrease /> },
+    markSpec("bold", "Bold", <Bold />),
+    markSpec("italic", "Italic", <Italic />),
+    markSpec("underline", "Underline", <Underline />),
+    markSpec("strikethrough", "Strikethrough", <Strikethrough />),
+    markSpec("subscript", "Subscript", <Subscript />),
+    markSpec("superscript", "Superscript", <Superscript />),
   ],
   [
-    { name: "justifyLeft", title: "Align left", icon: <AlignLeft /> },
-    { name: "justifyCenter", title: "Align center", icon: <AlignCenter /> },
-    { name: "justifyRight", title: "Align right", icon: <AlignRight /> },
-    { name: "justifyFull", title: "Justify", icon: <AlignJustify /> },
+    cmd(
+      {
+        name: "insertUnorderedList",
+        title: "Bulleted list",
+        icon: <List />,
+        active: (s) => listActive(s, false),
+      },
+      toggleList(false)
+    ),
+    cmd(
+      {
+        name: "insertOrderedList",
+        title: "Numbered list",
+        icon: <ListOrdered />,
+        active: (s) => listActive(s, true),
+      },
+      toggleList(true)
+    ),
+    cmd({ name: "outdent", title: "Outdent", icon: <IndentDecrease /> }, indent(-1)),
+    cmd({ name: "indent", title: "Indent", icon: <IndentIncrease /> }, indent(1)),
   ],
   [
-    {
-      name: "insertHorizontalRule",
-      title: "Horizontal line",
-      icon: <Minus />,
-    },
-    {
-      name: "removeFormat",
-      title: "Clear formatting",
-      icon: <RemoveFormatting />,
-    },
+    cmd(
+      {
+        name: "justifyLeft",
+        title: "Align left",
+        icon: <AlignLeft />,
+        active: (s) => alignActive(s, "left"),
+      },
+      setAlign("left")
+    ),
+    cmd(
+      {
+        name: "justifyCenter",
+        title: "Align center",
+        icon: <AlignCenter />,
+        active: (s) => alignActive(s, "center"),
+      },
+      setAlign("center")
+    ),
+    cmd(
+      {
+        name: "justifyRight",
+        title: "Align right",
+        icon: <AlignRight />,
+        active: (s) => alignActive(s, "right"),
+      },
+      setAlign("right")
+    ),
+    cmd(
+      {
+        name: "justifyFull",
+        title: "Justify",
+        icon: <AlignJustify />,
+        active: (s) => alignActive(s, "justify"),
+      },
+      setAlign("justify")
+    ),
   ],
   [
-    { name: "copy", title: "Copy", icon: <Copy /> },
-    { name: "cut", title: "Cut", icon: <Scissors /> },
-    { name: "paste", title: "Paste", icon: <ClipboardPaste /> },
-    { name: "delete", title: "Delete", icon: <Trash2 /> },
+    cmd(
+      { name: "insertHorizontalRule", title: "Horizontal line", icon: <Minus /> },
+      insertHorizontalRule
+    ),
+    cmd(
+      {
+        name: "removeFormat",
+        title: "Clear formatting",
+        icon: <RemoveFormatting />,
+      },
+      removeFormat
+    ),
   ],
   [
-    { name: "undo", title: "Undo", icon: <Undo2 /> },
-    { name: "redo", title: "Redo", icon: <Redo2 /> },
+    { name: "copy", title: "Copy", icon: <Copy />, run: clipboard("copy") },
+    { name: "cut", title: "Cut", icon: <Scissors />, run: clipboard("cut") },
+    { name: "paste", title: "Paste", icon: <ClipboardPaste />, run: paste },
+    cmd({ name: "delete", title: "Delete", icon: <Trash2 /> }, deleteSelection),
+  ],
+  [
+    cmd({ name: "undo", title: "Undo", icon: <Undo2 /> }, undoCmd),
+    cmd({ name: "redo", title: "Redo", icon: <Redo2 /> }, redoCmd),
   ],
 ]
 
 function ActionToggle({
-  editor,
-  action,
+  view,
   spec,
 }: {
-  editor: Editor
-  action: RichTextEditorAction | undefined
+  view: EditorView
   spec: ActionSpec
 }) {
-  const state = action?.currentState ?? RTE_STATE.INACTIVE
+  const state = view.state
+  const pressed = spec.active?.(state) ?? false
+  const disabled = spec.enabled ? !spec.enabled(state) : false
 
   return (
     <Toggle
@@ -127,14 +227,14 @@ function ActionToggle({
       className="h-7 min-w-7 px-1.5"
       aria-label={spec.title}
       title={spec.title}
-      pressed={state === RTE_STATE.ACTIVE}
-      disabled={!action || state === RTE_STATE.DISABLED}
-      // Capture phase: GrapesJS stops `mousedown` from bubbling out of the
-      // toolbar container, so React's delegated (bubble) onMouseDown never
-      // fires here. preventDefault keeps focus — and therefore the frame's
-      // selection — on the contenteditable, which execCommand needs.
+      pressed={pressed}
+      disabled={disabled}
+      // Capture phase: GrapesJS stops `mousedown` bubbling out of the toolbar,
+      // so React's delegated onMouseDown never fires. preventDefault keeps DOM
+      // focus off the button; the ProseMirror selection lives in view.state,
+      // and `runCmd` re-focuses the view before dispatching.
       onMouseDownCapture={(e) => e.preventDefault()}
-      onPressedChange={() => editor.RichTextEditor.run(spec.name)}
+      onPressedChange={() => spec.run(view)}
     >
       {spec.icon}
     </Toggle>
@@ -144,90 +244,65 @@ function ActionToggle({
 /**
  * The rich-text toolbar.
  *
- * `richTextEditor: { custom: true }` (see editor-config/build-options.ts) tells
- * GrapesJS not to draw its own action bar. It still creates and shows/hides a
- * toolbar container, but we ignore that container and position ourselves with
- * `CanvasFloating` — the same floating-ui wrapper `FloatingToolbar` /
- * `FloatingBadge` use — so the toolbar flips and shifts to stay on-screen
- * against the real viewport (GrapesJS' own positioning only flips at the canvas
- * frame edge and never accounts for the surrounding panels).
- *
- * `rte:custom` re-fires (debounced) after every `updateActiveActions()` — i.e.
- * on each caret move — carrying the action list whose `currentState` drives the
- * pressed/disabled states below.
+ * The RTE engine is ProseMirror (swapped in via `editor.setCustomRte(...)` in
+ * lib/plugins/rte). This component listens for the `tc-rte:*` editor events
+ * that plugin emits: `enable` hands over the live `EditorView` and the
+ * component being edited, `update` fires on every transaction (each caret move)
+ * so the toggle states re-read `view.state`, and `disable` tears the toolbar
+ * down. Positioning uses `CanvasFloating` — the same floating-ui wrapper
+ * `FloatingToolbar` / `FloatingBadge` use — so the toolbar stays on-screen
+ * against the real viewport.
  */
 export function RteToolbar() {
   const editor = useEditorMaybe()
-  const [custom, setCustom] =
-    React.useState<RichTextEditorCustomEventProps | null>(null)
-  // Last selection made inside the edited element. Opening a select/popover
-  // moves focus into the top document; we restore this before applying.
-  const rangeRef = React.useRef<Range | null>(null)
+  const [view, setView] = React.useState<EditorView | null>(null)
+  const [component, setComponent] = React.useState<Component | null>(null)
+  // Bumped on every transaction so toggle states re-render from view.state.
+  const [, bump] = React.useReducer((n: number) => n + 1, 0)
 
   React.useEffect(() => {
     if (!editor) return
 
-    const onCustom = (props: RichTextEditorCustomEventProps) => {
-      // Spread: `actions` is a stable array whose `currentState` is mutated in
-      // place, so a fresh wrapper object is what makes React re-render.
-      setCustom({ ...props })
-      const rte = editor.RichTextEditor.globalRte
-      if (!props.enabled || !rte) {
-        rangeRef.current = null
-        return
-      }
-      const captured = captureRange(rte)
-      if (captured) rangeRef.current = captured
+    const onEnable = (props: { view: EditorView; component?: Component }) => {
+      setView(props.view)
+      setComponent(props.component ?? editor.getEditing() ?? null)
+    }
+    const onUpdate = () => bump()
+    const onDisable = () => {
+      setView(null)
+      setComponent(null)
     }
 
-    editor.on("rte:custom", onCustom)
+    editor.on(RTE_EVENTS.enable, onEnable)
+    editor.on(RTE_EVENTS.update, onUpdate)
+    editor.on(RTE_EVENTS.disable, onDisable)
     return () => {
-      editor.off("rte:custom", onCustom)
+      editor.off(RTE_EVENTS.enable, onEnable)
+      editor.off(RTE_EVENTS.update, onUpdate)
+      editor.off(RTE_EVENTS.disable, onDisable)
     }
   }, [editor])
 
-  const refresh = React.useCallback(() => {
-    editor?.RichTextEditor.globalRte?.updateActiveActions()
-  }, [editor])
-
-  const rte: Rte | undefined = editor?.RichTextEditor.globalRte
-  // The component under edit; `CanvasFloating` anchors to its DOM node. Read
-  // during render — `rte:custom` re-renders us on enable/disable, so this
-  // tracks the active editing target.
-  const editing: Component | null =
-    (custom?.enabled && editor?.getEditing()) || null
-
-  if (!editor || !custom?.enabled || !rte || !editing) {
-    // Still mount CanvasFloating (target: null) so its hooks stay stable
-    // across enable/disable transitions.
+  if (!editor || !view || !component) {
+    // Keep CanvasFloating mounted (target: null) so its hooks stay stable.
     return <CanvasFloating target={null}>{null}</CanvasFloating>
   }
 
-  const actions = custom.actions
-  const byName = (name: string) => actions.find((a) => a.name === name)
-  const fieldProps: RteFieldProps = {
-    rte,
-    getRange: () => rangeRef.current,
-    onApplied: refresh,
-  }
+  const fieldProps = { view }
 
   return (
     <CanvasFloating
-      target={editing}
+      target={component}
       placement="top-start"
       fallbacks={["bottom-start", "top-end", "bottom-end"]}
     >
       {/* Root guard: outside GrapesJS' own toolbar container we lose its
           `mousedown → stopPropagation`, so a click here would reach the top
-          document and `ComponentTextView.toggleEvents` would end the editing
-          session. Stop it at the root; buttons additionally preventDefault to
-          keep focus on the contenteditable.
+          document and end the editing session. Stop it at the root.
 
-          `w-max` + `max-w` (not bare `max-w`): floating-ui positions this
-          absolutely, where a flex-wrap box with only a max-width collapses to
-          min-content (one icon per row). `w-max` sizes it to the single-row
-          intrinsic width, then max-w clamps it so the set reflows into two
-          even rows. */}
+          `w-max` + `max-w`: floating-ui positions this absolutely, where a
+          flex-wrap box with only a max-width collapses to one icon per row.
+          `w-max` sizes it to the single-row width, then max-w reflows it. */}
       <div
         onMouseDown={(e) => e.stopPropagation()}
         className="flex w-max max-w-[39rem] flex-wrap items-center gap-0.5 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
@@ -235,31 +310,19 @@ export function RteToolbar() {
         <BlockFormatSelect {...fieldProps} />
         <FontSizeSelect {...fieldProps} />
         <FontFamilySelect {...fieldProps} />
-        <ColorControl field={fieldProps} property="color" label="Text color">
+        <ColorControl view={view} attr="color" label="Text color">
           <Baseline />
         </ColorControl>
-        <ColorControl
-          field={fieldProps}
-          property="background-color"
-          label="Highlight"
-        >
+        <ColorControl view={view} attr="backgroundColor" label="Highlight">
           <Highlighter />
         </ColorControl>
-        <LinkControl
-          field={fieldProps}
-          active={byName("link")?.currentState === RTE_STATE.ACTIVE}
-        />
+        <LinkControl {...fieldProps} />
 
         {GROUPS.map((group, i) => (
           <React.Fragment key={i}>
             <Separator orientation="vertical" className="mx-0.5 h-5" />
             {group.map((spec) => (
-              <ActionToggle
-                key={spec.name}
-                editor={editor}
-                action={byName(spec.name)}
-                spec={spec}
-              />
+              <ActionToggle key={spec.name} view={view} spec={spec} />
             ))}
           </React.Fragment>
         ))}
