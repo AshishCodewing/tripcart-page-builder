@@ -14,17 +14,20 @@ import {
   type EditorState,
   type Transaction,
 } from "prosemirror-state"
-import type { MarkType, NodeType } from "prosemirror-model"
+import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model"
 import type { EditorView } from "prosemirror-view"
 
-import { ALIGNMENTS, schema, type TextStyleAttr } from "./schema"
+import {
+  ALIGNMENTS,
+  INDENT_STEP_EM,
+  objectToStyle,
+  schema,
+  styleToObject,
+  type TextStyleAttr,
+} from "./schema"
 
-// The RTE runs two schemas (block container vs. single inline block — see
-// schema.ts). A MarkType/NodeType instance belongs to the schema that created
-// it, so commands must resolve their types from the *active* `state.schema`
-// rather than closing over one schema's instances. `marks` below is only the
-// block schema's mark set, used as a stable name-carrier for MARK_COMMANDS;
-// every command re-resolves against `state.schema` at run time.
+// Commands re-resolve their Mark/Node types from the *active* `state.schema` at
+// run time; `marks` here is only a stable name-carrier for MARK_COMMANDS.
 const { marks } = schema
 
 /** Focus the view and run a ProseMirror command against its current state. */
@@ -41,9 +44,6 @@ export const MARK_COMMANDS: Record<string, MarkType> = {
   italic: marks.em,
   underline: marks.underline,
   strikethrough: marks.strikethrough,
-  subscript: marks.subscript,
-  superscript: marks.superscript,
-  code: marks.code,
 }
 
 export const toggleInlineMark =
@@ -62,6 +62,42 @@ export const markActive = (state: EditorState, type: MarkType): boolean => {
   return state.doc.rangeHasMark(from, to, active)
 }
 
+// --- block style bag helpers ----------------------------------------------
+
+/** The generic attribute bag on an authored node (id / class / style / …). */
+const bagOf = (node: PMNode): Record<string, string> =>
+  (node.attrs.attrs as Record<string, string> | undefined) ?? {}
+
+/**
+ * Set a CSS property on every textblock the selection touches, editing the
+ * `style` inside each node's attribute bag (alignment / indent live here, à la
+ * Studio). `next` receives the current value; returning `null` removes it.
+ */
+const setBlockStyle =
+  (prop: string, next: (current: string | undefined) => string | null): Command =>
+  (state, dispatch) => {
+    const { from, to } = state.selection
+    let tr: Transaction | null = null
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isTextblock || !node.type.spec.attrs?.attrs) return
+      const style = styleToObject(bagOf(node)["style"])
+      const value = next(style[prop])
+      if (value == null) delete style[prop]
+      else style[prop] = value
+      const styleStr = objectToStyle(style)
+      const bag = { ...bagOf(node) }
+      if (styleStr) bag.style = styleStr
+      else delete bag.style
+      tr = (tr || state.tr).setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        attrs: bag,
+      })
+    })
+    if (!tr) return false
+    if (dispatch) dispatch(tr)
+    return true
+  }
+
 // --- block format ---------------------------------------------------------
 
 /** setBlockType/wrapIn command for a BLOCK_FORMATS tag (no-op if absent). */
@@ -69,17 +105,28 @@ export const setBlockFormat =
   (tag: string): Command =>
   (state, dispatch, view) => {
     const { nodes } = state.schema
+    // Carry the current block's attribute bag onto the reformatted node so
+    // its id / class / style survive a paragraph ↔ heading change.
+    const { $from } = state.selection
+    const bag = bagOf($from.node($from.depth))
     let command: Command | null = null
     if (tag === "blockquote")
       command = nodes.blockquote ? wrapIn(nodes.blockquote) : null
     else if (tag === "pre")
-      command = nodes.code_block ? setBlockType(nodes.code_block) : null
+      command = nodes.code_block
+        ? setBlockType(nodes.code_block, { attrs: bag })
+        : null
     else if (tag === "p")
-      command = nodes.paragraph ? setBlockType(nodes.paragraph) : null
+      command = nodes.paragraph
+        ? setBlockType(nodes.paragraph, { attrs: bag })
+        : null
     else {
       const m = /^h([1-6])$/.exec(tag)
       if (m && nodes.heading)
-        command = setBlockType(nodes.heading, { level: Number(m[1]) })
+        command = setBlockType(nodes.heading, {
+          level: Number(m[1]),
+          attrs: bag,
+        })
     }
     return command ? command(state, dispatch, view) : false
   }
@@ -88,7 +135,6 @@ export const setBlockFormat =
 export const blockFormat = (state: EditorState): string => {
   const { nodes } = state.schema
   const { $from } = state.selection
-  // Walk from the selection's textblock up to the doc, first recognized wins.
   for (let d = $from.depth; d > 0; d--) {
     const node = $from.node(d)
     if (node.type === nodes.heading) return `h${node.attrs.level}`
@@ -132,7 +178,7 @@ export const toggleList =
 
 /**
  * Adjust indent. Inside a list this sinks/lifts the list item; otherwise it
- * bumps the `indent` attr on every selected top-level block.
+ * bumps `margin-left` on every selected textblock (in `INDENT_STEP_EM` steps).
  */
 export const indent = (delta: 1 | -1): Command => {
   return (state, dispatch, view) => {
@@ -141,16 +187,18 @@ export const indent = (delta: 1 | -1): Command => {
       const cmd = delta > 0 ? sinkListItem(itemType) : liftListItem(itemType)
       return cmd(state, dispatch, view)
     }
-    return setBlockAttr("indent", (current) =>
-      Math.max(0, ((current as number) || 0) + delta)
-    )(state, dispatch)
+    return setBlockStyle("margin-left", (current) => {
+      const em = current ? parseFloat(current) : 0
+      const levels = Math.max(0, Math.round(em / INDENT_STEP_EM) + delta)
+      return levels > 0 ? `${levels * INDENT_STEP_EM}em` : null
+    })(state, dispatch)
   }
 }
 
 // --- alignment ------------------------------------------------------------
 
 export const setAlign = (align: (typeof ALIGNMENTS)[number]): Command =>
-  setBlockAttr("align", (current) => (current === align ? null : align))
+  setBlockStyle("text-align", (current) => (current === align ? null : align))
 
 export const alignActive = (
   state: EditorState,
@@ -158,32 +206,7 @@ export const alignActive = (
 ): boolean => {
   const { $from } = state.selection
   const block = $from.node($from.depth)
-  return block?.attrs?.align === align
-}
-
-/**
- * Set an attribute on every block touched by the selection that actually
- * declares it (paragraph / heading). `next` receives the current value.
- */
-const setBlockAttr = (
-  attr: "align" | "indent",
-  next: (current: unknown) => unknown
-): Command => {
-  return (state, dispatch) => {
-    const { from, to } = state.selection
-    let tr: Transaction | null = null
-    state.doc.nodesBetween(from, to, (node, pos) => {
-      if (node.isTextblock && attr in node.type.spec.attrs!) {
-        tr = (tr || state.tr).setNodeMarkup(pos, undefined, {
-          ...node.attrs,
-          [attr]: next(node.attrs[attr]),
-        })
-      }
-    })
-    if (!tr) return false
-    if (dispatch) dispatch(tr)
-    return true
-  }
+  return styleToObject(bagOf(block)["style"])["text-align"] === align
 }
 
 // --- link -----------------------------------------------------------------
@@ -273,7 +296,6 @@ export const applyTextStyle = (
   const { state } = view
   const { from, to, empty, $from } = state.selection
   const type = state.schema.marks.textStyle
-  // Merge onto whatever style mark already sits at the caret / selection start.
   const marksHere = empty ? state.storedMarks || $from.marks() : $from.marks()
   const existing = type.isInSet(marksHere)
   const attrs = { ...(existing?.attrs || {}), [attr]: value }
@@ -287,33 +309,6 @@ export const applyTextStyle = (
 }
 
 // --- misc -----------------------------------------------------------------
-
-/** Insert an image node at the selection (no-op without the node or a src). */
-export const insertImage =
-  (attrs: { src: string; alt?: string | null; title?: string | null }): Command =>
-  (state, dispatch) => {
-    const image = state.schema.nodes.image
-    if (!image || !attrs.src) return false
-    if (dispatch)
-      dispatch(
-        state.tr
-          .replaceSelectionWith(
-            image.create({
-              src: attrs.src,
-              alt: attrs.alt ?? null,
-              title: attrs.title ?? null,
-            })
-          )
-          .scrollIntoView()
-      )
-    return true
-  }
-
-/** Focus the view and insert an image (used by the Asset Manager flow). */
-export const applyImage = (
-  view: EditorView,
-  attrs: { src: string; alt?: string | null; title?: string | null }
-): boolean => runCmd(view, insertImage(attrs))
 
 export const insertHorizontalRule: Command = (state, dispatch) => {
   const hr = state.schema.nodes.horizontal_rule
@@ -331,10 +326,37 @@ export const insertHardBreak: Command = (state, dispatch) => {
   return true
 }
 
+/** Insert an image node at the selection (no-op without the node or a src). */
+export const insertImage =
+  (attrs: {
+    src: string
+    alt?: string | null
+    title?: string | null
+  }): Command =>
+  (state, dispatch) => {
+    const image = state.schema.nodes.image
+    if (!image || !attrs.src) return false
+    // `src`/`alt`/`title` live in the generic attribute bag (schema.ts).
+    const bag: Record<string, string> = { src: attrs.src }
+    if (attrs.alt) bag.alt = attrs.alt
+    if (attrs.title) bag.title = attrs.title
+    if (dispatch)
+      dispatch(
+        state.tr
+          .replaceSelectionWith(image.create({ attrs: bag }))
+          .scrollIntoView()
+      )
+    return true
+  }
+
+/** Focus the view and insert an image (used by the Asset Manager flow). */
+export const applyImage = (
+  view: EditorView,
+  attrs: { src: string; alt?: string | null; title?: string | null }
+): boolean => runCmd(view, insertImage(attrs))
+
 /**
  * Clear all inline marks over the selection and reset the block to paragraph.
- * On the inline schema there is no paragraph node (nor any non-paragraph
- * textblock to reset), so this just strips the marks.
  */
 export const removeFormat: Command = (state, dispatch) => {
   const { from, to, empty } = state.selection
@@ -343,7 +365,6 @@ export const removeFormat: Command = (state, dispatch) => {
   const paragraph = state.schema.nodes.paragraph
   if (dispatch) {
     if (paragraph) {
-      // Reset touched textblocks to plain paragraphs (drops align/indent too).
       const positions: number[] = []
       tr.doc.nodesBetween(from, to, (node, pos) => {
         if (node.isTextblock && node.type !== paragraph) positions.push(pos)

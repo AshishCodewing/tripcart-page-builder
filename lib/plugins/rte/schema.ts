@@ -1,20 +1,28 @@
 // The ProseMirror schema the rich-text editor conforms to.
 //
-// Built from `prosemirror-schema-basic` + `prosemirror-schema-list`, then
-// extended for parity with the old execCommand toolbar:
-//   - paragraph / heading carry `align` + `indent` block attributes (what
-//     `justify*` and `indent`/`outdent` used to write as inline style),
-//   - a `textStyle` mark carries color / background / font-size / font-family
-//     as inline `style` — the vehicle for theme tokens (`var(--tc--preset--…)`),
-//   - underline / strikethrough / subscript / superscript marks,
-//   - link gains `target` / `rel`.
+// Structure follows GrapesJS Studio's `rteProseMirror`:
+//   - a SINGLE block schema (`doc: "block+"`) — the RTE only ever mounts on the
+//     Rich Text block's `<div>` container, so there's no separate inline schema.
+//   - every authored node carries a generic `attrs` *bag* that captures ALL of
+//     the element's DOM attributes on parse and re-emits them on serialize
+//     (`readAttrs`/`bagToDom`). This preserves id / class / data-* / style
+//     faithfully across the edit → serialize → re-parse round-trip, replacing
+//     the old hand-rolled id/class passthrough. GrapesJS' own `draggable`
+//     (canvas chrome) is stripped; `data-gjs-type` is kept so GrapesJS can
+//     re-type the child components when it re-parses the content.
+//   - a low-priority `nonTextNode` catch-all keeps unknown block elements.
+//   - alignment / indent live in each node's preserved `style` (no bespoke
+//     typed attrs), the same as Studio.
 //
-// Permissiveness note: ProseMirror re-parses a component's HTML through this
-// schema on first edit, so anything the parse rules don't recognize is dropped.
-// We keep `class` on blocks and on the style span, and read inline color / size
-// / family off the raw `style` attribute (not the CSSOM — jsdom and browsers
-// disagree on `var()` in typed properties). Deeply non-conforming trees still
-// normalize; that matches how the built-in engine already behaved.
+// Marks match Studio's set: strong / em / underline / strikethrough / link plus
+// our `textStyle` mark, which keeps colour / background / font-size as inline
+// `style` (the vehicle for theme tokens, `var(--tc--preset--…)`). Subscript,
+// superscript, inline code and font-family are intentionally dropped.
+//
+// Permissiveness note: ProseMirror re-parses the element's HTML through this
+// schema on each edit. Inline colour / size are read off the raw `style`
+// attribute (not the CSSOM — jsdom and browsers disagree on `var()` in typed
+// properties).
 
 import {
   DOMParser as PMDOMParser,
@@ -24,14 +32,8 @@ import {
   type MarkSpec,
   type Node as PMNode,
   type NodeSpec,
-  type TagParseRule,
 } from "prosemirror-model"
-import {
-  schema as basicSchema,
-  marks as basicMarks,
-  nodes as basicNodes,
-} from "prosemirror-schema-basic"
-import { addListNodes } from "prosemirror-schema-list"
+import { marks as basicMarks } from "prosemirror-schema-basic"
 
 /** Block formats offered by the format dropdown, in menu order. */
 export const BLOCK_FORMATS = [
@@ -49,184 +51,192 @@ export const BLOCK_FORMATS = [
 /** Text-alignment values `text-align` may hold. */
 export const ALIGNMENTS = ["left", "center", "right", "justify"] as const
 
-/** One indent step, in `em`. `indent: 2` → `margin-left: 4em`. */
-const INDENT_STEP_EM = 2
+/** One indent step, in `em`. `indent` of 1 → `margin-left: 2em`. */
+export const INDENT_STEP_EM = 2
 
-/** Parse a raw `style` attribute into a lowercased declaration map. */
-const styleMap = (dom: HTMLElement): Map<string, string> => {
-  const map = new Map<string, string>()
-  for (const decl of (dom.getAttribute("style") || "").split(";")) {
+// --- generic attribute bag -------------------------------------------------
+
+/** The attrs-bag attribute every authored node carries. */
+type AttrBag = Record<string, string>
+
+// A single shared default object; commands must never mutate a node's bag in
+// place — they always write a fresh object via `setNodeMarkup`.
+const bagSpec = () => ({ attrs: { default: {} as AttrBag } })
+
+/**
+ * Read every attribute off an element into a plain record (the "attrs bag").
+ * GrapesJS' `draggable` / `contenteditable` are canvas-only chrome and are
+ * dropped so they never persist into the saved content.
+ */
+const readAttrs = (dom: HTMLElement): AttrBag => {
+  const out: AttrBag = {}
+  for (const attr of Array.from(dom.attributes)) out[attr.name] = attr.value
+  delete out.draggable
+  delete out.contenteditable
+  return out
+}
+
+const bagAttrs = (dom: HTMLElement) => ({ attrs: readAttrs(dom) })
+const bagToDom = (node: PMNode): AttrBag => (node.attrs.attrs as AttrBag) ?? {}
+
+// --- style helpers (alignment / indent live in the bag's `style`) ----------
+
+/** Parse a `style` string into a lowercased declaration map. */
+export const styleToObject = (style: string | undefined): Record<string, string> => {
+  const map: Record<string, string> = {}
+  for (const decl of (style || "").split(";")) {
     const i = decl.indexOf(":")
     if (i === -1) continue
     const prop = decl.slice(0, i).trim().toLowerCase()
     const value = decl.slice(i + 1).trim()
-    if (prop && value) map.set(prop, value)
+    if (prop && value) map[prop] = value
   }
   return map
 }
 
-// --- align / indent, shared by paragraph + heading ------------------------
+/** Serialize a declaration map back to a `style` string (`""` when empty). */
+export const objectToStyle = (obj: Record<string, string>): string =>
+  Object.entries(obj)
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";")
 
-type BlockAttrs = {
-  align: string | null
-  indent: number
-  id: string | null
-  class: string | null
-}
-
-const alignIndentAttrs = () => ({
-  align: { default: null },
-  indent: { default: 0 },
-  // `id` / `class` are preserved so GrapesJS component ids (and their styles)
-  // survive the edit → serialize → re-parse round-trip instead of being
-  // regenerated on every close.
-  id: { default: null },
-  class: { default: null },
-})
-
-const readBlockAttrs = (dom: HTMLElement): BlockAttrs => {
-  const style = styleMap(dom)
-  const align = style.get("text-align") || dom.getAttribute("align")
-  let indent = 0
-  const ml = style.get("margin-left")
-  const em = ml && /^([\d.]+)em$/.exec(ml)
-  if (em) indent = Math.max(0, Math.round(parseFloat(em[1]) / INDENT_STEP_EM))
-  return {
-    align:
-      align && (ALIGNMENTS as readonly string[]).includes(align) ? align : null,
-    indent,
-    id: dom.getAttribute("id") || null,
-    class: dom.getAttribute("class") || null,
-  }
-}
-
-const blockDOMAttrs = (node: PMNode): Record<string, string> => {
-  const attrs: Record<string, string> = {}
-  const styles: string[] = []
-  if (node.attrs.align) styles.push(`text-align:${node.attrs.align}`)
-  if (node.attrs.indent)
-    styles.push(`margin-left:${node.attrs.indent * INDENT_STEP_EM}em`)
-  if (styles.length) attrs.style = styles.join(";")
-  if (node.attrs.id) attrs.id = node.attrs.id as string
-  if (node.attrs.class) attrs.class = node.attrs.class as string
-  return attrs
-}
+// --- nodes -----------------------------------------------------------------
 
 const paragraph: NodeSpec = {
-  content: "inline*",
   group: "block",
-  attrs: alignIndentAttrs(),
-  parseDOM: [
-    { tag: "p", getAttrs: (dom) => readBlockAttrs(dom as HTMLElement) },
-  ],
-  toDOM: (node) => ["p", blockDOMAttrs(node), 0] as DOMOutputSpec,
+  content: "inline*",
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "p", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["p", bagToDom(node), 0] as DOMOutputSpec,
 }
 
 const heading: NodeSpec = {
-  content: "inline*",
   group: "block",
+  content: "inline*",
   defining: true,
-  attrs: { level: { default: 1 }, ...alignIndentAttrs() },
+  attrs: { level: { default: 1 }, ...bagSpec() },
   parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
     tag: `h${level}`,
-    getAttrs: (dom: HTMLElement) => ({ level, ...readBlockAttrs(dom) }),
+    getAttrs: (dom: HTMLElement) => ({ level, attrs: readAttrs(dom) }),
   })),
   toDOM: (node) =>
-    [`h${node.attrs.level}`, blockDOMAttrs(node), 0] as DOMOutputSpec,
+    [`h${node.attrs.level}`, bagToDom(node), 0] as DOMOutputSpec,
 }
 
-// --- id / class passthrough for the nodes we don't hand-author -------------
-
-/** Merge `id` + `class` into a serializer's output attribute object. */
-const injectDOMAttrs = (spec: DOMOutputSpec, node: PMNode): DOMOutputSpec => {
-  if (!Array.isArray(spec)) return spec
-  const extra: Record<string, string> = {}
-  if (node.attrs.id) extra.id = node.attrs.id as string
-  if (node.attrs.class) extra.class = node.attrs.class as string
-  if (!Object.keys(extra).length) return spec
-  const [tag, ...rest] = spec
-  const hasAttrs =
-    rest.length > 0 &&
-    rest[0] != null &&
-    typeof rest[0] === "object" &&
-    !Array.isArray(rest[0])
-  return hasAttrs
-    ? ([
-        tag,
-        { ...(rest[0] as object), ...extra },
-        ...rest.slice(1),
-      ] as DOMOutputSpec)
-    : ([tag, extra, ...rest] as DOMOutputSpec)
+const blockquote: NodeSpec = {
+  group: "block",
+  content: "block+",
+  defining: true,
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "blockquote", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["blockquote", bagToDom(node), 0] as DOMOutputSpec,
 }
 
-/**
- * Add an `id` + `class` passthrough to block nodes whose specs come from the
- * base/list schemas (blockquote, lists, …). Without this, ProseMirror drops the
- * GrapesJS component id on serialize and `parseContent` mints a fresh one on
- * every close — orphaning any style keyed to that id.
- */
-type NodeMap = ReturnType<typeof addListNodes>
-
-const preserveIdClass = (map: NodeMap, names: string[]): NodeMap => {
-  let out = map
-  for (const name of names) {
-    const base = out.get(name)
-    if (!base) continue
-    // The nodes we patch here only carry tag rules (no inline-style rules).
-    const parseDOM = ((base.parseDOM as TagParseRule[] | undefined) || []).map(
-      (rule): TagParseRule => ({
-        ...rule,
-        getAttrs: (dom: HTMLElement) => {
-          const prev = rule.getAttrs ? rule.getAttrs(dom) : (rule.attrs ?? {})
-          if (prev === false || prev == null) return prev
-          return {
-            ...prev,
-            id: dom.getAttribute("id") || null,
-            class: dom.getAttribute("class") || null,
-          }
-        },
-      })
-    )
-    const baseToDOM = base.toDOM
-    out = out.update(name, {
-      ...base,
-      attrs: { ...base.attrs, id: { default: null }, class: { default: null } },
-      parseDOM,
-      toDOM: baseToDOM
-        ? (node: PMNode) => injectDOMAttrs(baseToDOM(node), node)
-        : baseToDOM,
-    })
-  }
-  return out
+const codeBlock: NodeSpec = {
+  group: "block",
+  content: "text*",
+  marks: "",
+  code: true,
+  defining: true,
+  attrs: bagSpec(),
+  parseDOM: [
+    {
+      tag: "pre",
+      preserveWhitespace: "full",
+      getAttrs: (dom) => bagAttrs(dom as HTMLElement),
+    },
+  ],
+  toDOM: (node) => ["pre", bagToDom(node), ["code", 0]] as DOMOutputSpec,
 }
 
-// --- nodes ----------------------------------------------------------------
+const orderedList: NodeSpec = {
+  group: "block",
+  content: "list_item+",
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "ol", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["ol", bagToDom(node), 0] as DOMOutputSpec,
+}
 
-// Start from the basic schema's node map (an OrderedMap), patch the two
-// textblocks that gained attrs, then mix in the list nodes. The basic `image`
-// node is kept (block-schema only — the Rich Text block's toolbar inserts one
-// via the Asset Manager); the inline schema below still omits it, so single
-// inline hosts (headings, buttons…) never host an image.
-const nodes = preserveIdClass(
-  addListNodes(
-    basicSchema.spec.nodes
-      .update("paragraph", paragraph)
-      .update("heading", heading),
-    "paragraph block*",
-    "block"
-  ),
-  [
-    "image",
-    "blockquote",
-    "code_block",
-    "horizontal_rule",
-    "ordered_list",
-    "bullet_list",
-    "list_item",
-  ]
-)
+const bulletList: NodeSpec = {
+  group: "block",
+  content: "list_item+",
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "ul", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["ul", bagToDom(node), 0] as DOMOutputSpec,
+}
 
-// --- marks ----------------------------------------------------------------
+const listItem: NodeSpec = {
+  content: "paragraph block*",
+  defining: true,
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "li", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["li", bagToDom(node), 0] as DOMOutputSpec,
+}
+
+const horizontalRule: NodeSpec = {
+  group: "block",
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "hr", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["hr", bagToDom(node)] as DOMOutputSpec,
+}
+
+// Inline image. `src`/`alt`/`title` live in the generic bag (Studio parity), so
+// insertion creates `image.create({ attrs: { src } })`.
+const image: NodeSpec = {
+  inline: true,
+  group: "inline",
+  draggable: true,
+  selectable: true,
+  attrs: bagSpec(),
+  parseDOM: [{ tag: "img[src]", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (node) => ["img", bagToDom(node)] as DOMOutputSpec,
+}
+
+const hardBreak: NodeSpec = {
+  inline: true,
+  group: "inline",
+  selectable: false,
+  parseDOM: [{ tag: "br" }],
+  toDOM: () => ["br"] as DOMOutputSpec,
+}
+
+// Low-priority catch-all so unknown block elements survive the round-trip.
+const nonTextNode: NodeSpec = {
+  group: "block",
+  content: "block*",
+  attrs: { tagName: { default: "span" }, ...bagSpec() },
+  parseDOM: [
+    {
+      // `tbody` is skipped so list/table parse rules keep priority.
+      tag: "*:not(tbody)",
+      getAttrs: (dom: HTMLElement) => ({
+        tagName: dom.tagName.toLowerCase(),
+        attrs: readAttrs(dom),
+      }),
+      priority: 0,
+    },
+  ],
+  toDOM: (node) =>
+    [node.attrs.tagName as string, bagToDom(node), 0] as DOMOutputSpec,
+}
+
+const nodes = {
+  doc: { content: "block+" },
+  paragraph,
+  heading,
+  blockquote,
+  code_block: codeBlock,
+  ordered_list: orderedList,
+  bullet_list: bulletList,
+  list_item: listItem,
+  horizontal_rule: horizontalRule,
+  image,
+  text: { group: "inline" } as NodeSpec,
+  hard_break: hardBreak,
+  nonTextNode,
+}
+
+// --- marks -----------------------------------------------------------------
 
 const link: MarkSpec = {
   attrs: {
@@ -281,24 +291,11 @@ const strikethrough: MarkSpec = {
   toDOM: () => ["s", 0] as DOMOutputSpec,
 }
 
-const subscript: MarkSpec = {
-  excludes: "subscript superscript",
-  parseDOM: [{ tag: "sub" }, { style: "vertical-align=sub" }],
-  toDOM: () => ["sub", 0] as DOMOutputSpec,
-}
-
-const superscript: MarkSpec = {
-  excludes: "subscript superscript",
-  parseDOM: [{ tag: "sup" }, { style: "vertical-align=super" }],
-  toDOM: () => ["sup", 0] as DOMOutputSpec,
-}
-
 /** Inline style properties carried by the `textStyle` mark, DOM ↔ attr. */
 export const TEXT_STYLE_PROPS = {
   color: "color",
   backgroundColor: "background-color",
   fontSize: "font-size",
-  fontFamily: "font-family",
 } as const
 
 export type TextStyleAttr = keyof typeof TEXT_STYLE_PROPS
@@ -308,7 +305,6 @@ const textStyle: MarkSpec = {
     color: { default: null },
     backgroundColor: { default: null },
     fontSize: { default: null },
-    fontFamily: { default: null },
     id: { default: null },
     class: { default: null },
   },
@@ -317,12 +313,11 @@ const textStyle: MarkSpec = {
     {
       tag: "span",
       getAttrs: (dom: HTMLElement) => {
-        const style = styleMap(dom)
+        const style = styleToObject(dom.getAttribute("style") || "")
         const attrs = {
-          color: style.get("color") || null,
-          backgroundColor: style.get("background-color") || null,
-          fontSize: style.get("font-size") || null,
-          fontFamily: style.get("font-family") || null,
+          color: style["color"] || null,
+          backgroundColor: style["background-color"] || null,
+          fontSize: style["font-size"] || null,
           id: dom.getAttribute("id") || null,
           class: dom.getAttribute("class") || null,
         }
@@ -350,95 +345,26 @@ const marks = {
   link,
   em: basicMarks.em,
   strong: basicMarks.strong,
-  code: basicMarks.code,
   underline,
   strikethrough,
-  subscript,
-  superscript,
   textStyle,
 }
 
-// --- schemas --------------------------------------------------------------
+// --- schema ----------------------------------------------------------------
 
-// Two schemas, chosen per mount element (see `schemaFor`):
-//   - `blockSchema` (the default) edits a *container* whose document is a stack
-//     of blocks — the generic `<div>` text component, list items, table cells…
-//   - `inlineSchema` edits a *single leaf block* the RTE mounts directly on
-//     (`<p>`, `<h1>`…`<h6>`, `<span>`, `<a>`, …). Its document is just inline
-//     content, so ProseMirror never nests a `<p>` inside the mounted element
-//     (which would corrupt e.g. a heading into `<h2><p>…</p></h2>`). This is the
-//     "compose a document just of text / edit inline content" schema from the
-//     ProseMirror docs. Same marks as the block schema; no block nodes.
+/** The single block schema the RTE conforms to. */
+export const schema = new Schema({ nodes, marks })
 
-/** The container schema: `doc: "block+"`, full block + inline toolbar. */
-export const blockSchema = new Schema({ nodes, marks })
+// --- HTML round-trip -------------------------------------------------------
 
-/** Back-compat alias — most call sites want the container schema. */
-export const schema = blockSchema
+const parser = PMDOMParser.fromSchema(schema)
+const serializer = DOMSerializer.fromSchema(schema)
 
-// `inline*` (not `inline+`) keeps an empty element valid; `hard_break` is a
-// generatable node but is only inserted on an explicit line-break keystroke, so
-// it never auto-fills an empty document.
-export const inlineSchema = new Schema({
-  nodes: {
-    doc: { content: "inline*" },
-    text: { group: "inline" },
-    hard_break: basicNodes.hard_break,
-  },
-  marks,
-})
+/** Parse a component's DOM element into a ProseMirror document. */
+export const parseElement = (el: HTMLElement): PMNode => parser.parse(el)
 
-// --- mount-element classification -----------------------------------------
-
-/**
- * Tags whose HTML content model is phrasing-only, so the RTE edits their inline
- * content in place with `inlineSchema` rather than nesting a block. Everything
- * else (div, li, td, blockquote, section…) is a block container → `blockSchema`.
- */
-const INLINE_HOST_TAGS = new Set([
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "span",
-  "a",
-  "button",
-  "label",
-  "figcaption",
-  "caption",
-  "summary",
-])
-
-/** Whether the RTE should edit `el` as a single inline block. */
-export const isInlineHost = (el: HTMLElement): boolean =>
-  INLINE_HOST_TAGS.has(el.tagName.toLowerCase())
-
-/** The schema to edit `el` with. */
-export const schemaFor = (el: HTMLElement): Schema =>
-  isInlineHost(el) ? inlineSchema : blockSchema
-
-// --- HTML round-trip ------------------------------------------------------
-
-const blockParser = PMDOMParser.fromSchema(blockSchema)
-const blockSerializer = DOMSerializer.fromSchema(blockSchema)
-const inlineParser = PMDOMParser.fromSchema(inlineSchema)
-const inlineSerializer = DOMSerializer.fromSchema(inlineSchema)
-
-/** Parse a component's DOM element into a ProseMirror document (schema per tag). */
-export const parseElement = (el: HTMLElement): PMNode =>
-  (isInlineHost(el) ? inlineParser : blockParser).parse(el)
-
-/**
- * Serialize a document to an HTML string (the authoritative RTE output). An
- * inline-schema doc serializes to bare inline HTML (`Hello <strong>x</strong>`),
- * which is exactly what GrapesJS stores as the mounted element's children.
- */
+/** Serialize a document to an HTML string (the authoritative RTE output). */
 export const serializeDoc = (doc: PMNode): string => {
-  const serializer =
-    doc.type.schema === inlineSchema ? inlineSerializer : blockSerializer
   const target = document.createElement("div")
   target.appendChild(serializer.serializeFragment(doc.content))
   return target.innerHTML

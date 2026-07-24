@@ -33,6 +33,7 @@ export type {
 } from "./types"
 export { ErrorType } from "./types"
 export { processReactElements } from "./process"
+export { RTE_REPAINT_EVENT } from "./render-component"
 
 type Plugin = (editor: Editor, options?: RendererReactOptions) => void
 type PluginWithInit = Plugin & {

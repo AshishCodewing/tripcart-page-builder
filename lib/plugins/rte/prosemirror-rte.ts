@@ -6,9 +6,17 @@
 // (`new EditorView({ mount: el }, …)`), so GrapesJS keeps tracking the same
 // node. The toolbar (components/page-builder/rte-toolbar.tsx) listens for the
 // editor events emitted here to grab the live view and re-render on each
-// transaction — GrapesJS' own `rte:custom` event belonged to the old engine.
+// transaction.
+//
+// Lifecycle follows GrapesJS Studio's `rteProseMirror`: we track each edited
+// element in a WeakMap holding its view + component + the ProseMirror doc it
+// started from (`initialDoc`). Whether the content changed is decided by
+// `initialDoc.eq(currentDoc)` — a structural ProseMirror comparison, never
+// HTML-string compares. On disable we return `{ forceSync: changed }`; when
+// nothing changed we instead re-render the component from its model to repaint
+// the element the destroyed view emptied. No raw `innerHTML` writes.
 
-import type { Editor, Plugin } from "grapesjs"
+import type { Component, Editor, Plugin } from "grapesjs"
 import { baseKeymap, toggleMark } from "prosemirror-commands"
 import { history, redo, undo } from "prosemirror-history"
 import {
@@ -17,7 +25,7 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules"
 import { keymap } from "prosemirror-keymap"
-import type { Schema } from "prosemirror-model"
+import type { Node as PMNode } from "prosemirror-model"
 import {
   liftListItem,
   sinkListItem,
@@ -26,35 +34,30 @@ import {
 import { EditorState } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
 
-import { insertHardBreak } from "./commands"
-import { RICH_TEXT_TYPE } from "./rich-text-block"
-import { isInlineHost, parseElement, schemaFor, serializeDoc } from "./schema"
+import { RTE_REPAINT_EVENT } from "@/lib/plugins/react-renderer"
 
-/**
- * An EditorView we track across GrapesJS' enable/disable lifecycle.
- * - `__tcDead`: set once we've destroyed it, so a re-`enable` rebuilds instead
- *   of reusing a dead view.
- * - `__tcHTML`: the last serialization taken while it was alive, so `getContent`
- *   can still answer correctly after the view is gone (GrapesJS calls
- *   `getContent` again on the second `disableEditing` pass, when `activeRte`
- *   points at this now-destroyed view — serializing it would yield "" and wipe
- *   the component).
- */
-type TrackedView = EditorView & {
-  __tcDead?: boolean
-  __tcHTML?: string
+import { RICH_TEXT_TYPE } from "./rich-text-block"
+import { parseElement, schema, serializeDoc } from "./schema"
+
+/** Per-element editing state, keyed by the mounted DOM element. */
+type RteEntry = {
+  view: EditorView
+  component: Component
+  /** The doc the session started from, for structural change detection. */
+  initialDoc: PMNode
 }
+
+const elToEntry = new WeakMap<HTMLElement, RteEntry>()
 
 /**
  * The marker returned for the "plain" branch — any editable node that isn't a
  * `rich-text` component. It edits as bare `contenteditable` with no toolbar (no
  * ProseMirror mount, no `tc-rte:*` events), so the RTE stays fully contained to
- * the one opt-in block. GrapesJS reuses whatever `enable` returns on the next
- * enable call, so the marker lets us short-circuit a re-focus.
+ * the one opt-in block.
  */
 type PlainRte = { __tcPlain: true }
 
-type Rte = TrackedView | PlainRte
+type Rte = EditorView | PlainRte
 
 const isPlain = (rte: Rte | undefined): rte is PlainRte =>
   !!rte && (rte as PlainRte).__tcPlain === true
@@ -67,16 +70,10 @@ const isPlain = (rte: Rte | undefined): rte is PlainRte =>
 const usesProseMirror = (comp: { get?: (k: string) => unknown } | undefined) =>
   comp?.get?.("type") === RICH_TEXT_TYPE
 
-/** Content from a view, caching the serialization while it's still alive. */
-const viewContent = (
-  view: TrackedView | undefined,
-  el: HTMLElement
-): string => {
-  if (view && !view.__tcDead) {
-    view.__tcHTML = serializeDoc(view.state.doc)
-    return view.__tcHTML
-  }
-  return view?.__tcHTML ?? el.innerHTML
+/** Did the element's doc change since the session started? (structural). */
+const docChanged = (el: HTMLElement): boolean => {
+  const entry = elToEntry.get(el)
+  return !(entry && entry.initialDoc.eq(entry.view.state.doc))
 }
 
 /** Editor events the toolbar subscribes to (view + component are the payload). */
@@ -86,66 +83,54 @@ export const RTE_EVENTS = {
   disable: "tc-rte:disable",
 } as const
 
-// Mark-toggle + history shortcuts — valid for both schemas.
-const markKeymap = (sc: Schema) =>
+// Mark-toggle + history shortcuts.
+const markKeymap = () =>
   keymap({
-    "Mod-b": toggleMark(sc.marks.strong),
-    "Mod-i": toggleMark(sc.marks.em),
-    "Mod-u": toggleMark(sc.marks.underline),
-    "Mod-`": toggleMark(sc.marks.code),
+    "Mod-b": toggleMark(schema.marks.strong),
+    "Mod-i": toggleMark(schema.marks.em),
+    "Mod-u": toggleMark(schema.marks.underline),
     "Mod-z": undo,
     "Mod-y": redo,
     "Shift-Mod-z": redo,
   })
 
-// List-editing keys — only when the schema has list nodes (block schema).
-const listKeymap = (sc: Schema) =>
+// List-editing keys.
+const listKeymap = () =>
   keymap({
-    Enter: splitListItem(sc.nodes.list_item),
-    Tab: sinkListItem(sc.nodes.list_item),
-    "Shift-Tab": liftListItem(sc.nodes.list_item),
+    Enter: splitListItem(schema.nodes.list_item),
+    Tab: sinkListItem(schema.nodes.list_item),
+    "Shift-Tab": liftListItem(schema.nodes.list_item),
   })
 
-// Line breaks for an inline (single-block) mount: the document can't be split,
-// so Enter and Shift-Enter both insert a `<br>` instead of doing nothing.
-const breakKeymap = keymap({
-  Enter: insertHardBreak,
-  "Shift-Enter": insertHardBreak,
-})
-
 // Markdown-style typing shortcuts: `- `, `1. `, `> `, `# `…`###### `.
-// All produce block constructs, so they're block-schema only.
-const blockInputRules = (sc: Schema) =>
+const blockInputRules = () =>
   inputRules({
     rules: [
-      wrappingInputRule(/^\s*([-+*])\s$/, sc.nodes.bullet_list),
+      wrappingInputRule(/^\s*([-+*])\s$/, schema.nodes.bullet_list),
       wrappingInputRule(
         /^(\d+)\.\s$/,
-        sc.nodes.ordered_list,
+        schema.nodes.ordered_list,
         (match) => ({ order: Number(match[1]) }),
         (match, node) => node.childCount + node.attrs.order === Number(match[1])
       ),
-      wrappingInputRule(/^\s*>\s$/, sc.nodes.blockquote),
-      textblockTypeInputRule(/^(#{1,6})\s$/, sc.nodes.heading, (match) => ({
+      wrappingInputRule(/^\s*>\s$/, schema.nodes.blockquote),
+      textblockTypeInputRule(/^(#{1,6})\s$/, schema.nodes.heading, (match) => ({
         level: match[1].length,
       })),
     ],
   })
 
-const buildState = (el: HTMLElement) => {
-  const sc = schemaFor(el)
-  // The inline schema has no block nodes; its list/heading rules would throw.
-  const hasBlocks = !!sc.nodes.list_item
-  return EditorState.create({
+const buildState = (el: HTMLElement) =>
+  EditorState.create({
     doc: parseElement(el),
     plugins: [
       history(),
-      markKeymap(sc),
-      ...(hasBlocks ? [blockInputRules(sc), listKeymap(sc)] : [breakKeymap]),
+      markKeymap(),
+      blockInputRules(),
+      listKeymap(),
       keymap(baseKeymap),
     ],
   })
-}
 
 /** GrapesJS plugin: swap the RTE engine for ProseMirror. */
 export const rtePlugin: Plugin = (editor: Editor) => {
@@ -163,23 +148,19 @@ export const rtePlugin: Plugin = (editor: Editor) => {
       // component (getEditing() isn't set yet at this point).
       const comp = opts?.view?.model ?? editor.getEditing()
       if (!usesProseMirror(comp)) {
-        // Marker returned last time: nothing to rebuild, just re-focus.
         if (!isPlain(view)) el.contentEditable = "true"
         el.focus()
         return { __tcPlain: true }
       }
 
-      // GrapesJS caches and re-passes the last returned instance even after we
-      // destroyed it on `disable` — reuse it only when it's still alive and
-      // mounted on this element (the "re-focus the active editor" case).
-      // Otherwise fall through and build a fresh view; a stale/destroyed one
-      // here is why re-editing showed no toolbar and swallowed typing.
-      const prev = view as TrackedView | undefined
-      if (prev && !prev.__tcDead && prev.dom === el) {
-        prev.focus()
-        return prev
+      // Re-focus the live editor if we're already mounted on this element.
+      const existing = elToEntry.get(el)
+      if (existing) {
+        existing.view.focus()
+        return existing.view
       }
-      const created: TrackedView = new EditorView(
+
+      const created: EditorView = new EditorView(
         { mount: el },
         {
           state: buildState(el),
@@ -189,53 +170,62 @@ export const rtePlugin: Plugin = (editor: Editor) => {
           },
         }
       )
-      created.focus()
-      // `editor.getEditing()` isn't set yet at this point — take the component
-      // straight off the text view GrapesJS hands us (it anchors the toolbar).
-      editor.trigger(RTE_EVENTS.enable, {
+      const component = (opts?.view?.model ??
+        editor.getEditing()) as Component
+      elToEntry.set(el, {
         view: created,
-        component: opts?.view?.model ?? editor.getEditing(),
-        // Inline mounts (a `<p>`/`<h1>`/…) edit only inline content, so the
-        // toolbar hides its block-level controls.
-        inline: isInlineHost(el),
+        component,
+        initialDoc: created.state.doc,
       })
+      created.focus()
+      editor.trigger(RTE_EVENTS.enable, { view: created, component })
       return created
     },
 
     disable(el, view) {
-      // Plain branch: just drop editability — nothing emptied the element, so
-      // no DOM restore and no toolbar teardown is needed.
+      // Plain branch: just drop editability — nothing was emptied.
       if (isPlain(view)) {
         el.removeAttribute("contenteditable")
         return
       }
+      const entry = elToEntry.get(el)
+      if (!entry) return
       editor.trigger(RTE_EVENTS.disable)
-      const dead = view as TrackedView | undefined
-      if (dead && !dead.__tcDead) {
-        // Snapshot the content before tearing the view down so `getContent`
-        // still answers correctly on GrapesJS' repeat disable pass.
-        dead.__tcHTML = serializeDoc(dead.state.doc)
-        dead.__tcDead = true
-        // Destroying a mounted view empties the element it was mounted on.
-        dead.destroy()
+      const changed = docChanged(el)
+      elToEntry.delete(el)
+      // Destroying the mounted view empties the element. When the content
+      // changed, `forceSync` makes GrapesJS rebuild the component from it and
+      // repaint. When it didn't, GrapesJS skips its sync (no churn) — so we
+      // repaint by re-mounting the component's React element from its unchanged
+      // model, once GrapesJS has finished the disable pass. We use the
+      // bump-key-only repaint event (NOT `rerender`): `rerender` would fire the
+      // React renderer's synchronous `view.remove()`, which races the DOM
+      // ProseMirror just destroyed (`Node.removeChild: not a child`).
+      if (!changed) {
+        editor.once(editor.RichTextEditor.events.disable, () =>
+          entry.component.trigger(RTE_REPAINT_EVENT)
+        )
       }
+      entry.view.destroy()
       el.removeAttribute("contenteditable")
-      // Destroying the view emptied the element. GrapesJS repaints it from the
-      // edited content via `syncContent`, but it *skips* that whenever the
-      // content matches the `lastContent` it captured — and across a second
-      // edit session that comparison is serialized-vs-serialized, so an
-      // unchanged doc skips the sync and the element is left blank (the whole
-      // block would then be lost on the next edit). Force the sync so GrapesJS
-      // always rebuilds the component from the content and repaints. We return
-      // no HTML of our own — no raw `innerHTML` write — so there's no
-      // detach-then-`removeChild` race with `resetFromString`.
-      return { forceSync: true }
+      return { forceSync: changed }
     },
 
-    getContent(el, view) {
+    getContent(el, view, opts) {
       // Plain branch: the DOM is the source of truth (native-engine behavior).
       if (isPlain(view)) return el.innerHTML
-      return viewContent(view as TrackedView | undefined, el)
+      const entry = elToEntry.get(el)
+      // No live entry (post-disable pass): fall back to the DOM.
+      if (!entry) return el.innerHTML
+      // Unchanged → hand back GrapesJS' own recorded content so its
+      // `content === lastContent` check skips the sync (no churn). Changed →
+      // serialize the current doc.
+      if (!docChanged(el)) {
+        const last = (opts as { view?: { lastContent?: string } } | undefined)
+          ?.view?.lastContent
+        return last ?? serializeDoc(entry.view.state.doc)
+      }
+      return serializeDoc(entry.view.state.doc)
     },
   })
 }
