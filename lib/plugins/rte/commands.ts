@@ -288,6 +288,33 @@ export const applyTextStyle = (
 
 // --- misc -----------------------------------------------------------------
 
+/** Insert an image node at the selection (no-op without the node or a src). */
+export const insertImage =
+  (attrs: { src: string; alt?: string | null; title?: string | null }): Command =>
+  (state, dispatch) => {
+    const image = state.schema.nodes.image
+    if (!image || !attrs.src) return false
+    if (dispatch)
+      dispatch(
+        state.tr
+          .replaceSelectionWith(
+            image.create({
+              src: attrs.src,
+              alt: attrs.alt ?? null,
+              title: attrs.title ?? null,
+            })
+          )
+          .scrollIntoView()
+      )
+    return true
+  }
+
+/** Focus the view and insert an image (used by the Asset Manager flow). */
+export const applyImage = (
+  view: EditorView,
+  attrs: { src: string; alt?: string | null; title?: string | null }
+): boolean => runCmd(view, insertImage(attrs))
+
 export const insertHorizontalRule: Command = (state, dispatch) => {
   const hr = state.schema.nodes.horizontal_rule
   if (!hr) return false

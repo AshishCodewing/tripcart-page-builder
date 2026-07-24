@@ -37,6 +37,10 @@ const CANVAS_STYLE_URLS = [
   "/vendor/open-props.min.css",
   "/vendor/open-props-colors-hsl.min.css",
   "/tc-normalize.css",
+  // prosemirror-view's base CSS (white-space: pre-wrap on `.ProseMirror`, gap
+  // cursor, selected-node outline). The RTE mounts inside this iframe, so the
+  // engine needs its stylesheet here — see scripts/sync-vendor-css.mjs.
+  "/vendor/prosemirror.css",
 ]
 
 export const buildGjsOptions = (

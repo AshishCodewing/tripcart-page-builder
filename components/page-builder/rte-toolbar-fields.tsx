@@ -1,17 +1,29 @@
 "use client"
 
 import * as React from "react"
+import type { Editor } from "grapesjs"
 import type { EditorView } from "prosemirror-view"
-import { Link as LinkIcon } from "lucide-react"
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Image as ImageIcon,
+  Link as LinkIcon,
+} from "lucide-react"
 
 import {
+  ALIGNMENTS,
   BLOCK_FORMATS,
+  alignActive,
+  applyImage,
   applyLink,
   applyTextStyle,
   blockFormat,
   linkAt,
   removeLink,
   runCmd,
+  setAlign,
   setBlockFormat,
   type TextStyleAttr,
 } from "@/lib/plugins/rte"
@@ -36,8 +48,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useThemeSelector } from "@/hooks/use-theme"
 import { cn } from "@/lib/utils"
+
+/** Shared classes for an icon-only toolbar button (matches the mark toggles). */
+const ICON_BTN =
+  "size-8 [&_svg:not([class*='size-'])]:size-4 aria-pressed:bg-muted"
 
 /**
  * Popups portal to `document.body`, outside the RTE toolbar container — and
@@ -67,9 +88,8 @@ export function BlockFormatSelect({ view }: RteFieldProps) {
     >
       <SelectTrigger
         size="sm"
-        className="h-7 w-28 text-xs"
+        className="h-8 w-28 text-xs"
         aria-label="Block format"
-        title="Block format"
       >
         <SelectValue placeholder="Format">
           {(val) =>
@@ -85,6 +105,99 @@ export function BlockFormatSelect({ view }: RteFieldProps) {
         ))}
       </SelectContent>
     </Select>
+  )
+}
+
+const ALIGN_META = [
+  { value: "left", label: "Align left", icon: <AlignLeft /> },
+  { value: "center", label: "Align center", icon: <AlignCenter /> },
+  { value: "right", label: "Align right", icon: <AlignRight /> },
+  { value: "justify", label: "Justify", icon: <AlignJustify /> },
+] as const
+
+/** Text-alignment as a single dropdown (replaces the four align buttons). */
+export function AlignSelect({ view }: RteFieldProps) {
+  const current = ALIGNMENTS.find((a) => alignActive(view.state, a)) ?? "left"
+
+  return (
+    <Select
+      value={current}
+      onValueChange={(next) => {
+        // `setAlign` toggles to null when re-picking the active value; the
+        // Select never fires for the current item, so a pick always sets.
+        if (typeof next !== "string" || next === current) return
+        runCmd(view, setAlign(next as (typeof ALIGNMENTS)[number]))
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <SelectTrigger
+              size="sm"
+              className="h-8 w-14 px-1.5 [&_svg:not([class*='size-'])]:size-4"
+              aria-label="Alignment"
+            >
+              <SelectValue>
+                {(val) =>
+                  ALIGN_META.find((a) => a.value === val)?.icon ?? <AlignLeft />
+                }
+              </SelectValue>
+            </SelectTrigger>
+          }
+        />
+        <TooltipContent>Alignment</TooltipContent>
+      </Tooltip>
+      <SelectContent onMouseDown={keepEditing}>
+        {ALIGN_META.map((a) => (
+          <SelectItem key={a.value} value={a.value} className="text-xs">
+            <span className="flex items-center gap-2">
+              {a.icon}
+              {a.label}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/**
+ * Insert an image at the caret via GrapesJS' Asset Manager (mirrors the
+ * style-fields FileField flow), writing an `image` node into the RTE document.
+ */
+export function ImageControl({
+  view,
+  editor,
+}: RteFieldProps & { editor: Editor }) {
+  const open = () => {
+    editor.AssetManager.open({
+      types: ["image"],
+      select: (asset, complete) => {
+        const src = typeof asset === "string" ? asset : asset.getSrc()
+        if (src) applyImage(view, { src })
+        if (complete) editor.AssetManager.close()
+      },
+    })
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={ICON_BTN}
+            aria-label="Insert image"
+            onMouseDownCapture={(e) => e.preventDefault()}
+            onClick={open}
+          >
+            <ImageIcon />
+          </Button>
+        }
+      />
+      <TooltipContent>Insert image</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -123,9 +236,8 @@ function TokenSelect({
     >
       <SelectTrigger
         size="sm"
-        className={cn("h-7 text-xs", className)}
+        className={cn("h-8 text-xs", className)}
         aria-label={label}
-        title={label}
       >
         <SelectValue placeholder={label}>{() => label}</SelectValue>
       </SelectTrigger>
@@ -169,22 +281,6 @@ export function FontSizeSelect({ view }: RteFieldProps) {
   )
 }
 
-export function FontFamilySelect({ view }: RteFieldProps) {
-  const tokens = useThemeSelector(
-    (s) => s.theme.settings.typography?.fontFamilies
-  )
-  return (
-    <TokenSelect
-      view={view}
-      label="Font"
-      attr="fontFamily"
-      cssProp="font-family"
-      tokens={tokens ?? []}
-      className="w-24"
-    />
-  )
-}
-
 /**
  * Font colour / highlight. Theme swatches come first (they commit
  * `var(--tc--preset--color--…)`), with the full picker below for one-off
@@ -206,18 +302,25 @@ export function ColorControl({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={label}
-            title={label}
-            className="inline-flex h-7 min-w-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-muted [&_svg:not([class*='size-'])]:size-4"
-          />
-        }
-      >
-        {children}
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className={ICON_BTN}
+                  aria-label={label}
+                >
+                  {children}
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
       <PopoverContent
         align="start"
         sideOffset={6}
@@ -295,19 +398,26 @@ export function LinkControl({ view }: RteFieldProps) {
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label="Link"
-            title="Link"
-            aria-pressed={active}
-            className="inline-flex h-7 min-w-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-muted aria-pressed:bg-muted [&_svg:not([class*='size-'])]:size-4"
-          />
-        }
-      >
-        <LinkIcon />
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className={ICON_BTN}
+                  aria-label="Link"
+                  aria-pressed={active}
+                >
+                  <LinkIcon />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipContent>Link</TooltipContent>
+      </Tooltip>
       <PopoverContent
         align="start"
         sideOffset={6}

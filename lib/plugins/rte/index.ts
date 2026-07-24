@@ -42,6 +42,8 @@ export {
   applyLink,
   removeLink,
   applyTextStyle,
+  insertImage,
+  applyImage,
   insertHorizontalRule,
   insertHardBreak,
   removeFormat,

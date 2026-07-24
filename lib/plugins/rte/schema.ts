@@ -203,18 +203,20 @@ const preserveIdClass = (map: NodeMap, names: string[]): NodeMap => {
 // --- nodes ----------------------------------------------------------------
 
 // Start from the basic schema's node map (an OrderedMap), patch the two
-// textblocks that gained attrs, then mix in the list nodes. `image` is dropped
-// — text components don't host inline images in this builder.
+// textblocks that gained attrs, then mix in the list nodes. The basic `image`
+// node is kept (block-schema only — the Rich Text block's toolbar inserts one
+// via the Asset Manager); the inline schema below still omits it, so single
+// inline hosts (headings, buttons…) never host an image.
 const nodes = preserveIdClass(
   addListNodes(
     basicSchema.spec.nodes
       .update("paragraph", paragraph)
-      .update("heading", heading)
-      .remove("image"),
+      .update("heading", heading),
     "paragraph block*",
     "block"
   ),
   [
+    "image",
     "blockquote",
     "code_block",
     "horizontal_rule",

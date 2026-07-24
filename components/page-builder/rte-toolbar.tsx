@@ -3,274 +3,204 @@
 import * as React from "react"
 import { useEditorMaybe } from "@grapesjs/react"
 import type { Component } from "grapesjs"
-import { deleteSelection } from "prosemirror-commands"
-import type { Command, EditorState } from "prosemirror-state"
 import type { EditorView } from "prosemirror-view"
 import {
-  AlignCenter,
-  AlignJustify,
-  AlignLeft,
-  AlignRight,
   Baseline,
   Bold,
-  ClipboardPaste,
-  Copy,
   Highlighter,
   IndentDecrease,
   IndentIncrease,
   Italic,
   List,
   ListOrdered,
-  Minus,
-  Redo2,
-  RemoveFormatting,
-  Scissors,
   Strikethrough,
-  Subscript,
-  Superscript,
-  Trash2,
   Underline,
-  Undo2,
 } from "lucide-react"
 
 import {
   MARK_COMMANDS,
-  alignActive,
   indent,
-  insertHorizontalRule,
   listActive,
   markActive,
-  redoCmd,
-  removeFormat,
   RTE_EVENTS,
   runCmd,
-  setAlign,
   toggleInlineMark,
   toggleList,
-  undoCmd,
 } from "@/lib/plugins/rte"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Toggle } from "@/components/ui/toggle"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { CanvasFloating } from "./canvas-floating"
 import {
+  AlignSelect,
   BlockFormatSelect,
   ColorControl,
-  FontFamilySelect,
   FontSizeSelect,
+  ImageControl,
   LinkControl,
 } from "./rte-toolbar-fields"
 
-type ActionSpec = {
-  name: string
-  title: string
-  icon: React.ReactNode
-  /** Imperative apply against the live view. */
-  run: (view: EditorView) => void
-  /** Pressed (toggle) state. */
-  active?: (state: EditorState) => boolean
-  /** Enabled check; defaults to always-enabled. */
-  enabled?: (state: EditorState) => boolean
-}
+// GrapesJS stops `mousedown` bubbling out of its own toolbar; ours lives
+// elsewhere, so the root <div> re-adds `stopPropagation` (keeps the edit
+// session alive) and each control captures `mousedown` to `preventDefault` —
+// DOM focus stays off the button while the ProseMirror selection (in
+// view.state) is preserved; `runCmd` re-focuses the view before dispatching.
+const keepFocus = (e: React.MouseEvent) => e.preventDefault()
 
-/** Build a spec from a ProseMirror Command (dry-run drives the disabled state). */
-const cmd = (
-  base: Omit<ActionSpec, "run" | "enabled">,
-  command: Command
-): ActionSpec => ({
-  ...base,
-  run: (view) => runCmd(view, command),
-  enabled: (state) => command(state),
-})
+type MarkDef = { name: keyof typeof MARK_COMMANDS; title: string; icon: React.ReactNode }
 
-/** Run a browser clipboard command inside the canvas iframe document. */
-const clipboard =
-  (op: "copy" | "cut") =>
-  (view: EditorView): void => {
-    view.focus()
-    view.dom.ownerDocument.execCommand(op)
-  }
-
-const paste = (view: EditorView): void => {
-  view.focus()
-  navigator.clipboard?.readText().then(
-    (text) => {
-      if (text) view.dispatch(view.state.tr.insertText(text))
-    },
-    () => {}
-  )
-}
-
-const markSpec = (
-  name: keyof typeof MARK_COMMANDS,
-  title: string,
-  icon: React.ReactNode
-): ActionSpec => {
-  const type = MARK_COMMANDS[name]
-  return cmd(
-    { name, title, icon, active: (s) => markActive(s, type) },
-    toggleInlineMark(type)
-  )
-}
-
-// Toolbar groups. `link` is not here — it renders as <LinkControl> in the
-// fields row. The block-format / font / colour controls also live there.
-
-const markGroup: ActionSpec[] = [
-  markSpec("bold", "Bold", <Bold />),
-  markSpec("italic", "Italic", <Italic />),
-  markSpec("underline", "Underline", <Underline />),
-  markSpec("strikethrough", "Strikethrough", <Strikethrough />),
-  markSpec("subscript", "Subscript", <Subscript />),
-  markSpec("superscript", "Superscript", <Superscript />),
+const MARKS: MarkDef[] = [
+  { name: "bold", title: "Bold", icon: <Bold /> },
+  { name: "italic", title: "Italic", icon: <Italic /> },
+  { name: "underline", title: "Underline", icon: <Underline /> },
+  { name: "strikethrough", title: "Strikethrough", icon: <Strikethrough /> },
 ]
 
-const listGroup: ActionSpec[] = [
-  cmd(
-    {
-      name: "insertUnorderedList",
-      title: "Bulleted list",
-      icon: <List />,
-      active: (s) => listActive(s, false),
-    },
-    toggleList(false)
-  ),
-  cmd(
-    {
-      name: "insertOrderedList",
-      title: "Numbered list",
-      icon: <ListOrdered />,
-      active: (s) => listActive(s, true),
-    },
-    toggleList(true)
-  ),
-  cmd(
-    { name: "outdent", title: "Outdent", icon: <IndentDecrease /> },
-    indent(-1)
-  ),
-  cmd({ name: "indent", title: "Indent", icon: <IndentIncrease /> }, indent(1)),
-]
-
-const alignGroup: ActionSpec[] = [
-  cmd(
-    {
-      name: "justifyLeft",
-      title: "Align left",
-      icon: <AlignLeft />,
-      active: (s) => alignActive(s, "left"),
-    },
-    setAlign("left")
-  ),
-  cmd(
-    {
-      name: "justifyCenter",
-      title: "Align center",
-      icon: <AlignCenter />,
-      active: (s) => alignActive(s, "center"),
-    },
-    setAlign("center")
-  ),
-  cmd(
-    {
-      name: "justifyRight",
-      title: "Align right",
-      icon: <AlignRight />,
-      active: (s) => alignActive(s, "right"),
-    },
-    setAlign("right")
-  ),
-  cmd(
-    {
-      name: "justifyFull",
-      title: "Justify",
-      icon: <AlignJustify />,
-      active: (s) => alignActive(s, "justify"),
-    },
-    setAlign("justify")
-  ),
-]
-
-const hrSpec = cmd(
-  { name: "insertHorizontalRule", title: "Horizontal line", icon: <Minus /> },
-  insertHorizontalRule
-)
-
-const removeFormatSpec = cmd(
-  {
-    name: "removeFormat",
-    title: "Clear formatting",
-    icon: <RemoveFormatting />,
-  },
-  removeFormat
-)
-
-const clipboardGroup: ActionSpec[] = [
-  { name: "copy", title: "Copy", icon: <Copy />, run: clipboard("copy") },
-  { name: "cut", title: "Cut", icon: <Scissors />, run: clipboard("cut") },
-  { name: "paste", title: "Paste", icon: <ClipboardPaste />, run: paste },
-  cmd({ name: "delete", title: "Delete", icon: <Trash2 /> }, deleteSelection),
-]
-
-const historyGroup: ActionSpec[] = [
-  cmd({ name: "undo", title: "Undo", icon: <Undo2 /> }, undoCmd),
-  cmd({ name: "redo", title: "Redo", icon: <Redo2 /> }, redoCmd),
-]
-
-// Full toolbar for a block container mount.
-const BLOCK_GROUPS: ActionSpec[][] = [
-  markGroup,
-  listGroup,
-  alignGroup,
-  [hrSpec, removeFormatSpec],
-  clipboardGroup,
-  historyGroup,
-]
-
-// Inline mounts (a single `<p>`/`<h1>`/…) edit only inline content, so the
-// block-level groups (lists, align, horizontal rule) are dropped.
-const INLINE_GROUPS: ActionSpec[][] = [
-  markGroup,
-  [removeFormatSpec],
-  clipboardGroup,
-  historyGroup,
-]
-
-function ActionToggle({ view, spec }: { view: EditorView; spec: ActionSpec }) {
+/** Inline marks — independent toggles, so a multi-select ToggleGroup. */
+function MarkToggles({ view }: { view: EditorView }) {
   const state = view.state
-  const pressed = spec.active?.(state) ?? false
-  const disabled = spec.enabled ? !spec.enabled(state) : false
+  const active = MARKS.filter((m) =>
+    markActive(state, MARK_COMMANDS[m.name])
+  ).map((m) => m.name)
 
   return (
-    <Toggle
-      size="sm"
-      className="h-7 min-w-7 px-1.5"
-      aria-label={spec.title}
-      title={spec.title}
-      pressed={pressed}
-      disabled={disabled}
-      // Capture phase: GrapesJS stops `mousedown` bubbling out of the toolbar,
-      // so React's delegated onMouseDown never fires. preventDefault keeps DOM
-      // focus off the button; the ProseMirror selection lives in view.state,
-      // and `runCmd` re-focuses the view before dispatching.
-      onMouseDownCapture={(e) => e.preventDefault()}
-      onPressedChange={() => spec.run(view)}
+    <ToggleGroup
+      variant="outline"
+      multiple
+      value={active}
+      onValueChange={(next: string[]) => {
+        // Exactly one item flips per click — toggle that mark.
+        const before = new Set(active)
+        const after = new Set(next)
+        const changed = MARKS.find((m) => before.has(m.name) !== after.has(m.name))
+        if (changed) runCmd(view, toggleInlineMark(MARK_COMMANDS[changed.name]))
+      }}
     >
-      {spec.icon}
-    </Toggle>
+      {MARKS.map((m) => (
+        <Tooltip key={m.name}>
+          <TooltipTrigger
+            render={
+              <ToggleGroupItem
+                value={m.name}
+                aria-label={m.title}
+                onMouseDownCapture={keepFocus}
+              >
+                {m.icon}
+              </ToggleGroupItem>
+            }
+          />
+          <TooltipContent>{m.title}</TooltipContent>
+        </Tooltip>
+      ))}
+    </ToggleGroup>
   )
 }
+
+const LIST_ITEMS = [
+  { value: "bullet", title: "Bulleted list", icon: <List /> },
+  { value: "ordered", title: "Numbered list", icon: <ListOrdered /> },
+] as const
+
+/**
+ * Bulleted vs numbered are mutually exclusive (a block is one, the other, or
+ * neither), so a single-select ToggleGroup — picking one switches, re-picking
+ * the active one clears back to a plain block.
+ */
+function ListToggles({ view }: { view: EditorView }) {
+  const state = view.state
+  const current = listActive(state, false)
+    ? "bullet"
+    : listActive(state, true)
+      ? "ordered"
+      : ""
+
+  return (
+    <ToggleGroup
+      variant="outline"
+      value={current ? [current] : []}
+      onValueChange={(next: string[]) => {
+        const nextVal = next[0] ?? ""
+        if (nextVal === current) return
+        if (nextVal === "bullet") runCmd(view, toggleList(false))
+        else if (nextVal === "ordered") runCmd(view, toggleList(true))
+        // Deselected the active list → lift it back to a plain block.
+        else runCmd(view, toggleList(current === "ordered"))
+      }}
+    >
+      {LIST_ITEMS.map((it) => (
+        <Tooltip key={it.value}>
+          <TooltipTrigger
+            render={
+              <ToggleGroupItem
+                value={it.value}
+                aria-label={it.title}
+                onMouseDownCapture={keepFocus}
+              >
+                {it.icon}
+              </ToggleGroupItem>
+            }
+          />
+          <TooltipContent>{it.title}</TooltipContent>
+        </Tooltip>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+/** A momentary action (indent/outdent) — a plain button, not a toggle. */
+function ActionButton({
+  view,
+  label,
+  onRun,
+  children,
+}: {
+  view: EditorView
+  label: string
+  onRun: (view: EditorView) => void
+  children: React.ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={label}
+            onMouseDownCapture={keepFocus}
+            onClick={() => onRun(view)}
+          >
+            {children}
+          </Button>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+const Divider = () => (
+  <Separator orientation="vertical" className="mx-0.5 h-5 self-center!" />
+)
 
 /**
  * The rich-text toolbar.
  *
  * The RTE engine is ProseMirror (swapped in via `editor.setCustomRte(...)` in
- * lib/plugins/rte). This component listens for the `tc-rte:*` editor events
- * that plugin emits: `enable` hands over the live `EditorView` and the
- * component being edited, `update` fires on every transaction (each caret move)
- * so the toggle states re-read `view.state`, and `disable` tears the toolbar
- * down. Positioning uses `CanvasFloating` — the same floating-ui wrapper
- * `FloatingToolbar` / `FloatingBadge` use — so the toolbar stays on-screen
- * against the real viewport.
+ * lib/plugins/rte) and scoped to the Rich Text block. This component listens
+ * for the `tc-rte:*` editor events that plugin emits: `enable` hands over the
+ * live `EditorView` and the component being edited, `update` fires on every
+ * transaction (each caret move) so the toggle states re-read `view.state`, and
+ * `disable` tears the toolbar down. Positioning uses `CanvasFloating` — the
+ * same floating-ui wrapper `FloatingToolbar` / `FloatingBadge` use — so the
+ * toolbar stays on-screen against the real viewport.
  */
 export function RteToolbar() {
   const editor = useEditorMaybe()
@@ -316,7 +246,6 @@ export function RteToolbar() {
   }
 
   const fieldProps = { view }
-  const groups = inline ? INLINE_GROUPS : BLOCK_GROUPS
 
   return (
     <CanvasFloating
@@ -331,30 +260,42 @@ export function RteToolbar() {
           `w-max` + `max-w`: floating-ui positions this absolutely, where a
           flex-wrap box with only a max-width collapses to one icon per row.
           `w-max` sizes it to the single-row width, then max-w reflows it. */}
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        className="flex w-max max-w-[39rem] flex-wrap items-center gap-0.5 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
-      >
-        {!inline && <BlockFormatSelect {...fieldProps} />}
-        <FontSizeSelect {...fieldProps} />
-        <FontFamilySelect {...fieldProps} />
-        <ColorControl view={view} attr="color" label="Text color">
-          <Baseline />
-        </ColorControl>
-        <ColorControl view={view} attr="backgroundColor" label="Highlight">
-          <Highlighter />
-        </ColorControl>
-        <LinkControl {...fieldProps} />
+      <TooltipProvider delay={300}>
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          className="flex w-max flex-wrap items-center gap-0.5 rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-md"
+        >
+          <MarkToggles view={view} />
+          <ImageControl view={view} editor={editor} />
+          <LinkControl {...fieldProps} />
 
-        {groups.map((group, i) => (
-          <React.Fragment key={i}>
-            <Separator orientation="vertical" className="mx-0.5 h-5" />
-            {group.map((spec) => (
-              <ActionToggle key={spec.name} view={view} spec={spec} />
-            ))}
-          </React.Fragment>
-        ))}
-      </div>
+          {!inline && (
+            <>
+              <Divider />
+              <ListToggles view={view} />
+              <ActionButton view={view} label="Outdent" onRun={(v) => runCmd(v, indent(-1))}>
+                <IndentDecrease />
+              </ActionButton>
+              <ActionButton view={view} label="Indent" onRun={(v) => runCmd(v, indent(1))}>
+                <IndentIncrease />
+              </ActionButton>
+            </>
+          )}
+
+          <Divider />
+          <ColorControl view={view} attr="color" label="Text color">
+            <Baseline />
+          </ColorControl>
+          <ColorControl view={view} attr="backgroundColor" label="Highlight">
+            <Highlighter />
+          </ColorControl>
+
+          <Divider />
+          {!inline && <AlignSelect {...fieldProps} />}
+          {!inline && <BlockFormatSelect {...fieldProps} />}
+          <FontSizeSelect {...fieldProps} />
+        </div>
+      </TooltipProvider>
     </CanvasFloating>
   )
 }

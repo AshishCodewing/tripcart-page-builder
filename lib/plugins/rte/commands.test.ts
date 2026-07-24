@@ -11,6 +11,7 @@ import {
   indent,
   insertHardBreak,
   insertHorizontalRule,
+  insertImage,
   linkAt,
   listActive,
   markActive,
@@ -195,6 +196,25 @@ describe("links", () => {
     const html = '<p><a href="/x">go</a></p>'
     const { html: out } = applyCmd(stateFrom(html, 2), removeLink)
     expect(out).toBe("<p>go</p>")
+  })
+})
+
+describe("image", () => {
+  it("round-trips an <img> in the block schema", () => {
+    const html = '<p>a</p><p><img src="/x.png" alt="alt"></p>'
+    const out = serializeDoc(parseElement(el(html)))
+    expect(out).toContain("<img")
+    expect(out).toContain('src="/x.png"')
+    expect(out).toContain('alt="alt"')
+  })
+
+  it("inserts an image node at the caret", () => {
+    const { html } = applyCmd(
+      stateFrom("<p>hi</p>", 2),
+      insertImage({ src: "/x.png", alt: "a" })
+    )
+    expect(html).toContain('<img')
+    expect(html).toContain('src="/x.png"')
   })
 })
 

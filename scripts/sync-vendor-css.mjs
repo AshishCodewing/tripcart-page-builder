@@ -30,6 +30,14 @@ const copies = [
     "node_modules/open-props/colors-hsl.min.css",
     "public/vendor/open-props-colors-hsl.min.css",
   ],
+  // prosemirror-view's base stylesheet — sets `white-space: pre-wrap` (and the
+  // gap-cursor / selected-node styles) on the `.ProseMirror` editable element.
+  // The RTE mounts inside the canvas iframe, so the canvas must load it via
+  // `canvas.styles`; without it prosemirror-view logs a white-space warning.
+  [
+    "node_modules/prosemirror-view/style/prosemirror.css",
+    "public/vendor/prosemirror.css",
+  ],
 ]
 
 for (const [src, dst] of copies) {
