@@ -76,7 +76,11 @@ const keepEditing = (e: React.MouseEvent) => e.stopPropagation()
  * the user clicked back into the text.
  */
 const returnFocus = (view: EditorView) => () => {
-  view.focus()
+  // Editing an anchor leaf's link writes to the component model, which
+  // re-renders the leaf and destroys this view. The popup's `finalFocus` fires
+  // on close after that, so guard against focusing a torn-down view
+  // (`view.docView` is null → `view.focus()` throws).
+  if (!view.isDestroyed) view.focus()
   return false
 }
 
