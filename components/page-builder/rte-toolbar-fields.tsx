@@ -68,6 +68,18 @@ const ICON_BTN =
  */
 const keepEditing = (e: React.MouseEvent) => e.stopPropagation()
 
+/**
+ * `finalFocus` for a base-ui Select/Popover popup: on close, refocus the
+ * ProseMirror editor (restoring its selection) instead of the trigger button,
+ * and return `false` so base-ui doesn't move focus itself. Without this the
+ * canvas is left blurred after picking a value, so typing wouldn't resume until
+ * the user clicked back into the text.
+ */
+const returnFocus = (view: EditorView) => () => {
+  view.focus()
+  return false
+}
+
 export type RteFieldProps = {
   /** The live ProseMirror view being edited. */
   view: EditorView
@@ -97,7 +109,7 @@ export function BlockFormatSelect({ view }: RteFieldProps) {
           }
         </SelectValue>
       </SelectTrigger>
-      <SelectContent onMouseDown={keepEditing}>
+      <SelectContent onMouseDown={keepEditing} finalFocus={returnFocus(view)}>
         {BLOCK_FORMATS.map((format) => (
           <SelectItem key={format.tag} value={format.tag} className="text-xs">
             {format.label}
@@ -147,7 +159,7 @@ export function AlignSelect({ view }: RteFieldProps) {
         />
         <TooltipContent>Alignment</TooltipContent>
       </Tooltip>
-      <SelectContent onMouseDown={keepEditing}>
+      <SelectContent onMouseDown={keepEditing} finalFocus={returnFocus(view)}>
         {ALIGN_META.map((a) => (
           <SelectItem key={a.value} value={a.value} className="text-xs">
             <span className="flex items-center gap-2">
@@ -175,7 +187,12 @@ export function ImageControl({
       select: (asset, complete) => {
         const src = typeof asset === "string" ? asset : asset.getSrc()
         if (src) applyImage(view, { src })
-        if (complete) editor.AssetManager.close()
+        if (complete) {
+          editor.AssetManager.close()
+          // Closing GrapesJS' modal restores focus away from the canvas; put it
+          // back on the editor once the close settles so typing resumes.
+          requestAnimationFrame(() => view.focus())
+        }
       },
     })
   }
@@ -241,7 +258,7 @@ function TokenSelect({
       >
         <SelectValue placeholder={label}>{() => label}</SelectValue>
       </SelectTrigger>
-      <SelectContent onMouseDown={keepEditing}>
+      <SelectContent onMouseDown={keepEditing} finalFocus={returnFocus(view)}>
         {tokens.map((token) => (
           <SelectItem
             key={token.slug}
@@ -326,6 +343,7 @@ export function ColorControl({
         sideOffset={6}
         className="w-64 gap-3 p-3"
         onMouseDown={keepEditing}
+        finalFocus={returnFocus(view)}
       >
         <ColorPicker
           value={value}
@@ -423,6 +441,7 @@ export function LinkControl({ view }: RteFieldProps) {
         sideOffset={6}
         className="w-72 gap-3 p-3"
         onMouseDown={keepEditing}
+        finalFocus={returnFocus(view)}
       >
         <div className="grid gap-1.5">
           <Label htmlFor="rte-link-url" className="text-xs">
