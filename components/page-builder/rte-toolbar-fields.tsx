@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { Editor } from "grapesjs"
+import type { Component, Editor } from "grapesjs"
 import type { EditorView } from "prosemirror-view"
 import {
   AlignCenter,
@@ -370,8 +370,26 @@ export function ColorControl({
  * a popover to set the anchor's URL, title and target — driven by the `link`
  * mark in the ProseMirror schema.
  */
-export function LinkControl({ view }: RteFieldProps) {
-  const active = !!linkAt(view.state)
+/**
+ * Whether the edited leaf is itself an anchor. Applying an inline link mark
+ * inside such a leaf would nest `<a>` in `<a>` (invalid HTML; crashes React's
+ * reconciler), so the control edits the component's own `href`/`target` instead —
+ * the same branch Studio's `rteProseMirror` takes for `component.is("link")`.
+ */
+const isAnchorLeaf = (component: Component | null): boolean =>
+  !!component &&
+  (component.get("type") === "link" || component.get("tagName") === "a")
+
+export function LinkControl({
+  view,
+  component,
+}: RteFieldProps & { component: Component | null }) {
+  const anchor = isAnchorLeaf(component)
+  // For an anchor leaf the "link" is its own `href` attribute; otherwise it's a
+  // link mark under the caret.
+  const active = anchor
+    ? !!component?.getAttributes().href
+    : !!linkAt(view.state)
   const [open, setOpen] = React.useState(false)
   const [href, setHref] = React.useState("")
   const [title, setTitle] = React.useState("")
@@ -380,9 +398,20 @@ export function LinkControl({ view }: RteFieldProps) {
 
   const onOpenChange = (next: boolean) => {
     if (next) {
-      const link = linkAt(view.state)
+      // Prefill from the component's own attributes (anchor leaf) or the link
+      // mark covering the caret (everything else).
+      const link = anchor
+        ? (() => {
+            const a = component?.getAttributes() ?? {}
+            return {
+              href: (a.href as string) ?? null,
+              title: (a.title as string) ?? null,
+              target: (a.target as string) ?? null,
+            }
+          })()
+        : linkAt(view.state)
       const linkTarget = link?.target
-      setHasLink(!!link)
+      setHasLink(anchor ? !!link?.href : !!link)
       setHref(link?.href ?? "")
       setTitle(link?.title ?? "")
       setTarget(
@@ -396,6 +425,25 @@ export function LinkControl({ view }: RteFieldProps) {
 
   const apply = () => {
     const rel = target === "_blank" ? "noopener noreferrer" : null
+    if (anchor && component) {
+      // Edit the anchor's own attributes — never insert a nested `<a>`.
+      const attrs: Record<string, string> = {}
+      if (href) attrs.href = href
+      if (title) attrs.title = title
+      if (target !== "_self") {
+        attrs.target = target
+        if (rel) attrs.rel = rel
+      }
+      component.addAttributes(attrs)
+      // Clear anything the user emptied (addAttributes only merges).
+      const drop: string[] = []
+      if (!href) drop.push("href")
+      if (!title) drop.push("title")
+      if (target === "_self") drop.push("target", "rel")
+      if (drop.length) component.removeAttributes(drop)
+      setOpen(false)
+      return
+    }
     applyLink(
       view,
       {
@@ -410,6 +458,11 @@ export function LinkControl({ view }: RteFieldProps) {
   }
 
   const remove = () => {
+    if (anchor && component) {
+      component.removeAttributes(["href", "title", "target", "rel"])
+      setOpen(false)
+      return
+    }
     runCmd(view, removeLink)
     setOpen(false)
   }

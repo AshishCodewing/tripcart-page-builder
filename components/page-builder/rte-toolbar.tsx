@@ -267,7 +267,7 @@ export function RteToolbar() {
         >
           <MarkToggles view={view} />
           {!inline && <ImageControl view={view} editor={editor} />}
-          <LinkControl {...fieldProps} />
+          <LinkControl view={view} component={component} />
 
           {!inline && (
             <>
