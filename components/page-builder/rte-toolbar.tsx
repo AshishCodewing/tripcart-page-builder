@@ -266,7 +266,7 @@ export function RteToolbar() {
           className="flex w-max flex-wrap items-center gap-0.5 rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-md"
         >
           <MarkToggles view={view} />
-          <ImageControl view={view} editor={editor} />
+          {!inline && <ImageControl view={view} editor={editor} />}
           <LinkControl {...fieldProps} />
 
           {!inline && (

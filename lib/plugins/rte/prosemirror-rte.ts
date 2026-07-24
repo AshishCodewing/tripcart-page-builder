@@ -15,6 +15,14 @@
 // HTML-string compares. On disable we return `{ forceSync: changed }`; when
 // nothing changed we instead re-render the component from its model to repaint
 // the element the destroyed view emptied. No raw `innerHTML` writes.
+//
+// Every editable component now routes through ProseMirror. The Rich Text block
+// uses the full block schema; every other editable leaf (default Text block,
+// headings, buttons, links) uses the inline schema (`inline: true` on the entry
+// and the enable event) with an inline-only toolbar. Because ProseMirror owns
+// the mounted element's DOM, leaf editing no longer touches bare
+// `contenteditable`, avoiding the React-reconcile-over-mutated-DOM corruption
+// the old plain branch suffered.
 
 import type { Component, Editor, Plugin } from "grapesjs"
 import { baseKeymap, toggleMark } from "prosemirror-commands"
@@ -25,7 +33,7 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules"
 import { keymap } from "prosemirror-keymap"
-import type { Node as PMNode } from "prosemirror-model"
+import type { Node as PMNode, Schema } from "prosemirror-model"
 import {
   liftListItem,
   sinkListItem,
@@ -36,8 +44,16 @@ import { EditorView } from "prosemirror-view"
 
 import { RTE_REPAINT_EVENT } from "@/lib/plugins/react-renderer"
 
+import { insertHardBreak } from "./commands"
 import { RICH_TEXT_TYPE } from "./rich-text-block"
-import { parseElement, schema, serializeDoc } from "./schema"
+import {
+  inlineSchema,
+  parseElement,
+  parseInlineElement,
+  schema,
+  serializeDoc,
+  serializeInlineDoc,
+} from "./schema"
 
 /** Per-element editing state, keyed by the mounted DOM element. */
 type RteEntry = {
@@ -45,29 +61,21 @@ type RteEntry = {
   component: Component
   /** The doc the session started from, for structural change detection. */
   initialDoc: PMNode
+  /** Leaf (inline schema) vs the Rich Text block (block schema). */
+  inline: boolean
 }
 
 const elToEntry = new WeakMap<HTMLElement, RteEntry>()
 
-/**
- * The marker returned for the "plain" branch — any editable node that isn't a
- * `rich-text` component. It edits as bare `contenteditable` with no toolbar (no
- * ProseMirror mount, no `tc-rte:*` events), so the RTE stays fully contained to
- * the one opt-in block.
- */
-type PlainRte = { __tcPlain: true }
-
-type Rte = EditorView | PlainRte
-
-const isPlain = (rte: Rte | undefined): rte is PlainRte =>
-  !!rte && (rte as PlainRte).__tcPlain === true
+type Rte = EditorView
 
 /**
- * Whether the component being edited opts into ProseMirror. GrapesJS routes
- * every text edit through the single custom-RTE object, so we scope the rich
- * engine to the `rich-text` type here (see rich-text-block.ts).
+ * Whether the component being edited is the Rich Text block. GrapesJS routes
+ * every text edit through the single custom-RTE object; the Rich Text block
+ * gets the full block schema, every other editable leaf (links, headings,
+ * buttons, the plain Text block) gets the inline schema (see rich-text-block.ts).
  */
-const usesProseMirror = (comp: { get?: (k: string) => unknown } | undefined) =>
+const isRichTextBlock = (comp: { get?: (k: string) => unknown } | undefined) =>
   comp?.get?.("type") === RICH_TEXT_TYPE
 
 /** Did the element's doc change since the session started? (structural). */
@@ -83,12 +91,14 @@ export const RTE_EVENTS = {
   disable: "tc-rte:disable",
 } as const
 
-// Mark-toggle + history shortcuts.
-const markKeymap = () =>
+// Mark-toggle + history shortcuts. Resolves marks off the passed schema so it
+// works for both the block and inline schemas (distinct Schema instances, so
+// their MarkType objects aren't interchangeable).
+const markKeymap = (sch: Schema = schema) =>
   keymap({
-    "Mod-b": toggleMark(schema.marks.strong),
-    "Mod-i": toggleMark(schema.marks.em),
-    "Mod-u": toggleMark(schema.marks.underline),
+    "Mod-b": toggleMark(sch.marks.strong),
+    "Mod-i": toggleMark(sch.marks.em),
+    "Mod-u": toggleMark(sch.marks.underline),
     "Mod-z": undo,
     "Mod-y": redo,
     "Shift-Mod-z": redo,
@@ -132,6 +142,21 @@ const buildState = (el: HTMLElement) =>
     ],
   })
 
+// Inline leaf state: no list/block input rules or list keymap (those reference
+// nodes absent from `inlineSchema` and would throw at plugin construction).
+// Enter/Shift-Enter insert a `<br>` so line breaks never create block structure.
+const buildInlineState = (el: HTMLElement) =>
+  EditorState.create({
+    schema: inlineSchema,
+    doc: parseInlineElement(el),
+    plugins: [
+      history(),
+      markKeymap(inlineSchema),
+      keymap({ Enter: insertHardBreak, "Shift-Enter": insertHardBreak }),
+      keymap(baseKeymap),
+    ],
+  })
+
 /** GrapesJS plugin: swap the RTE engine for ProseMirror. */
 export const rtePlugin: Plugin = (editor: Editor) => {
   editor.setCustomRte<Rte>({
@@ -141,21 +166,13 @@ export const rtePlugin: Plugin = (editor: Editor) => {
     parseContent: true,
 
     enable(el, view, opts) {
-      // Scope the rich engine to the `rich-text` block. Everything else
-      // (default Text block, headings, buttons, links, …) edits as plain
-      // `contenteditable` with no toolbar — no ProseMirror, no `tc-rte:*`
-      // events, so <RteToolbar> never shows. `opts.view.model` is the edited
+      // Every editable component edits through ProseMirror. The Rich Text block
+      // gets the full block schema (paragraphs / headings / lists); every other
+      // editable leaf (default Text block, headings, buttons, links, …) gets the
+      // inline schema and an inline-only toolbar. `opts.view.model` is the edited
       // component (getEditing() isn't set yet at this point).
       const comp = opts?.view?.model ?? editor.getEditing()
-      if (!usesProseMirror(comp)) {
-        // Always (re)apply — `disable` strips `contenteditable` after every
-        // session, and GrapesJS hands the stale plain marker back as `view` on
-        // re-edit, so gating on `!isPlain(view)` left the element uneditable
-        // after the first edit. Setting it is idempotent.
-        el.contentEditable = "true"
-        el.focus()
-        return { __tcPlain: true }
-      }
+      const inline = !isRichTextBlock(comp)
 
       // Re-focus the live editor if we're already mounted on this element.
       const existing = elToEntry.get(el)
@@ -167,7 +184,7 @@ export const rtePlugin: Plugin = (editor: Editor) => {
       const created: EditorView = new EditorView(
         { mount: el },
         {
-          state: buildState(el),
+          state: inline ? buildInlineState(el) : buildState(el),
           dispatchTransaction(tr) {
             created.updateState(created.state.apply(tr))
             editor.trigger(RTE_EVENTS.update, { view: created })
@@ -180,18 +197,14 @@ export const rtePlugin: Plugin = (editor: Editor) => {
         view: created,
         component,
         initialDoc: created.state.doc,
+        inline,
       })
       created.focus()
-      editor.trigger(RTE_EVENTS.enable, { view: created, component })
+      editor.trigger(RTE_EVENTS.enable, { view: created, component, inline })
       return created
     },
 
-    disable(el, view) {
-      // Plain branch: just drop editability — nothing was emptied.
-      if (isPlain(view)) {
-        el.removeAttribute("contenteditable")
-        return
-      }
+    disable(el) {
       const entry = elToEntry.get(el)
       if (!entry) return
       editor.trigger(RTE_EVENTS.disable)
@@ -215,21 +228,20 @@ export const rtePlugin: Plugin = (editor: Editor) => {
       return { forceSync: changed }
     },
 
-    getContent(el, view, opts) {
-      // Plain branch: the DOM is the source of truth (native-engine behavior).
-      if (isPlain(view)) return el.innerHTML
+    getContent(el, _view, opts) {
       const entry = elToEntry.get(el)
       // No live entry (post-disable pass): fall back to the DOM.
       if (!entry) return el.innerHTML
+      const serialize = entry.inline ? serializeInlineDoc : serializeDoc
       // Unchanged → hand back GrapesJS' own recorded content so its
       // `content === lastContent` check skips the sync (no churn). Changed →
       // serialize the current doc.
       if (!docChanged(el)) {
         const last = (opts as { view?: { lastContent?: string } } | undefined)
           ?.view?.lastContent
-        return last ?? serializeDoc(entry.view.state.doc)
+        return last ?? serialize(entry.view.state.doc)
       }
-      return serializeDoc(entry.view.state.doc)
+      return serialize(entry.view.state.doc)
     },
   })
 }
