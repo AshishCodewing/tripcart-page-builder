@@ -13,6 +13,7 @@ import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { tabsPlugin } from "@/lib/plugins/interactive"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
+import { richTextBlockPlugin, rtePlugin } from "@/lib/plugins/rte"
 import { tcRemoteStorage } from "@/lib/plugins/tc-storage-adapter"
 import { templateRefPlugin } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
@@ -36,6 +37,10 @@ const CANVAS_STYLE_URLS = [
   "/vendor/open-props.min.css",
   "/vendor/open-props-colors-hsl.min.css",
   "/tc-normalize.css",
+  // prosemirror-view's base CSS (white-space: pre-wrap on `.ProseMirror`, gap
+  // cursor, selected-node outline). The RTE mounts inside this iframe, so the
+  // engine needs its stylesheet here — see scripts/sync-vendor-css.mjs.
+  "/vendor/prosemirror.css",
 ]
 
 export const buildGjsOptions = (
@@ -77,6 +82,9 @@ export const buildGjsOptions = (
   styleManager: {
     sectors: STYLE_SECTORS,
   },
+  // The RTE engine is ProseMirror, swapped in via `editor.setCustomRte(...)`
+  // inside `rtePlugin`. GrapesJS renders no action bar of its own for a custom
+  // RTE — <RteToolbar /> positions the shadcn UI itself over the edited node.
   // Default panels removed in favor of the WP-style React chrome.
   // The core:open-blocks / core:open-layers commands still exist; their
   // legacy panel targets are gone until React Sheets are added.
@@ -104,6 +112,11 @@ export const buildGjsOptions = (
       gjsBlocksBasic(editor, {
         blocks: ["text", "link", "image", "video", "map"],
       }),
+    // The opt-in Rich Text block (`rich-text` type). Registers after
+    // gjsBlocksBasic so the base `text` type it extends and the "Basic" block
+    // category both exist; the ProseMirror router (rtePlugin) scopes the
+    // custom RTE to this type.
+    richTextBlockPlugin,
     columnsPlugin,
     // Interactive web-component blocks (tc-tabs, …). After designSystemPlugin
     // so `--tc--preset--*` resolves in the type's `defaults.styles`, and after
@@ -125,6 +138,10 @@ export const buildGjsOptions = (
     // `single` LAYOUT re-identifies its nodes); the draggable blocks appear
     // only when editing a LAYOUT (`allowPostFields`).
     postFieldsPlugin({ enabled: options.allowPostFields }),
+    // Swaps the RTE engine for ProseMirror via `editor.setCustomRte(...)`.
+    // The shadcn toolbar (<RteToolbar />) drives the live EditorView through
+    // the `tc-rte:*` events this plugin emits.
+    rtePlugin,
     styleFilterPlugin,
     styleBgPlugin,
   ],

@@ -38,7 +38,6 @@
   accent-color: var(--brand, var(--tc--preset--color--primary));
   background-color: var(--tc--preset--color--background);
   block-size: 100%;
-  caret-color: var(--brand, var(--tc--preset--color--primary));
   color: var(--tc--preset--color--foreground);
   font-family: var(--font-system-ui);
   line-height: var(--font-lineheight-3);
