@@ -380,18 +380,6 @@ const isAnchorLeaf = (component: Component | null): boolean =>
   !!component &&
   (component.get("type") === "link" || component.get("tagName") === "a")
 
-/**
- * Writing to the GrapesJS model re-renders the leaf element, which can drop the
- * ProseMirror editing surface (and focus) out from under us. Restore both so the
- * anchor stays editable after its attributes change — mirrors Studio's post-
- * `addAttributes` recovery in `link.create`.
- */
-const restoreLeafEditing = (view: EditorView) => {
-  const el = view.dom as HTMLElement
-  if (el.contentEditable !== "true") el.contentEditable = "true"
-  view.focus()
-}
-
 export function LinkControl({
   view,
   component,
@@ -453,7 +441,6 @@ export function LinkControl({
       if (!title) drop.push("title")
       if (target === "_self") drop.push("target", "rel")
       if (drop.length) component.removeAttributes(drop)
-      restoreLeafEditing(view)
       setOpen(false)
       return
     }
@@ -473,7 +460,6 @@ export function LinkControl({
   const remove = () => {
     if (anchor && component) {
       component.removeAttributes(["href", "title", "target", "rel"])
-      restoreLeafEditing(view)
       setOpen(false)
       return
     }
