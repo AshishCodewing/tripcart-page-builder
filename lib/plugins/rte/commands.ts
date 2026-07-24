@@ -218,14 +218,32 @@ export type LinkAttrs = {
   rel: string | null
 }
 
-/** The link mark covering the caret, if any (for prefilling the popover). */
-export const linkAt = (state: EditorState): LinkAttrs | null => {
+/** The generic attribute bag on a link mark (href / class / data-* / …). */
+const linkBag = (state: EditorState): Record<string, string> | null => {
   const { $from } = state.selection
   const mark = state.schema.marks.link.isInSet($from.marks())
-  return mark ? (mark.attrs as LinkAttrs) : null
+  if (!mark) return null
+  return (mark.attrs.attrs as Record<string, string>) ?? {}
 }
 
-/** Apply a link across the selection, or over the given text when collapsed. */
+/** The link mark covering the caret, if any (for prefilling the popover). */
+export const linkAt = (state: EditorState): LinkAttrs | null => {
+  const bag = linkBag(state)
+  if (!bag) return null
+  return {
+    href: bag.href ?? null,
+    title: bag.title ?? null,
+    target: bag.target ?? null,
+    rel: bag.rel ?? null,
+  }
+}
+
+/**
+ * Apply a link across the selection, or over the given text when collapsed. The
+ * popover's typed fields (href/title/target/rel) are overlaid onto the existing
+ * link's attribute bag, so a URL edit preserves the link's class / data-* / other
+ * attributes; a `null` field clears just that key.
+ */
 export const applyLink = (
   view: EditorView,
   attrs: LinkAttrs,
@@ -234,7 +252,12 @@ export const applyLink = (
   view.focus()
   const { state } = view
   const { from, to, empty } = state.selection
-  const mark = state.schema.marks.link.create(attrs)
+  const bag: Record<string, string> = { ...(linkBag(state) ?? {}) }
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) delete bag[key]
+    else bag[key] = value
+  }
+  const mark = state.schema.marks.link.create({ attrs: bag })
   if (!empty) {
     view.dispatch(state.tr.addMark(from, to, mark))
     return

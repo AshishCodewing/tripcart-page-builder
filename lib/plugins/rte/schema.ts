@@ -283,37 +283,17 @@ const nodes = {
 
 // --- marks -----------------------------------------------------------------
 
+// The link mark carries the same generic attribute bag the nodes use, so a
+// link's full attribute set (class / data-* / aria-* / rel / target / …) survives
+// the edit → serialize → re-parse round-trip untouched — matching Studio, which
+// preserves every attribute on its marks. The toolbar's link popover overlays
+// only href/title/target/rel onto this bag (commands.ts `applyLink`), so editing
+// a link's URL never discards its other attributes.
 const link: MarkSpec = {
-  attrs: {
-    href: { default: null },
-    title: { default: null },
-    target: { default: null },
-    rel: { default: null },
-    id: { default: null },
-  },
+  attrs: bagSpec(),
   inclusive: false,
-  parseDOM: [
-    {
-      tag: "a[href]",
-      getAttrs: (dom: HTMLElement) => ({
-        href: dom.getAttribute("href"),
-        title: dom.getAttribute("title"),
-        target: dom.getAttribute("target"),
-        rel: dom.getAttribute("rel"),
-        id: dom.getAttribute("id"),
-      }),
-    },
-  ],
-  toDOM: (mark) => {
-    const { href, title, target, rel, id } = mark.attrs
-    const attrs: Record<string, string> = {}
-    if (href) attrs.href = href
-    if (title) attrs.title = title
-    if (target) attrs.target = target
-    if (rel) attrs.rel = rel
-    if (id) attrs.id = id
-    return ["a", attrs, 0] as DOMOutputSpec
-  },
+  parseDOM: [{ tag: "a[href]", getAttrs: (dom) => bagAttrs(dom as HTMLElement) }],
+  toDOM: (mark) => ["a", (mark.attrs.attrs as AttrBag) ?? {}, 0] as DOMOutputSpec,
 }
 
 const underline: MarkSpec = {

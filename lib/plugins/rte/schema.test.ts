@@ -48,6 +48,17 @@ describe("inline fragment schema", () => {
     expect(out.match(/<a\b/g)?.length).toBe(1)
   })
 
+  it("preserves a link's full attribute set on an untouched round-trip", () => {
+    const out = roundTrip(
+      '<a href="/x" class="btn" data-track="cta" rel="noopener" aria-label="Go">go</a>'
+    )
+    expect(out).toContain('href="/x"')
+    expect(out).toContain('class="btn"')
+    expect(out).toContain('data-track="cta"')
+    expect(out).toContain('rel="noopener"')
+    expect(out).toContain('aria-label="Go"')
+  })
+
   it("handles empty leaf content", () => {
     const doc = parseInlineElement(leaf(""))
     expect(doc.childCount).toBe(1)
