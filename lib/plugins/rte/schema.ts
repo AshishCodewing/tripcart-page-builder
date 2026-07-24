@@ -26,7 +26,11 @@ import {
   type NodeSpec,
   type TagParseRule,
 } from "prosemirror-model"
-import { schema as basicSchema, marks as basicMarks } from "prosemirror-schema-basic"
+import {
+  schema as basicSchema,
+  marks as basicMarks,
+  nodes as basicNodes,
+} from "prosemirror-schema-basic"
 import { addListNodes } from "prosemirror-schema-list"
 
 /** Block formats offered by the format dropdown, in menu order. */
@@ -88,7 +92,8 @@ const readBlockAttrs = (dom: HTMLElement): BlockAttrs => {
   const em = ml && /^([\d.]+)em$/.exec(ml)
   if (em) indent = Math.max(0, Math.round(parseFloat(em[1]) / INDENT_STEP_EM))
   return {
-    align: align && (ALIGNMENTS as readonly string[]).includes(align) ? align : null,
+    align:
+      align && (ALIGNMENTS as readonly string[]).includes(align) ? align : null,
     indent,
     id: dom.getAttribute("id") || null,
     class: dom.getAttribute("class") || null,
@@ -111,7 +116,9 @@ const paragraph: NodeSpec = {
   content: "inline*",
   group: "block",
   attrs: alignIndentAttrs(),
-  parseDOM: [{ tag: "p", getAttrs: (dom) => readBlockAttrs(dom as HTMLElement) }],
+  parseDOM: [
+    { tag: "p", getAttrs: (dom) => readBlockAttrs(dom as HTMLElement) },
+  ],
   toDOM: (node) => ["p", blockDOMAttrs(node), 0] as DOMOutputSpec,
 }
 
@@ -144,7 +151,11 @@ const injectDOMAttrs = (spec: DOMOutputSpec, node: PMNode): DOMOutputSpec => {
     typeof rest[0] === "object" &&
     !Array.isArray(rest[0])
   return hasAttrs
-    ? ([tag, { ...(rest[0] as object), ...extra }, ...rest.slice(1)] as DOMOutputSpec)
+    ? ([
+        tag,
+        { ...(rest[0] as object), ...extra },
+        ...rest.slice(1),
+      ] as DOMOutputSpec)
     : ([tag, extra, ...rest] as DOMOutputSpec)
 }
 
@@ -203,7 +214,14 @@ const nodes = preserveIdClass(
     "paragraph block*",
     "block"
   ),
-  ["blockquote", "code_block", "horizontal_rule", "ordered_list", "bullet_list", "list_item"]
+  [
+    "blockquote",
+    "code_block",
+    "horizontal_rule",
+    "ordered_list",
+    "bullet_list",
+    "list_item",
+  ]
 )
 
 // --- marks ----------------------------------------------------------------
@@ -338,19 +356,88 @@ const marks = {
   textStyle,
 }
 
-export const schema = new Schema({ nodes, marks })
+// --- schemas --------------------------------------------------------------
+
+// Two schemas, chosen per mount element (see `schemaFor`):
+//   - `blockSchema` (the default) edits a *container* whose document is a stack
+//     of blocks — the generic `<div>` text component, list items, table cells…
+//   - `inlineSchema` edits a *single leaf block* the RTE mounts directly on
+//     (`<p>`, `<h1>`…`<h6>`, `<span>`, `<a>`, …). Its document is just inline
+//     content, so ProseMirror never nests a `<p>` inside the mounted element
+//     (which would corrupt e.g. a heading into `<h2><p>…</p></h2>`). This is the
+//     "compose a document just of text / edit inline content" schema from the
+//     ProseMirror docs. Same marks as the block schema; no block nodes.
+
+/** The container schema: `doc: "block+"`, full block + inline toolbar. */
+export const blockSchema = new Schema({ nodes, marks })
+
+/** Back-compat alias — most call sites want the container schema. */
+export const schema = blockSchema
+
+// `inline*` (not `inline+`) keeps an empty element valid; `hard_break` is a
+// generatable node but is only inserted on an explicit line-break keystroke, so
+// it never auto-fills an empty document.
+export const inlineSchema = new Schema({
+  nodes: {
+    doc: { content: "inline*" },
+    text: { group: "inline" },
+    hard_break: basicNodes.hard_break,
+  },
+  marks,
+})
+
+// --- mount-element classification -----------------------------------------
+
+/**
+ * Tags whose HTML content model is phrasing-only, so the RTE edits their inline
+ * content in place with `inlineSchema` rather than nesting a block. Everything
+ * else (div, li, td, blockquote, section…) is a block container → `blockSchema`.
+ */
+const INLINE_HOST_TAGS = new Set([
+  "p",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "span",
+  "a",
+  "button",
+  "label",
+  "figcaption",
+  "caption",
+  "summary",
+])
+
+/** Whether the RTE should edit `el` as a single inline block. */
+export const isInlineHost = (el: HTMLElement): boolean =>
+  INLINE_HOST_TAGS.has(el.tagName.toLowerCase())
+
+/** The schema to edit `el` with. */
+export const schemaFor = (el: HTMLElement): Schema =>
+  isInlineHost(el) ? inlineSchema : blockSchema
 
 // --- HTML round-trip ------------------------------------------------------
 
-const domParser = PMDOMParser.fromSchema(schema)
-const domSerializer = DOMSerializer.fromSchema(schema)
+const blockParser = PMDOMParser.fromSchema(blockSchema)
+const blockSerializer = DOMSerializer.fromSchema(blockSchema)
+const inlineParser = PMDOMParser.fromSchema(inlineSchema)
+const inlineSerializer = DOMSerializer.fromSchema(inlineSchema)
 
-/** Parse a component's DOM element into a ProseMirror document. */
-export const parseElement = (el: HTMLElement): PMNode => domParser.parse(el)
+/** Parse a component's DOM element into a ProseMirror document (schema per tag). */
+export const parseElement = (el: HTMLElement): PMNode =>
+  (isInlineHost(el) ? inlineParser : blockParser).parse(el)
 
-/** Serialize a document to an HTML string (the authoritative RTE output). */
+/**
+ * Serialize a document to an HTML string (the authoritative RTE output). An
+ * inline-schema doc serializes to bare inline HTML (`Hello <strong>x</strong>`),
+ * which is exactly what GrapesJS stores as the mounted element's children.
+ */
 export const serializeDoc = (doc: PMNode): string => {
+  const serializer =
+    doc.type.schema === inlineSchema ? inlineSerializer : blockSerializer
   const target = document.createElement("div")
-  target.appendChild(domSerializer.serializeFragment(doc.content))
+  target.appendChild(serializer.serializeFragment(doc.content))
   return target.innerHTML
 }

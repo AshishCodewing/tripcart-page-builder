@@ -17,6 +17,7 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules"
 import { keymap } from "prosemirror-keymap"
+import type { Schema } from "prosemirror-model"
 import {
   liftListItem,
   sinkListItem,
@@ -25,9 +26,8 @@ import {
 import { EditorState } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
 
-import { parseElement, schema, serializeDoc } from "./schema"
-
-const { marks, nodes } = schema
+import { insertHardBreak } from "./commands"
+import { isInlineHost, parseElement, schemaFor, serializeDoc } from "./schema"
 
 /**
  * An EditorView we track across GrapesJS' enable/disable lifecycle.
@@ -42,7 +42,10 @@ const { marks, nodes } = schema
 type TrackedView = EditorView & { __tcDead?: boolean; __tcHTML?: string }
 
 /** Content from a view, caching the serialization while it's still alive. */
-const viewContent = (view: TrackedView | undefined, el: HTMLElement): string => {
+const viewContent = (
+  view: TrackedView | undefined,
+  el: HTMLElement
+): string => {
   if (view && !view.__tcDead) {
     view.__tcHTML = serializeDoc(view.state.doc)
     return view.__tcHTML
@@ -57,41 +60,66 @@ export const RTE_EVENTS = {
   disable: "tc-rte:disable",
 } as const
 
-const editorKeymap = keymap({
-  "Mod-b": toggleMark(marks.strong),
-  "Mod-i": toggleMark(marks.em),
-  "Mod-u": toggleMark(marks.underline),
-  "Mod-`": toggleMark(marks.code),
-  "Mod-z": undo,
-  "Mod-y": redo,
-  "Shift-Mod-z": redo,
-  Enter: splitListItem(nodes.list_item),
-  Tab: sinkListItem(nodes.list_item),
-  "Shift-Tab": liftListItem(nodes.list_item),
+// Mark-toggle + history shortcuts — valid for both schemas.
+const markKeymap = (sc: Schema) =>
+  keymap({
+    "Mod-b": toggleMark(sc.marks.strong),
+    "Mod-i": toggleMark(sc.marks.em),
+    "Mod-u": toggleMark(sc.marks.underline),
+    "Mod-`": toggleMark(sc.marks.code),
+    "Mod-z": undo,
+    "Mod-y": redo,
+    "Shift-Mod-z": redo,
+  })
+
+// List-editing keys — only when the schema has list nodes (block schema).
+const listKeymap = (sc: Schema) =>
+  keymap({
+    Enter: splitListItem(sc.nodes.list_item),
+    Tab: sinkListItem(sc.nodes.list_item),
+    "Shift-Tab": liftListItem(sc.nodes.list_item),
+  })
+
+// Line breaks for an inline (single-block) mount: the document can't be split,
+// so Enter and Shift-Enter both insert a `<br>` instead of doing nothing.
+const breakKeymap = keymap({
+  Enter: insertHardBreak,
+  "Shift-Enter": insertHardBreak,
 })
 
 // Markdown-style typing shortcuts: `- `, `1. `, `> `, `# `…`###### `.
-const typingRules = inputRules({
-  rules: [
-    wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list),
-    wrappingInputRule(
-      /^(\d+)\.\s$/,
-      nodes.ordered_list,
-      (match) => ({ order: Number(match[1]) }),
-      (match, node) => node.childCount + node.attrs.order === Number(match[1])
-    ),
-    wrappingInputRule(/^\s*>\s$/, nodes.blockquote),
-    textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (match) => ({
-      level: match[1].length,
-    })),
-  ],
-})
-
-const buildState = (el: HTMLElement) =>
-  EditorState.create({
-    doc: parseElement(el),
-    plugins: [history(), typingRules, editorKeymap, keymap(baseKeymap)],
+// All produce block constructs, so they're block-schema only.
+const blockInputRules = (sc: Schema) =>
+  inputRules({
+    rules: [
+      wrappingInputRule(/^\s*([-+*])\s$/, sc.nodes.bullet_list),
+      wrappingInputRule(
+        /^(\d+)\.\s$/,
+        sc.nodes.ordered_list,
+        (match) => ({ order: Number(match[1]) }),
+        (match, node) => node.childCount + node.attrs.order === Number(match[1])
+      ),
+      wrappingInputRule(/^\s*>\s$/, sc.nodes.blockquote),
+      textblockTypeInputRule(/^(#{1,6})\s$/, sc.nodes.heading, (match) => ({
+        level: match[1].length,
+      })),
+    ],
   })
+
+const buildState = (el: HTMLElement) => {
+  const sc = schemaFor(el)
+  // The inline schema has no block nodes; its list/heading rules would throw.
+  const hasBlocks = !!sc.nodes.list_item
+  return EditorState.create({
+    doc: parseElement(el),
+    plugins: [
+      history(),
+      markKeymap(sc),
+      ...(hasBlocks ? [blockInputRules(sc), listKeymap(sc)] : [breakKeymap]),
+      keymap(baseKeymap),
+    ],
+  })
+}
 
 /** GrapesJS plugin: swap the RTE engine for ProseMirror. */
 export const rtePlugin: Plugin = (editor: Editor) => {
@@ -128,6 +156,9 @@ export const rtePlugin: Plugin = (editor: Editor) => {
       editor.trigger(RTE_EVENTS.enable, {
         view: created,
         component: opts?.view?.model ?? editor.getEditing(),
+        // Inline mounts (a `<p>`/`<h1>`/…) edit only inline content, so the
+        // toolbar hides its block-level controls.
+        inline: isInlineHost(el),
       })
       return created
     },
@@ -143,6 +174,15 @@ export const rtePlugin: Plugin = (editor: Editor) => {
         dead.destroy()
       }
       el.removeAttribute("contenteditable")
+      // Force GrapesJS to rebuild the component from `getContent` even when the
+      // content is unchanged. Otherwise it compares the serialized output to the
+      // `lastContent` it captured at enable time (the element's raw innerHTML)
+      // and, when they match, skips `syncContent`. That skip is invisible for a
+      // block mount (whose innerHTML `Body` never equals the serialized
+      // `<p>Body</p>`), but for an inline mount the two are identical when the
+      // user didn't type — leaving the just-torn-down element empty and dropping
+      // its text. `RteDisableResult.forceSync` is GrapesJS' hook for exactly this.
+      return { forceSync: true }
     },
 
     getContent(el, view) {

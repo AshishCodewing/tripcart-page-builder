@@ -8,11 +8,7 @@
 
 import { setBlockType, toggleMark, wrapIn } from "prosemirror-commands"
 import { redo, undo } from "prosemirror-history"
-import {
-  liftListItem,
-  sinkListItem,
-  wrapInList,
-} from "prosemirror-schema-list"
+import { liftListItem, sinkListItem, wrapInList } from "prosemirror-schema-list"
 import {
   type Command,
   type EditorState,
@@ -23,7 +19,13 @@ import type { EditorView } from "prosemirror-view"
 
 import { ALIGNMENTS, schema, type TextStyleAttr } from "./schema"
 
-const { marks, nodes } = schema
+// The RTE runs two schemas (block container vs. single inline block — see
+// schema.ts). A MarkType/NodeType instance belongs to the schema that created
+// it, so commands must resolve their types from the *active* `state.schema`
+// rather than closing over one schema's instances. `marks` below is only the
+// block schema's mark set, used as a stable name-carrier for MARK_COMMANDS;
+// every command re-resolves against `state.schema` at run time.
+const { marks } = schema
 
 /** Focus the view and run a ProseMirror command against its current state. */
 export const runCmd = (view: EditorView, cmd: Command): boolean => {
@@ -44,29 +46,47 @@ export const MARK_COMMANDS: Record<string, MarkType> = {
   code: marks.code,
 }
 
-export const toggleInlineMark = (type: MarkType): Command => toggleMark(type)
+export const toggleInlineMark =
+  (type: MarkType): Command =>
+  (state, dispatch, view) => {
+    const active = state.schema.marks[type.name] ?? type
+    return toggleMark(active)(state, dispatch, view)
+  }
 
 /** Whether `type` is active on the current selection (or stored marks). */
 export const markActive = (state: EditorState, type: MarkType): boolean => {
+  const active = state.schema.marks[type.name] ?? type
+  if (!active) return false
   const { from, $from, to, empty } = state.selection
-  if (empty) return !!type.isInSet(state.storedMarks || $from.marks())
-  return state.doc.rangeHasMark(from, to, type)
+  if (empty) return !!active.isInSet(state.storedMarks || $from.marks())
+  return state.doc.rangeHasMark(from, to, active)
 }
 
 // --- block format ---------------------------------------------------------
 
-/** setBlockType/wrapIn command for a BLOCK_FORMATS tag. */
-export const setBlockFormat = (tag: string): Command => {
-  if (tag === "blockquote") return wrapIn(nodes.blockquote)
-  if (tag === "pre") return setBlockType(nodes.code_block)
-  if (tag === "p") return setBlockType(nodes.paragraph)
-  const m = /^h([1-6])$/.exec(tag)
-  if (m) return setBlockType(nodes.heading, { level: Number(m[1]) })
-  return () => false
-}
+/** setBlockType/wrapIn command for a BLOCK_FORMATS tag (no-op if absent). */
+export const setBlockFormat =
+  (tag: string): Command =>
+  (state, dispatch, view) => {
+    const { nodes } = state.schema
+    let command: Command | null = null
+    if (tag === "blockquote")
+      command = nodes.blockquote ? wrapIn(nodes.blockquote) : null
+    else if (tag === "pre")
+      command = nodes.code_block ? setBlockType(nodes.code_block) : null
+    else if (tag === "p")
+      command = nodes.paragraph ? setBlockType(nodes.paragraph) : null
+    else {
+      const m = /^h([1-6])$/.exec(tag)
+      if (m && nodes.heading)
+        command = setBlockType(nodes.heading, { level: Number(m[1]) })
+    }
+    return command ? command(state, dispatch, view) : false
+  }
 
 /** The active block's BLOCK_FORMATS tag (`""` when it's none of them). */
 export const blockFormat = (state: EditorState): string => {
+  const { nodes } = state.schema
   const { $from } = state.selection
   // Walk from the selection's textblock up to the doc, first recognized wins.
   for (let d = $from.depth; d > 0; d--) {
@@ -89,19 +109,24 @@ const inNodeType = (state: EditorState, type: NodeType): boolean => {
   return false
 }
 
-export const listActive = (state: EditorState, ordered: boolean): boolean =>
-  inNodeType(state, ordered ? nodes.ordered_list : nodes.bullet_list)
+export const listActive = (state: EditorState, ordered: boolean): boolean => {
+  const listType = state.schema.nodes[ordered ? "ordered_list" : "bullet_list"]
+  return listType ? inNodeType(state, listType) : false
+}
 
 /** Toggle a list: lift out if already inside one, otherwise wrap. */
-export const toggleList = (ordered: boolean): Command => {
-  const listType = ordered ? nodes.ordered_list : nodes.bullet_list
-  return (state, dispatch, view) => {
+export const toggleList =
+  (ordered: boolean): Command =>
+  (state, dispatch, view) => {
+    const { nodes } = state.schema
+    const listType = nodes[ordered ? "ordered_list" : "bullet_list"]
+    const itemType = nodes.list_item
+    if (!listType || !itemType) return false
     if (listActive(state, ordered)) {
-      return liftListItem(nodes.list_item)(state, dispatch, view)
+      return liftListItem(itemType)(state, dispatch, view)
     }
     return wrapInList(listType)(state, dispatch, view)
   }
-}
 
 // --- indent / outdent -----------------------------------------------------
 
@@ -111,9 +136,9 @@ export const toggleList = (ordered: boolean): Command => {
  */
 export const indent = (delta: 1 | -1): Command => {
   return (state, dispatch, view) => {
-    if (inNodeType(state, nodes.list_item)) {
-      const cmd =
-        delta > 0 ? sinkListItem(nodes.list_item) : liftListItem(nodes.list_item)
+    const itemType = state.schema.nodes.list_item
+    if (itemType && inNodeType(state, itemType)) {
+      const cmd = delta > 0 ? sinkListItem(itemType) : liftListItem(itemType)
       return cmd(state, dispatch, view)
     }
     return setBlockAttr("indent", (current) =>
@@ -173,7 +198,7 @@ export type LinkAttrs = {
 /** The link mark covering the caret, if any (for prefilling the popover). */
 export const linkAt = (state: EditorState): LinkAttrs | null => {
   const { $from } = state.selection
-  const mark = marks.link.isInSet($from.marks())
+  const mark = state.schema.marks.link.isInSet($from.marks())
   return mark ? (mark.attrs as LinkAttrs) : null
 }
 
@@ -186,7 +211,7 @@ export const applyLink = (
   view.focus()
   const { state } = view
   const { from, to, empty } = state.selection
-  const mark = marks.link.create(attrs)
+  const mark = state.schema.marks.link.create(attrs)
   if (!empty) {
     view.dispatch(state.tr.addMark(from, to, mark))
     return
@@ -199,10 +224,11 @@ export const applyLink = (
 
 /** Remove any link mark under/around the caret. */
 export const removeLink: Command = (state, dispatch) => {
+  const link = state.schema.marks.link
   const { from, to, empty } = state.selection
-  const range = empty ? markRange(state, marks.link) : { from, to }
+  const range = empty ? markRange(state, link) : { from, to }
   if (!range) return false
-  if (dispatch) dispatch(state.tr.removeMark(range.from, range.to, marks.link))
+  if (dispatch) dispatch(state.tr.removeMark(range.from, range.to, link))
   return true
 }
 
@@ -220,7 +246,10 @@ const markRange = (state: EditorState, type: MarkType) => {
   }
   let end = start
   let endIndex = startIndex
-  while (endIndex < parent.childCount && type.isInSet(parent.child(endIndex).marks)) {
+  while (
+    endIndex < parent.childCount &&
+    type.isInSet(parent.child(endIndex).marks)
+  ) {
     end += parent.child(endIndex).nodeSize
     endIndex++
   }
@@ -243,7 +272,7 @@ export const applyTextStyle = (
   view.focus()
   const { state } = view
   const { from, to, empty, $from } = state.selection
-  const type = marks.textStyle
+  const type = state.schema.marks.textStyle
   // Merge onto whatever style mark already sits at the caret / selection start.
   const marksHere = empty ? state.storedMarks || $from.marks() : $from.marks()
   const existing = type.isInSet(marksHere)
@@ -260,25 +289,41 @@ export const applyTextStyle = (
 // --- misc -----------------------------------------------------------------
 
 export const insertHorizontalRule: Command = (state, dispatch) => {
-  if (dispatch)
-    dispatch(state.tr.replaceSelectionWith(nodes.horizontal_rule.create()))
+  const hr = state.schema.nodes.horizontal_rule
+  if (!hr) return false
+  if (dispatch) dispatch(state.tr.replaceSelectionWith(hr.create()))
   return true
 }
 
-/** Clear all inline marks over the selection and reset the block to paragraph. */
+/** Insert a hard line break (`<br>`) at the selection (no-op without the node). */
+export const insertHardBreak: Command = (state, dispatch) => {
+  const br = state.schema.nodes.hard_break
+  if (!br) return false
+  if (dispatch)
+    dispatch(state.tr.replaceSelectionWith(br.create()).scrollIntoView())
+  return true
+}
+
+/**
+ * Clear all inline marks over the selection and reset the block to paragraph.
+ * On the inline schema there is no paragraph node (nor any non-paragraph
+ * textblock to reset), so this just strips the marks.
+ */
 export const removeFormat: Command = (state, dispatch) => {
   const { from, to, empty } = state.selection
   if (empty) return false
   let tr = state.tr.removeMark(from, to)
-  const range = { from, to }
+  const paragraph = state.schema.nodes.paragraph
   if (dispatch) {
-    // Reset touched textblocks to plain paragraphs (drops align/indent too).
-    const positions: number[] = []
-    tr.doc.nodesBetween(range.from, range.to, (node, pos) => {
-      if (node.isTextblock && node.type !== nodes.paragraph) positions.push(pos)
-    })
-    for (const pos of positions.reverse()) {
-      tr = tr.setNodeMarkup(pos, nodes.paragraph, null)
+    if (paragraph) {
+      // Reset touched textblocks to plain paragraphs (drops align/indent too).
+      const positions: number[] = []
+      tr.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.isTextblock && node.type !== paragraph) positions.push(pos)
+      })
+      for (const pos of positions.reverse()) {
+        tr = tr.setNodeMarkup(pos, paragraph, null)
+      }
     }
     dispatch(tr.scrollIntoView())
   }

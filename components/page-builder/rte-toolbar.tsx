@@ -113,110 +113,129 @@ const markSpec = (
   )
 }
 
-// Groups in toolbar order. `link` is not here — it renders as <LinkControl> in
-// the fields row. The block-format / font / colour controls also live there.
-const GROUPS: ActionSpec[][] = [
-  [
-    markSpec("bold", "Bold", <Bold />),
-    markSpec("italic", "Italic", <Italic />),
-    markSpec("underline", "Underline", <Underline />),
-    markSpec("strikethrough", "Strikethrough", <Strikethrough />),
-    markSpec("subscript", "Subscript", <Subscript />),
-    markSpec("superscript", "Superscript", <Superscript />),
-  ],
-  [
-    cmd(
-      {
-        name: "insertUnorderedList",
-        title: "Bulleted list",
-        icon: <List />,
-        active: (s) => listActive(s, false),
-      },
-      toggleList(false)
-    ),
-    cmd(
-      {
-        name: "insertOrderedList",
-        title: "Numbered list",
-        icon: <ListOrdered />,
-        active: (s) => listActive(s, true),
-      },
-      toggleList(true)
-    ),
-    cmd({ name: "outdent", title: "Outdent", icon: <IndentDecrease /> }, indent(-1)),
-    cmd({ name: "indent", title: "Indent", icon: <IndentIncrease /> }, indent(1)),
-  ],
-  [
-    cmd(
-      {
-        name: "justifyLeft",
-        title: "Align left",
-        icon: <AlignLeft />,
-        active: (s) => alignActive(s, "left"),
-      },
-      setAlign("left")
-    ),
-    cmd(
-      {
-        name: "justifyCenter",
-        title: "Align center",
-        icon: <AlignCenter />,
-        active: (s) => alignActive(s, "center"),
-      },
-      setAlign("center")
-    ),
-    cmd(
-      {
-        name: "justifyRight",
-        title: "Align right",
-        icon: <AlignRight />,
-        active: (s) => alignActive(s, "right"),
-      },
-      setAlign("right")
-    ),
-    cmd(
-      {
-        name: "justifyFull",
-        title: "Justify",
-        icon: <AlignJustify />,
-        active: (s) => alignActive(s, "justify"),
-      },
-      setAlign("justify")
-    ),
-  ],
-  [
-    cmd(
-      { name: "insertHorizontalRule", title: "Horizontal line", icon: <Minus /> },
-      insertHorizontalRule
-    ),
-    cmd(
-      {
-        name: "removeFormat",
-        title: "Clear formatting",
-        icon: <RemoveFormatting />,
-      },
-      removeFormat
-    ),
-  ],
-  [
-    { name: "copy", title: "Copy", icon: <Copy />, run: clipboard("copy") },
-    { name: "cut", title: "Cut", icon: <Scissors />, run: clipboard("cut") },
-    { name: "paste", title: "Paste", icon: <ClipboardPaste />, run: paste },
-    cmd({ name: "delete", title: "Delete", icon: <Trash2 /> }, deleteSelection),
-  ],
-  [
-    cmd({ name: "undo", title: "Undo", icon: <Undo2 /> }, undoCmd),
-    cmd({ name: "redo", title: "Redo", icon: <Redo2 /> }, redoCmd),
-  ],
+// Toolbar groups. `link` is not here — it renders as <LinkControl> in the
+// fields row. The block-format / font / colour controls also live there.
+
+const markGroup: ActionSpec[] = [
+  markSpec("bold", "Bold", <Bold />),
+  markSpec("italic", "Italic", <Italic />),
+  markSpec("underline", "Underline", <Underline />),
+  markSpec("strikethrough", "Strikethrough", <Strikethrough />),
+  markSpec("subscript", "Subscript", <Subscript />),
+  markSpec("superscript", "Superscript", <Superscript />),
 ]
 
-function ActionToggle({
-  view,
-  spec,
-}: {
-  view: EditorView
-  spec: ActionSpec
-}) {
+const listGroup: ActionSpec[] = [
+  cmd(
+    {
+      name: "insertUnorderedList",
+      title: "Bulleted list",
+      icon: <List />,
+      active: (s) => listActive(s, false),
+    },
+    toggleList(false)
+  ),
+  cmd(
+    {
+      name: "insertOrderedList",
+      title: "Numbered list",
+      icon: <ListOrdered />,
+      active: (s) => listActive(s, true),
+    },
+    toggleList(true)
+  ),
+  cmd(
+    { name: "outdent", title: "Outdent", icon: <IndentDecrease /> },
+    indent(-1)
+  ),
+  cmd({ name: "indent", title: "Indent", icon: <IndentIncrease /> }, indent(1)),
+]
+
+const alignGroup: ActionSpec[] = [
+  cmd(
+    {
+      name: "justifyLeft",
+      title: "Align left",
+      icon: <AlignLeft />,
+      active: (s) => alignActive(s, "left"),
+    },
+    setAlign("left")
+  ),
+  cmd(
+    {
+      name: "justifyCenter",
+      title: "Align center",
+      icon: <AlignCenter />,
+      active: (s) => alignActive(s, "center"),
+    },
+    setAlign("center")
+  ),
+  cmd(
+    {
+      name: "justifyRight",
+      title: "Align right",
+      icon: <AlignRight />,
+      active: (s) => alignActive(s, "right"),
+    },
+    setAlign("right")
+  ),
+  cmd(
+    {
+      name: "justifyFull",
+      title: "Justify",
+      icon: <AlignJustify />,
+      active: (s) => alignActive(s, "justify"),
+    },
+    setAlign("justify")
+  ),
+]
+
+const hrSpec = cmd(
+  { name: "insertHorizontalRule", title: "Horizontal line", icon: <Minus /> },
+  insertHorizontalRule
+)
+
+const removeFormatSpec = cmd(
+  {
+    name: "removeFormat",
+    title: "Clear formatting",
+    icon: <RemoveFormatting />,
+  },
+  removeFormat
+)
+
+const clipboardGroup: ActionSpec[] = [
+  { name: "copy", title: "Copy", icon: <Copy />, run: clipboard("copy") },
+  { name: "cut", title: "Cut", icon: <Scissors />, run: clipboard("cut") },
+  { name: "paste", title: "Paste", icon: <ClipboardPaste />, run: paste },
+  cmd({ name: "delete", title: "Delete", icon: <Trash2 /> }, deleteSelection),
+]
+
+const historyGroup: ActionSpec[] = [
+  cmd({ name: "undo", title: "Undo", icon: <Undo2 /> }, undoCmd),
+  cmd({ name: "redo", title: "Redo", icon: <Redo2 /> }, redoCmd),
+]
+
+// Full toolbar for a block container mount.
+const BLOCK_GROUPS: ActionSpec[][] = [
+  markGroup,
+  listGroup,
+  alignGroup,
+  [hrSpec, removeFormatSpec],
+  clipboardGroup,
+  historyGroup,
+]
+
+// Inline mounts (a single `<p>`/`<h1>`/…) edit only inline content, so the
+// block-level groups (lists, align, horizontal rule) are dropped.
+const INLINE_GROUPS: ActionSpec[][] = [
+  markGroup,
+  [removeFormatSpec],
+  clipboardGroup,
+  historyGroup,
+]
+
+function ActionToggle({ view, spec }: { view: EditorView; spec: ActionSpec }) {
   const state = view.state
   const pressed = spec.active?.(state) ?? false
   const disabled = spec.enabled ? !spec.enabled(state) : false
@@ -257,20 +276,28 @@ export function RteToolbar() {
   const editor = useEditorMaybe()
   const [view, setView] = React.useState<EditorView | null>(null)
   const [component, setComponent] = React.useState<Component | null>(null)
+  // Single inline block mount (a `<p>`/`<h1>`/…): hide block-level controls.
+  const [inline, setInline] = React.useState(false)
   // Bumped on every transaction so toggle states re-render from view.state.
   const [, bump] = React.useReducer((n: number) => n + 1, 0)
 
   React.useEffect(() => {
     if (!editor) return
 
-    const onEnable = (props: { view: EditorView; component?: Component }) => {
+    const onEnable = (props: {
+      view: EditorView
+      component?: Component
+      inline?: boolean
+    }) => {
       setView(props.view)
       setComponent(props.component ?? editor.getEditing() ?? null)
+      setInline(!!props.inline)
     }
     const onUpdate = () => bump()
     const onDisable = () => {
       setView(null)
       setComponent(null)
+      setInline(false)
     }
 
     editor.on(RTE_EVENTS.enable, onEnable)
@@ -289,6 +316,7 @@ export function RteToolbar() {
   }
 
   const fieldProps = { view }
+  const groups = inline ? INLINE_GROUPS : BLOCK_GROUPS
 
   return (
     <CanvasFloating
@@ -307,7 +335,7 @@ export function RteToolbar() {
         onMouseDown={(e) => e.stopPropagation()}
         className="flex w-max max-w-[39rem] flex-wrap items-center gap-0.5 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
       >
-        <BlockFormatSelect {...fieldProps} />
+        {!inline && <BlockFormatSelect {...fieldProps} />}
         <FontSizeSelect {...fieldProps} />
         <FontFamilySelect {...fieldProps} />
         <ColorControl view={view} attr="color" label="Text color">
@@ -318,7 +346,7 @@ export function RteToolbar() {
         </ColorControl>
         <LinkControl {...fieldProps} />
 
-        {GROUPS.map((group, i) => (
+        {groups.map((group, i) => (
           <React.Fragment key={i}>
             <Separator orientation="vertical" className="mx-0.5 h-5" />
             {group.map((spec) => (

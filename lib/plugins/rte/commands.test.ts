@@ -9,6 +9,8 @@ import {
   applyTextStyle,
   blockFormat,
   indent,
+  insertHardBreak,
+  insertHorizontalRule,
   linkAt,
   listActive,
   markActive,
@@ -20,7 +22,7 @@ import {
   toggleInlineMark,
   toggleList,
 } from "./commands"
-import { parseElement, schema, serializeDoc } from "./schema"
+import { inlineSchema, parseElement, schema, serializeDoc } from "./schema"
 
 /** Build a state from an HTML fragment, selecting `from`..`to` if given. */
 const stateFrom = (html: string, from?: number, to?: number) => {
@@ -134,7 +136,10 @@ describe("block format", () => {
   })
 
   it("wraps in a blockquote", () => {
-    const { html } = applyCmd(stateFrom("<p>q</p>", 2), setBlockFormat("blockquote"))
+    const { html } = applyCmd(
+      stateFrom("<p>q</p>", 2),
+      setBlockFormat("blockquote")
+    )
     expect(html).toBe("<blockquote><p>q</p></blockquote>")
   })
 })
@@ -148,17 +153,17 @@ describe("lists", () => {
 
   it("lifts a list back out when toggled again", () => {
     const wrapped = applyCmd(stateFrom("<p>item</p>", 2), toggleList(true))
-    const { html } = applyCmd(
-      stateFrom(wrapped.html, 3),
-      toggleList(true)
-    )
+    const { html } = applyCmd(stateFrom(wrapped.html, 3), toggleList(true))
     expect(html).toBe("<p>item</p>")
   })
 })
 
 describe("alignment and indent", () => {
   it("sets and reads text-align", () => {
-    const { state, html } = applyCmd(stateFrom("<p>x</p>", 2), setAlign("center"))
+    const { state, html } = applyCmd(
+      stateFrom("<p>x</p>", 2),
+      setAlign("center")
+    )
     expect(norm(html)).toBe('<p style="text-align:center">x</p>')
     expect(alignActive(state, "center")).toBe(true)
   })
@@ -214,6 +219,102 @@ describe("removeFormat", () => {
     const state = selectFirstBlock(stateFrom("<h2><strong>x</strong></h2>"))
     const { html } = applyCmd(state, removeFormat)
     expect(html).toBe("<p>x</p>")
+  })
+})
+
+// --- inline schema (single-block mount) -----------------------------------
+// The RTE mounts directly on a `<p>`/`<h1>`/… when the component is a leaf text
+// element; `parseElement` then uses `inlineSchema`, so the document is just
+// inline content and PM never nests a block inside the mounted element.
+
+describe("inline schema", () => {
+  /** Build inline-schema state from a leaf element's inner HTML. */
+  const inlineState = (tag: string, html: string) => {
+    const host = document.createElement(tag)
+    host.innerHTML = html
+    return EditorState.create({ doc: parseElement(host) })
+  }
+  /** Select the whole inline document. */
+  const selectAll = (state: EditorState) => {
+    const $from = state.doc.resolve(0)
+    const $to = state.doc.resolve(state.doc.content.size)
+    return state.apply(state.tr.setSelection(new TextSelection($from, $to)))
+  }
+
+  it("parses a leaf element into an inline-schema doc (no wrapping block)", () => {
+    const state = inlineState("h2", "Title")
+    expect(state.doc.type.schema).toBe(inlineSchema)
+    expect(serializeDoc(state.doc)).toBe("Title")
+  })
+
+  it("round-trips inline marks as bare HTML, no nested block", () => {
+    const state = inlineState("h1", "a <em>b</em>")
+    expect(serializeDoc(state.doc)).toBe("a <em>b</em>")
+  })
+
+  it("toggles a mark over the whole element", () => {
+    const { html } = applyCmd(
+      selectAll(inlineState("p", "hey")),
+      toggleInlineMark(schema.marks.strong)
+    )
+    expect(html).toBe("<strong>hey</strong>")
+  })
+
+  it("applies a link as bare inline HTML", () => {
+    const view = fakeView(selectAll(inlineState("p", "go")))
+    applyLink(view, { href: "/x", title: null, target: null, rel: null })
+    expect(serializeDoc(view.state.doc)).toBe('<a href="/x">go</a>')
+  })
+
+  it("merges a text-style span without a wrapping block", () => {
+    const view = fakeView(selectAll(inlineState("span", "t")))
+    applyTextStyle(view, "color", "red")
+    expect(norm(serializeDoc(view.state.doc))).toBe(
+      '<span style="color:red">t</span>'
+    )
+  })
+
+  it("no-ops every block command", () => {
+    const state = selectAll(inlineState("p", "x"))
+    const noop = { blockFormat: setBlockFormat("h1"), list: toggleList(false) }
+    expect(noop.blockFormat(state, undefined)).toBe(false)
+    expect(noop.list(state, undefined)).toBe(false)
+    expect(setAlign("center")(state, undefined)).toBe(false)
+    expect(indent(1)(state, undefined)).toBe(false)
+    expect(insertHorizontalRule(state, undefined)).toBe(false)
+    expect(blockFormat(state)).toBe("")
+    expect(listActive(state, false)).toBe(false)
+    expect(alignActive(state, "center")).toBe(false)
+  })
+
+  it("removeFormat still strips marks in inline mode", () => {
+    const { html } = applyCmd(
+      selectAll(inlineState("p", "<strong>x</strong>")),
+      removeFormat
+    )
+    expect(html).toBe("x")
+  })
+
+  it("inserts a hard break at the caret", () => {
+    // Caret at the end of "ab" (positions: 0 | a=1 | b=2).
+    const state = inlineState("p", "ab")
+    const at = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(state.doc, state.doc.content.size)
+      )
+    )
+    const { html } = applyCmd(at, insertHardBreak)
+    expect(html).toBe("ab<br>")
+  })
+
+  it("round-trips a <br> as bare inline HTML from a leaf host", () => {
+    const host = document.createElement("p")
+    host.innerHTML = "a<br>b"
+    expect(serializeDoc(parseElement(host))).toBe("a<br>b")
+  })
+
+  it("carries hard_break in the inline schema", () => {
+    expect(inlineSchema.nodes.hard_break).toBeDefined()
   })
 })
 
