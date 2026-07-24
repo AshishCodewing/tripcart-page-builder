@@ -350,22 +350,52 @@ const marks = {
   textStyle,
 }
 
-// --- schema ----------------------------------------------------------------
+// --- schemas ---------------------------------------------------------------
 
-/** The single block schema the RTE conforms to. */
+/** The block schema the Rich Text block conforms to (`doc: "block+"`). */
 export const schema = new Schema({ nodes, marks })
+
+/**
+ * The inline schema for leaf elements (links / headings / buttons / the plain
+ * Text block). The document holds inline content directly — no paragraph,
+ * heading, list or block wrappers — so editing a leaf never introduces block
+ * structure. Only `hard_break` (`<br>`, bound to Enter in prosemirror-rte.ts)
+ * and the shared inline marks are available; the toolbar hides every
+ * block-level control in this mode.
+ */
+export const inlineSchema = new Schema({
+  nodes: {
+    doc: { content: "inline*" },
+    text: nodes.text,
+    hard_break: hardBreak,
+  },
+  marks,
+})
 
 // --- HTML round-trip -------------------------------------------------------
 
 const parser = PMDOMParser.fromSchema(schema)
 const serializer = DOMSerializer.fromSchema(schema)
+const inlineParser = PMDOMParser.fromSchema(inlineSchema)
+const inlineSerializer = DOMSerializer.fromSchema(inlineSchema)
 
-/** Parse a component's DOM element into a ProseMirror document. */
-export const parseElement = (el: HTMLElement): PMNode => parser.parse(el)
-
-/** Serialize a document to an HTML string (the authoritative RTE output). */
-export const serializeDoc = (doc: PMNode): string => {
+const serializeWith = (ser: DOMSerializer, doc: PMNode): string => {
   const target = document.createElement("div")
-  target.appendChild(serializer.serializeFragment(doc.content))
+  target.appendChild(ser.serializeFragment(doc.content))
   return target.innerHTML
 }
+
+/** Parse a component's DOM element into a block ProseMirror document. */
+export const parseElement = (el: HTMLElement): PMNode => parser.parse(el)
+
+/** Serialize a block document to an HTML string (the authoritative output). */
+export const serializeDoc = (doc: PMNode): string =>
+  serializeWith(serializer, doc)
+
+/** Parse a leaf element's inner content into an inline ProseMirror document. */
+export const parseInlineElement = (el: HTMLElement): PMNode =>
+  inlineParser.parse(el)
+
+/** Serialize an inline document to an HTML string (inline markup, no wrapper). */
+export const serializeInlineDoc = (doc: PMNode): string =>
+  serializeWith(inlineSerializer, doc)
