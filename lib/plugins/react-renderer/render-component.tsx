@@ -172,12 +172,14 @@ export function RenderCanvasComponent(
   }
 
   // Force-remount on key bump for every component edited through
-  // contenteditable/RTE, so after a `syncContent` the DOM is rebuilt fresh from
-  // the model instead of React reconciling in place over the node ProseMirror
-  // mounted on (which crashes with `removeChild: not a child`, worst on a `<a>`
-  // link). `isInstanceOf("text")` misses `link` (its `typeExtends` is only
-  // `["link"]`, so it isn't a text instance), so key off `editable` too —
-  // exactly the set that runs the text-edit lifecycle (Text, headings, links,
+  // contenteditable/RTE, so after a `syncContent` the DOM is rebuilt fresh
+  // from the model instead of React reconciling in place over nodes the
+  // browser's contenteditable rearranged or ProseMirror mounted on. In-place
+  // reconcile either duplicates/scrambles text and spawns stray <br>s, or
+  // crashes with `removeChild: not a child` — worst on a `<a>` link.
+  // `isInstanceOf("text")` misses `link` (its `typeExtends` is only `["link"]`,
+  // so it isn't a text instance), so key off `editable` too — exactly the set
+  // that runs the text-edit lifecycle (default Text, headings, links,
   // rich-text).
   const isEditableText =
     component.isInstanceOf("text") || !!component.get("editable")
