@@ -171,9 +171,17 @@ export function RenderCanvasComponent(
     return content as ReactNode
   }
 
-  // For text components, force-remount on key bump so RTE state doesn't
-  // re-attach to a stale node.
-  const reactKey = component.isInstanceOf("text") ? key : undefined
+  // Force-remount on key bump for every component edited through
+  // contenteditable/RTE, so after a `syncContent` the DOM is rebuilt fresh
+  // from the model instead of React reconciling in place over nodes the
+  // browser's contenteditable rearranged (which duplicates/scrambles text and
+  // spawns stray <br>s — worst on a `<a>` link). `isInstanceOf("text")` misses
+  // `link` (its `typeExtends` is only `["link"]`, so it isn't a text instance),
+  // so key off `editable` too — exactly the set that runs the text-edit
+  // lifecycle (default Text, headings, links, rich-text).
+  const isEditableText =
+    component.isInstanceOf("text") || !!component.get("editable")
+  const reactKey = isEditableText ? key : undefined
   // connectDom is a callback ref by design: it binds the rendered DOM node
   // back to the GrapesJS view. The lint rule conservatively flags any
   // function-as-ref because it can't tell intentional callback refs apart
