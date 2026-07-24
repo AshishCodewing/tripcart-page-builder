@@ -17,6 +17,16 @@ import type {
   RendererReactOptions,
 } from "./types"
 
+/**
+ * A repaint signal that re-mounts a component's React element (fresh render
+ * key) WITHOUT the synchronous `dropView`/`view.remove()` that `rerender`
+ * triggers. The RTE fires this after ProseMirror tears down an unchanged block
+ * so the emptied DOM is restored from the model — using `rerender` here would
+ * race `view.remove()` against the just-destroyed ProseMirror DOM
+ * (`Node.removeChild: not a child`).
+ */
+export const RTE_REPAINT_EVENT = "tc:rte-repaint"
+
 interface RenderArgs {
   editor: Editor
   component: Component
@@ -59,6 +69,8 @@ const useCanvasRender = (args: RenderArgs) => {
         (k) => `${cmpEvents.update}:${k}`
       ),
       "rerender",
+      // Bump the render key (re-mount) only — no `dropView` (see the event's doc).
+      RTE_REPAINT_EVENT,
     ].join(" ")
     const removeEvents = [cmpEvents.removed, "rerender"].join(" ")
 

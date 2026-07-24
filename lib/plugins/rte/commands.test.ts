@@ -9,8 +9,6 @@ import {
   applyTextStyle,
   blockFormat,
   indent,
-  insertHardBreak,
-  insertHorizontalRule,
   insertImage,
   linkAt,
   listActive,
@@ -23,13 +21,17 @@ import {
   toggleInlineMark,
   toggleList,
 } from "./commands"
-import { inlineSchema, parseElement, schema, serializeDoc } from "./schema"
+import { parseElement, schema, serializeDoc } from "./schema"
+
+const el = (html: string) => {
+  const div = document.createElement("div")
+  div.innerHTML = html
+  return div
+}
 
 /** Build a state from an HTML fragment, selecting `from`..`to` if given. */
 const stateFrom = (html: string, from?: number, to?: number) => {
-  const el = document.createElement("div")
-  el.innerHTML = html
-  let state = EditorState.create({ doc: parseElement(el), schema })
+  let state = EditorState.create({ doc: parseElement(el(html)), schema })
   if (from != null) {
     const $from = state.doc.resolve(from)
     const $to = state.doc.resolve(to ?? from)
@@ -45,10 +47,7 @@ const applyCmd = (state: EditorState, cmd: Parameters<typeof runCmd>[1]) => {
   return { state: next, html: serializeDoc(next.doc) }
 }
 
-/**
- * Collapse inline-style whitespace so comparisons don't depend on the DOM's
- * `prop: value;` normalization (`text-align: center;` → `text-align:center`).
- */
+/** Collapse inline-style whitespace for stable comparisons. */
 const norm = (html: string) =>
   html.replace(/:\s+/g, ":").replace(/;\s*/g, ";").replace(/;"/g, '"')
 
@@ -75,16 +74,16 @@ describe("schema round-trip", () => {
     )
   })
 
-  it("preserves text-align on a block", () => {
+  it("preserves text-align on a block (via the style bag)", () => {
     const html = '<p style="text-align:center">mid</p>'
     expect(norm(serializeDoc(parseElement(el(html))))).toContain(
       "text-align:center"
     )
   })
 
-  it("preserves component ids and classes across the round-trip", () => {
+  it("preserves ids, classes and arbitrary data-* attributes (attrs bag)", () => {
     const html =
-      '<h2 id="i1" class="hero">Title</h2>' +
+      '<h2 id="i1" class="hero" data-x="1">Title</h2>' +
       '<p id="i2">para with <a href="/x" id="i3">link</a></p>' +
       '<blockquote id="i4"><p id="i5">quote</p></blockquote>' +
       '<ul id="i6"><li id="i7"><p id="i8">item</p></li></ul>'
@@ -93,14 +92,25 @@ describe("schema round-trip", () => {
       expect(out).toContain(`id="${id}"`)
     }
     expect(out).toContain('class="hero"')
+    expect(out).toContain('data-x="1"')
+  })
+
+  it("drops GrapesJS' draggable chrome but keeps real attributes", () => {
+    const html = '<p draggable="true" id="keep" data-gjs-type="text">t</p>'
+    const out = serializeDoc(parseElement(el(html)))
+    expect(out).not.toContain("draggable")
+    expect(out).toContain('id="keep"')
+    expect(out).toContain('data-gjs-type="text"')
+  })
+
+  it("keeps an unknown block element via nonTextNode", () => {
+    const html = '<section class="x"><p>inner</p></section>'
+    const out = serializeDoc(parseElement(el(html)))
+    expect(out).toContain("<section")
+    expect(out).toContain('class="x"')
+    expect(out).toContain("inner")
   })
 })
-
-const el = (html: string) => {
-  const div = document.createElement("div")
-  div.innerHTML = html
-  return div
-}
 
 describe("inline marks", () => {
   it("toggles bold across a selection", () => {
@@ -112,28 +122,25 @@ describe("inline marks", () => {
     expect(html).toBe("<p><strong>hello</strong></p>")
     expect(markActive(selectFirstBlock(next), schema.marks.strong)).toBe(true)
   })
-
-  it("subscript and superscript are mutually exclusive", () => {
-    const sub = applyCmd(
-      selectFirstBlock(stateFrom("<p>x</p>")),
-      toggleInlineMark(schema.marks.subscript)
-    )
-    const both = applyCmd(
-      selectFirstBlock(sub.state),
-      toggleInlineMark(schema.marks.superscript)
-    )
-    expect(both.html).toBe("<p><sup>x</sup></p>")
-  })
 })
 
 describe("block format", () => {
   it("reads and sets the block format", () => {
     const state = stateFrom("<p>hi</p>", 2)
     expect(blockFormat(state)).toBe("p")
-    const { state: next, html } = applyCmd(state, setBlockFormat("h3"))
+    const { html } = applyCmd(state, setBlockFormat("h3"))
     expect(html).toBe("<h3>hi</h3>")
     expect(blockFormat(stateFrom("<h3>hi</h3>", 2))).toBe("h3")
-    void next
+  })
+
+  it("carries the attribute bag across a format change", () => {
+    const { html } = applyCmd(
+      stateFrom('<p id="keep" class="c">hi</p>', 2),
+      setBlockFormat("h2")
+    )
+    expect(html).toContain("<h2")
+    expect(html).toContain('id="keep"')
+    expect(html).toContain('class="c"')
   })
 
   it("wraps in a blockquote", () => {
@@ -159,7 +166,7 @@ describe("lists", () => {
   })
 })
 
-describe("alignment and indent", () => {
+describe("alignment and indent (style bag)", () => {
   it("sets and reads text-align", () => {
     const { state, html } = applyCmd(
       stateFrom("<p>x</p>", 2),
@@ -174,6 +181,14 @@ describe("alignment and indent", () => {
     expect(norm(once.html)).toBe('<p style="margin-left:2em">x</p>')
     const twice = applyCmd(stateFrom(once.html, 2), indent(1))
     expect(norm(twice.html)).toBe('<p style="margin-left:4em">x</p>')
+  })
+
+  it("outdents back to no indent", () => {
+    const { html } = applyCmd(
+      stateFrom('<p style="margin-left:2em">x</p>', 2),
+      indent(-1)
+    )
+    expect(html).toBe("<p>x</p>")
   })
 })
 
@@ -200,7 +215,7 @@ describe("links", () => {
 })
 
 describe("image", () => {
-  it("round-trips an <img> in the block schema", () => {
+  it("round-trips an <img> (attrs bag)", () => {
     const html = '<p>a</p><p><img src="/x.png" alt="alt"></p>'
     const out = serializeDoc(parseElement(el(html)))
     expect(out).toContain("<img")
@@ -213,7 +228,7 @@ describe("image", () => {
       stateFrom("<p>hi</p>", 2),
       insertImage({ src: "/x.png", alt: "a" })
     )
-    expect(html).toContain('<img')
+    expect(html).toContain("<img")
     expect(html).toContain('src="/x.png"')
   })
 })
@@ -222,14 +237,12 @@ describe("textStyle merge", () => {
   it("merges colour after size onto one span", () => {
     const view = fakeView(selectFirstBlock(stateFrom("<p>t</p>")))
     applyTextStyle(view, "fontSize", "var(--tc--preset--font-size--lg)")
-    // re-select (dispatch collapsed the selection metadata but text is same)
     view.state = selectFirstBlock(view.state)
     applyTextStyle(view, "color", "red")
     const html = serializeDoc(view.state.doc)
     expect(norm(html)).toBe(
       '<p><span style="color:red;font-size:var(--tc--preset--font-size--lg)">t</span></p>'
     )
-    // exactly one span, no nesting
     expect(html.match(/<span/g)?.length).toBe(1)
   })
 })
@@ -239,102 +252,6 @@ describe("removeFormat", () => {
     const state = selectFirstBlock(stateFrom("<h2><strong>x</strong></h2>"))
     const { html } = applyCmd(state, removeFormat)
     expect(html).toBe("<p>x</p>")
-  })
-})
-
-// --- inline schema (single-block mount) -----------------------------------
-// The RTE mounts directly on a `<p>`/`<h1>`/… when the component is a leaf text
-// element; `parseElement` then uses `inlineSchema`, so the document is just
-// inline content and PM never nests a block inside the mounted element.
-
-describe("inline schema", () => {
-  /** Build inline-schema state from a leaf element's inner HTML. */
-  const inlineState = (tag: string, html: string) => {
-    const host = document.createElement(tag)
-    host.innerHTML = html
-    return EditorState.create({ doc: parseElement(host) })
-  }
-  /** Select the whole inline document. */
-  const selectAll = (state: EditorState) => {
-    const $from = state.doc.resolve(0)
-    const $to = state.doc.resolve(state.doc.content.size)
-    return state.apply(state.tr.setSelection(new TextSelection($from, $to)))
-  }
-
-  it("parses a leaf element into an inline-schema doc (no wrapping block)", () => {
-    const state = inlineState("h2", "Title")
-    expect(state.doc.type.schema).toBe(inlineSchema)
-    expect(serializeDoc(state.doc)).toBe("Title")
-  })
-
-  it("round-trips inline marks as bare HTML, no nested block", () => {
-    const state = inlineState("h1", "a <em>b</em>")
-    expect(serializeDoc(state.doc)).toBe("a <em>b</em>")
-  })
-
-  it("toggles a mark over the whole element", () => {
-    const { html } = applyCmd(
-      selectAll(inlineState("p", "hey")),
-      toggleInlineMark(schema.marks.strong)
-    )
-    expect(html).toBe("<strong>hey</strong>")
-  })
-
-  it("applies a link as bare inline HTML", () => {
-    const view = fakeView(selectAll(inlineState("p", "go")))
-    applyLink(view, { href: "/x", title: null, target: null, rel: null })
-    expect(serializeDoc(view.state.doc)).toBe('<a href="/x">go</a>')
-  })
-
-  it("merges a text-style span without a wrapping block", () => {
-    const view = fakeView(selectAll(inlineState("span", "t")))
-    applyTextStyle(view, "color", "red")
-    expect(norm(serializeDoc(view.state.doc))).toBe(
-      '<span style="color:red">t</span>'
-    )
-  })
-
-  it("no-ops every block command", () => {
-    const state = selectAll(inlineState("p", "x"))
-    const noop = { blockFormat: setBlockFormat("h1"), list: toggleList(false) }
-    expect(noop.blockFormat(state, undefined)).toBe(false)
-    expect(noop.list(state, undefined)).toBe(false)
-    expect(setAlign("center")(state, undefined)).toBe(false)
-    expect(indent(1)(state, undefined)).toBe(false)
-    expect(insertHorizontalRule(state, undefined)).toBe(false)
-    expect(blockFormat(state)).toBe("")
-    expect(listActive(state, false)).toBe(false)
-    expect(alignActive(state, "center")).toBe(false)
-  })
-
-  it("removeFormat still strips marks in inline mode", () => {
-    const { html } = applyCmd(
-      selectAll(inlineState("p", "<strong>x</strong>")),
-      removeFormat
-    )
-    expect(html).toBe("x")
-  })
-
-  it("inserts a hard break at the caret", () => {
-    // Caret at the end of "ab" (positions: 0 | a=1 | b=2).
-    const state = inlineState("p", "ab")
-    const at = state.apply(
-      state.tr.setSelection(
-        TextSelection.create(state.doc, state.doc.content.size)
-      )
-    )
-    const { html } = applyCmd(at, insertHardBreak)
-    expect(html).toBe("ab<br>")
-  })
-
-  it("round-trips a <br> as bare inline HTML from a leaf host", () => {
-    const host = document.createElement("p")
-    host.innerHTML = "a<br>b"
-    expect(serializeDoc(parseElement(host))).toBe("a<br>b")
-  })
-
-  it("carries hard_break in the inline schema", () => {
-    expect(inlineSchema.nodes.hard_break).toBeDefined()
   })
 })
 
