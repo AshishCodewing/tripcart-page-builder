@@ -54,6 +54,12 @@ export const ALIGNMENTS = ["left", "center", "right", "justify"] as const
 /** One indent step, in `em`. `indent` of 1 → `margin-left: 2em`. */
 export const INDENT_STEP_EM = 2
 
+/**
+ * Marker attribute for ProseMirror's transient inline-editing wrapper — Studio's
+ * `data-gs-ifrg` ("inline fragment"). See `inlineFragment` below.
+ */
+export const INLINE_FRAGMENT_ATTR = "data-gs-ifrg"
+
 // --- generic attribute bag -------------------------------------------------
 
 /** The attrs-bag attribute every authored node carries. */
@@ -198,6 +204,45 @@ const hardBreak: NodeSpec = {
   selectable: false,
   parseDOM: [{ tag: "br" }],
   toDOM: () => ["br"] as DOMOutputSpec,
+}
+
+// Studio's `inlineFragment`. The transient textblock that holds a leaf's inline
+// content while it's being edited (the sole child of the inline `doc`). It
+// renders as `<span data-gs-ifrg>` so ProseMirror's editing artifacts (cursor
+// wrapping, the trailing `<br>` it inserts for caret placement) live inside a
+// throwaway span rather than mutating the GrapesJS/React-owned leaf element
+// itself. `unwrapInlineFragment` strips the span on serialize, so the marker
+// never reaches saved HTML. Bare inline content auto-wraps into this node on
+// parse because it's the only textblock the inline `doc` accepts.
+const inlineFragment: NodeSpec = {
+  content: "inline*",
+  parseDOM: [{ tag: `span[${INLINE_FRAGMENT_ATTR}]` }],
+  toDOM: () => ["span", { [INLINE_FRAGMENT_ATTR]: "" }, 0] as DOMOutputSpec,
+}
+
+/**
+ * Strip the transient `<span data-gs-ifrg>` wrappers the inline serializer emits,
+ * hoisting each wrapper's children into its place. A wrapper that carries a
+ * `style` (an authored span that happened to match the marker) keeps its element
+ * and only sheds the marker attribute. Mirrors Studio's `unwrapInlineFragment`.
+ */
+const unwrapInlineFragment = (container: HTMLElement): void => {
+  const walk = (el: Element): void => {
+    if (el.tagName === "SPAN" && el.hasAttribute(INLINE_FRAGMENT_ATTR)) {
+      if (el.getAttribute("style")) {
+        el.removeAttribute(INLINE_FRAGMENT_ATTR)
+        return
+      }
+      const parent = el.parentElement
+      if (parent) {
+        while (el.firstChild) parent.insertBefore(el.firstChild, el)
+        parent.removeChild(el)
+      }
+      return
+    }
+    for (const child of Array.from(el.children)) walk(child)
+  }
+  walk(container)
 }
 
 // Low-priority catch-all so unknown block elements survive the round-trip.
@@ -357,15 +402,17 @@ export const schema = new Schema({ nodes, marks })
 
 /**
  * The inline schema for leaf elements (links / headings / buttons / the plain
- * Text block). The document holds inline content directly — no paragraph,
- * heading, list or block wrappers — so editing a leaf never introduces block
- * structure. Only `hard_break` (`<br>`, bound to Enter in prosemirror-rte.ts)
- * and the shared inline marks are available; the toolbar hides every
- * block-level control in this mode.
+ * Text block). The document is a single `inlineFragment` textblock holding inline
+ * content — no paragraph, heading, list or block wrappers — so editing a leaf
+ * never introduces block structure. Only `hard_break` (`<br>`, bound to Enter in
+ * prosemirror-rte.ts) and the shared inline marks are available; the toolbar
+ * hides every block-level control in this mode. The `inlineFragment` wrapper is
+ * transient editing chrome — see its NodeSpec and `serializeInlineDoc`.
  */
 export const inlineSchema = new Schema({
   nodes: {
-    doc: { content: "inline*" },
+    doc: { content: "inlineFragment" },
+    inlineFragment,
     text: nodes.text,
     hard_break: hardBreak,
   },
@@ -392,10 +439,22 @@ export const parseElement = (el: HTMLElement): PMNode => parser.parse(el)
 export const serializeDoc = (doc: PMNode): string =>
   serializeWith(serializer, doc)
 
-/** Parse a leaf element's inner content into an inline ProseMirror document. */
+/**
+ * Parse a leaf element's inner content into an inline ProseMirror document. The
+ * bare inline content auto-wraps into the single `inlineFragment` the inline
+ * `doc` requires.
+ */
 export const parseInlineElement = (el: HTMLElement): PMNode =>
   inlineParser.parse(el)
 
-/** Serialize an inline document to an HTML string (inline markup, no wrapper). */
-export const serializeInlineDoc = (doc: PMNode): string =>
-  serializeWith(inlineSerializer, doc)
+/**
+ * Serialize an inline document to an HTML string. The `inlineFragment` wrapper is
+ * stripped (`unwrapInlineFragment`) so only the leaf's inline markup is returned —
+ * `data-gs-ifrg` never persists.
+ */
+export const serializeInlineDoc = (doc: PMNode): string => {
+  const target = document.createElement("div")
+  target.appendChild(inlineSerializer.serializeFragment(doc.content))
+  unwrapInlineFragment(target)
+  return target.innerHTML
+}
