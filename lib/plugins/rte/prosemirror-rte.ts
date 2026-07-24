@@ -148,7 +148,11 @@ export const rtePlugin: Plugin = (editor: Editor) => {
       // component (getEditing() isn't set yet at this point).
       const comp = opts?.view?.model ?? editor.getEditing()
       if (!usesProseMirror(comp)) {
-        if (!isPlain(view)) el.contentEditable = "true"
+        // Always (re)apply — `disable` strips `contenteditable` after every
+        // session, and GrapesJS hands the stale plain marker back as `view` on
+        // re-edit, so gating on `!isPlain(view)` left the element uneditable
+        // after the first edit. Setting it is idempotent.
+        el.contentEditable = "true"
         el.focus()
         return { __tcPlain: true }
       }
