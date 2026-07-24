@@ -10,6 +10,8 @@ import { rtePlugin } from "./prosemirror-rte"
 
 export { rtePlugin, RTE_EVENTS } from "./prosemirror-rte"
 
+export { richTextBlockPlugin, RICH_TEXT_TYPE } from "./rich-text-block"
+
 export {
   BLOCK_FORMATS,
   ALIGNMENTS,

@@ -13,7 +13,7 @@ import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { tabsPlugin } from "@/lib/plugins/interactive"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
-import { rtePlugin } from "@/lib/plugins/rte"
+import { richTextBlockPlugin, rtePlugin } from "@/lib/plugins/rte"
 import { tcRemoteStorage } from "@/lib/plugins/tc-storage-adapter"
 import { templateRefPlugin } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
@@ -108,6 +108,11 @@ export const buildGjsOptions = (
       gjsBlocksBasic(editor, {
         blocks: ["text", "link", "image", "video", "map"],
       }),
+    // The opt-in Rich Text block (`rich-text` type). Registers after
+    // gjsBlocksBasic so the base `text` type it extends and the "Basic" block
+    // category both exist; the ProseMirror router (rtePlugin) scopes the
+    // custom RTE to this type.
+    richTextBlockPlugin,
     columnsPlugin,
     // Interactive web-component blocks (tc-tabs, …). After designSystemPlugin
     // so `--tc--preset--*` resolves in the type's `defaults.styles`, and after

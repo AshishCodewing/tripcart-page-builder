@@ -27,6 +27,7 @@ import { EditorState } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
 
 import { insertHardBreak } from "./commands"
+import { RICH_TEXT_TYPE } from "./rich-text-block"
 import { isInlineHost, parseElement, schemaFor, serializeDoc } from "./schema"
 
 /**
@@ -48,6 +49,28 @@ type TrackedView = EditorView & {
   __tcHTML?: string
   __tcEnableHTML?: string
 }
+
+/**
+ * The marker returned for the "plain" branch — any editable node that isn't a
+ * `rich-text` component. It edits as bare `contenteditable` with no toolbar (no
+ * ProseMirror mount, no `tc-rte:*` events), so the RTE stays fully contained to
+ * the one opt-in block. GrapesJS reuses whatever `enable` returns on the next
+ * enable call, so the marker lets us short-circuit a re-focus.
+ */
+type PlainRte = { __tcPlain: true }
+
+type Rte = TrackedView | PlainRte
+
+const isPlain = (rte: Rte | undefined): rte is PlainRte =>
+  !!rte && (rte as PlainRte).__tcPlain === true
+
+/**
+ * Whether the component being edited opts into ProseMirror. GrapesJS routes
+ * every text edit through the single custom-RTE object, so we scope the rich
+ * engine to the `rich-text` type here (see rich-text-block.ts).
+ */
+const usesProseMirror = (comp: { get?: (k: string) => unknown } | undefined) =>
+  comp?.get?.("type") === RICH_TEXT_TYPE
 
 /** Content from a view, caching the serialization while it's still alive. */
 const viewContent = (
@@ -131,13 +154,26 @@ const buildState = (el: HTMLElement) => {
 
 /** GrapesJS plugin: swap the RTE engine for ProseMirror. */
 export const rtePlugin: Plugin = (editor: Editor) => {
-  editor.setCustomRte<EditorView>({
+  editor.setCustomRte<Rte>({
     // Store returned HTML as Components (like the native engine) rather than an
     // opaque string, so text content round-trips through the project JSON /
     // react-renderer pipeline the same way it did before.
     parseContent: true,
 
     enable(el, view, opts) {
+      // Scope the rich engine to the `rich-text` block. Everything else
+      // (default Text block, headings, buttons, links, …) edits as plain
+      // `contenteditable` with no toolbar — no ProseMirror, no `tc-rte:*`
+      // events, so <RteToolbar> never shows. `opts.view.model` is the edited
+      // component (getEditing() isn't set yet at this point).
+      const comp = opts?.view?.model ?? editor.getEditing()
+      if (!usesProseMirror(comp)) {
+        // Marker returned last time: nothing to rebuild, just re-focus.
+        if (!isPlain(view)) el.contentEditable = "true"
+        el.focus()
+        return { __tcPlain: true }
+      }
+
       // GrapesJS caches and re-passes the last returned instance even after we
       // destroyed it on `disable` — reuse it only when it's still alive and
       // mounted on this element (the "re-focus the active editor" case).
@@ -178,6 +214,12 @@ export const rtePlugin: Plugin = (editor: Editor) => {
     },
 
     disable(el, view) {
+      // Plain branch: just drop editability — nothing emptied the element, so
+      // no DOM restore and no toolbar teardown is needed.
+      if (isPlain(view)) {
+        el.removeAttribute("contenteditable")
+        return
+      }
       editor.trigger(RTE_EVENTS.disable)
       const dead = view as TrackedView | undefined
       let restore: string | undefined
@@ -207,6 +249,8 @@ export const rtePlugin: Plugin = (editor: Editor) => {
     },
 
     getContent(el, view) {
+      // Plain branch: the DOM is the source of truth (native-engine behavior).
+      if (isPlain(view)) return el.innerHTML
       return viewContent(view as TrackedView | undefined, el)
     },
   })
