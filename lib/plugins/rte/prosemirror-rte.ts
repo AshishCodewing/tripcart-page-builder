@@ -38,8 +38,16 @@ import { isInlineHost, parseElement, schemaFor, serializeDoc } from "./schema"
  *   `getContent` again on the second `disableEditing` pass, when `activeRte`
  *   points at this now-destroyed view — serializing it would yield "" and wipe
  *   the component).
+ * - `__tcEnableHTML`: the element's raw innerHTML captured at enable, i.e. the
+ *   exact string GrapesJS records as `lastContent`. On disable GrapesJS skips
+ *   `syncContent` when the serialized output equals it; when it does, nothing
+ *   re-renders the (now torn-down) element, so we restore the DOM ourselves.
  */
-type TrackedView = EditorView & { __tcDead?: boolean; __tcHTML?: string }
+type TrackedView = EditorView & {
+  __tcDead?: boolean
+  __tcHTML?: string
+  __tcEnableHTML?: string
+}
 
 /** Content from a view, caching the serialization while it's still alive. */
 const viewContent = (
@@ -140,7 +148,12 @@ export const rtePlugin: Plugin = (editor: Editor) => {
         prev.focus()
         return prev
       }
-      const created: EditorView = new EditorView(
+      // Snapshot the element's content before ProseMirror mounts over it — this
+      // is the exact string GrapesJS just recorded as `lastContent`, and what it
+      // compares the serialized output against on disable to decide whether to
+      // sync. `disable` uses it to know when it must restore the DOM itself.
+      const enableHTML = el.innerHTML
+      const created: TrackedView = new EditorView(
         { mount: el },
         {
           state: buildState(el),
@@ -150,6 +163,7 @@ export const rtePlugin: Plugin = (editor: Editor) => {
           },
         }
       )
+      created.__tcEnableHTML = enableHTML
       created.focus()
       // `editor.getEditing()` isn't set yet at this point — take the component
       // straight off the text view GrapesJS hands us (it anchors the toolbar).
@@ -166,23 +180,30 @@ export const rtePlugin: Plugin = (editor: Editor) => {
     disable(el, view) {
       editor.trigger(RTE_EVENTS.disable)
       const dead = view as TrackedView | undefined
+      let restore: string | undefined
       if (dead && !dead.__tcDead) {
         // Snapshot the content before tearing the view down so `getContent`
         // still answers correctly on GrapesJS' repeat disable pass.
         dead.__tcHTML = serializeDoc(dead.state.doc)
+        // GrapesJS skips `syncContent` exactly when this serialized output equals
+        // the content it captured at enable (`lastContent` === our
+        // `__tcEnableHTML`). That's the case we must patch: the sync that would
+        // otherwise repaint the element won't run.
+        if (dead.__tcHTML === dead.__tcEnableHTML) restore = dead.__tcHTML
         dead.__tcDead = true
+        // Destroying a mounted view empties the element it was mounted on.
         dead.destroy()
       }
       el.removeAttribute("contenteditable")
-      // Force GrapesJS to rebuild the component from `getContent` even when the
-      // content is unchanged. Otherwise it compares the serialized output to the
-      // `lastContent` it captured at enable time (the element's raw innerHTML)
-      // and, when they match, skips `syncContent`. That skip is invisible for a
-      // block mount (whose innerHTML `Body` never equals the serialized
-      // `<p>Body</p>`), but for an inline mount the two are identical when the
-      // user didn't type — leaving the just-torn-down element empty and dropping
-      // its text. `RteDisableResult.forceSync` is GrapesJS' hook for exactly this.
-      return { forceSync: true }
+      // Nothing changed, so GrapesJS won't sync and nothing repaints the element
+      // ProseMirror just emptied — the text would vanish (visible on inline/leaf
+      // mounts, where the serialized output matches the innerHTML byte-for-byte).
+      // Restore it with a plain DOM write: it fires no model events, so it never
+      // provokes the React canvas re-render whose teardown/removeChild race a
+      // forced `syncContent` on an unchanged doc used to set off. When the
+      // content did change we leave the element alone — GrapesJS' own sync
+      // repaints it from the rebuilt component.
+      if (restore != null) el.innerHTML = restore
     },
 
     getContent(el, view) {
