@@ -334,12 +334,7 @@
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(table, figure) {
   margin-block: calc(var(--tc--_gap) * 1.6);
 }
-/* Block media not already inside a <figure> (a figure spaces its own contents
- * via its grid gap, so an extra margin there would double up). */
-:where(.tc-entry-content, [data-gjs-type="wrapper"])
-  :where(img, video, picture):not(:where(figure *)) {
-  margin-block: calc(var(--tc--_gap) * 1.6);
-}
+
 :where(.tc-entry-content, [data-gjs-type="wrapper"]) :where(hr) {
   margin-block: calc(var(--tc--_gap) * 2.4);
 }
