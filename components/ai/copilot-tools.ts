@@ -13,6 +13,8 @@ import {
   removeComponentTool,
 } from "@/lib/ai/tools"
 import { applyGenerated } from "@/lib/page-builder/apply-generated"
+import { streamGenerate } from "@/lib/page-builder/stream-generate"
+import { clearPreview, renderPreview } from "@/lib/page-builder/stream-preview"
 
 type ToolResult = { success: boolean; summary: string }
 
@@ -142,15 +144,26 @@ export function createCopilotTools(
             "The page is not empty — use addComponent or editComponent instead.",
         }
       }
-      const { html } = await callGenerate({
-        action: "create",
-        plan: args.plan,
-        threadId: sessionId,
-        ...billing,
-        ...editorSnapshot(editor),
-      })
-      const result = applyGenerated(editor, { action: "create", html })
-      return { success: result.ok, summary: result.summary }
+      // Stream a live preview into the canvas while the model types, then
+      // commit the authoritative HTML once (single undo, real components).
+      // clearPreview must run before applyGenerated and on any error path.
+      try {
+        const { html } = await streamGenerate(
+          {
+            action: "create",
+            plan: args.plan,
+            threadId: sessionId,
+            ...billing,
+            ...editorSnapshot(editor),
+          },
+          { onPreview: (h) => renderPreview(editor, h) }
+        )
+        clearPreview(editor)
+        const result = applyGenerated(editor, { action: "create", html })
+        return { success: result.ok, summary: result.summary }
+      } finally {
+        clearPreview(editor)
+      }
     })
   )
 

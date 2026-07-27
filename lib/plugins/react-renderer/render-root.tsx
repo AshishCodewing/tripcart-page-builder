@@ -2,7 +2,7 @@
 // GrapesJS hands us the iframe's window/document and the root frame; we run
 // createRoot against the body and render the project starting from the
 // frame's root component, then unmount on either frame teardown or window
-// unload (whichever fires first).
+// pagehide (whichever fires first).
 
 "use client"
 
@@ -66,7 +66,12 @@ export const renderRoot = (
       queueMicrotask(() => reactRoot.unmount())
     }
     frame.once(canvasEvents.frameUnload, cleanup)
-    win.addEventListener("unload", cleanup)
+    // `unload` is deprecated and blocked by Permissions-Policy in Chrome.
+    // `pagehide` is its supported replacement; ignore the bfcache case, where
+    // the document can still be restored and would need its React root intact.
+    win.addEventListener("pagehide", (e) => {
+      if (!e.persisted) cleanup()
+    })
   } catch (err) {
     console.warn(err)
   }

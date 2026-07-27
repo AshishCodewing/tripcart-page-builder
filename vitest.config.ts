@@ -5,6 +5,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),
+      // `server-only`/`client-only` throw unless the bundler sets the right
+      // export condition (Next sets `react-server`; Vitest does not). Stub them
+      // so tests can import modules that transitively depend on them.
+      "server-only": fileURLToPath(
+        new URL("./test/stubs/empty.ts", import.meta.url)
+      ),
+      "client-only": fileURLToPath(
+        new URL("./test/stubs/empty.ts", import.meta.url)
+      ),
     },
   },
   test: {
