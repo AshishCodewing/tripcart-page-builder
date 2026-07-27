@@ -8,6 +8,7 @@ import type { EditorConfig, PropertyStack } from "grapesjs"
 
 import { lengthProp } from "../style-fields/length-props"
 import { layoutSector } from "../style-config/layout-sector"
+import { transformProp } from "../style-config/transform-prop"
 
 type StyleSectors = NonNullable<
   NonNullable<EditorConfig["styleManager"]>["sectors"]
@@ -197,7 +198,7 @@ export const STYLE_SECTORS: StyleSectors = [
       "filter",
       { extend: "filter", property: "backdrop-filter" },
       { extend: "transition", layerLabel: composedLayerLabel },
-      "transform",
+      transformProp,
       {
         property: "overflow",
         type: "composite",
