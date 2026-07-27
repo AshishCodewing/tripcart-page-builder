@@ -1,19 +1,23 @@
 // Server-only: builds the code-generation prompt for /api/generate. Uses the
 // Langfuse secret key via `LangfuseClient`, so this module must never be
-// imported from a client component.
+// imported from a client component — the `server-only` import below turns any
+// such import into a build error. Client-safe pieces live in codegen-tag.ts.
+import "server-only"
+
 import { LangfuseClient } from "@langfuse/client"
 import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"
 
+import { GENERATED_CODE_TAG } from "@/lib/ai/codegen-tag"
 import { INTERACTIVE_BLOCKS } from "@/lib/plugins/interactive/tags"
+
+export { GENERATED_CODE_TAG }
 
 export const CODEGEN_PROMPT_NAME = "page-builder-codegen"
 export const CODEGEN_PROMPT_LABEL = "production"
 
 // Used when the Langfuse prompt config carries no model override.
 export const CODEGEN_DEFAULT_MODEL = "openai/gpt-5.1"
-
-export const GENERATED_CODE_TAG = "generated_code"
 
 // Full guardrail text, not a stub: code generation without these rules
 // produces markup that breaks the Style Manager and the drag sorter, so the

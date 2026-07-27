@@ -1,6 +1,9 @@
 // Server-only: builds the cache-tiered copilot prompt. `LangfuseClient` uses the
 // secret key, so this module must never be imported from a client component —
-// it is imported only by app/api/chat/route.ts.
+// it is imported only by app/api/chat/route.ts, and the `server-only` import
+// below turns any client import into a build error.
+import "server-only"
+
 import { LangfuseClient } from "@langfuse/client"
 import type { SystemPrompt } from "@tanstack/ai"
 import type { OpenRouterSystemPromptMetadata } from "@tanstack/ai-openrouter"

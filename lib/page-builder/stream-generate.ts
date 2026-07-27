@@ -2,7 +2,10 @@
 // driving a throttled live preview while the model types, and resolving with
 // the authoritative sentinel-stripped HTML for the real commit. Used by the
 // copilot's generatePage tool (components/ai/copilot-tools.ts).
-import { GENERATED_CODE_TAG, type CodegenRequest } from "@/lib/ai/codegen"
+// Type-only from codegen.ts (erased at build); the tag comes from the
+// client-safe module so the server-only LangfuseClient stays out of the bundle.
+import type { CodegenRequest } from "@/lib/ai/codegen"
+import { GENERATED_CODE_TAG } from "@/lib/ai/codegen-tag"
 
 type StreamEvent =
   | { type: "delta"; text: string }
