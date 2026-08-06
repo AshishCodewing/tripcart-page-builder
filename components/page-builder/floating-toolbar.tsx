@@ -21,11 +21,15 @@ import {
 import { CONTENT_SLOT_TYPE } from "@/lib/plugins/post-fields"
 import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
+import { useCanvasDragging } from "./hooks/use-canvas-dragging"
 import { InsertBlockPicker } from "./insert-block-picker"
 
 export function FloatingToolbar() {
   const editor = useEditorMaybe()
   const [selected, setSelected] = useState<Component | null>(null)
+  // Hidden while dragging — the toolbar is anchored to the selection's box,
+  // which the drag has left behind. Mirrors GrapesJS' own `hideTlb`.
+  const isDragging = useCanvasDragging()
 
   useEffect(() => {
     if (!editor) return
@@ -47,7 +51,7 @@ export function FloatingToolbar() {
     }
   }, [editor])
 
-  if (!selected) return null
+  if (!selected || isDragging) return null
 
   const canConvert = isConvertibleSelection(selected)
   const isContentSlot = selected.get("type") === CONTENT_SLOT_TYPE

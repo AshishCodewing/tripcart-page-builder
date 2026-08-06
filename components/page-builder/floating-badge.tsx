@@ -5,6 +5,7 @@ import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
 import { TEMPLATE_REF_TYPE } from "@/lib/plugins/template-ref"
 import { cn } from "@/lib/utils"
 import { CanvasFloating } from "./canvas-floating"
+import { useCanvasDragging } from "./hooks/use-canvas-dragging"
 
 // Custom hover badge. Mirrors the floating-toolbar pattern but anchored to the
 // hovered component instead of the selected one. Hides while a component is
@@ -14,7 +15,7 @@ export function FloatingBadge() {
   const editor = useEditorMaybe()
   const [hovered, setHovered] = useState<Component | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const isDragging = useCanvasDragging()
 
   useEffect(() => {
     if (!editor) return
@@ -26,16 +27,12 @@ export function FloatingBadge() {
     const onRemove = (cmp: Component) => {
       setHovered((current) => (current === cmp ? null : current))
     }
-    const onDragStart = () => setIsDragging(true)
-    const onDragEnd = () => setIsDragging(false)
 
     editor.on("component:hovered", onHover)
     editor.on("component:unhovered", onUnhover)
     editor.on("component:selected", onSelect)
     editor.on("component:deselected", onDeselect)
     editor.on("component:remove", onRemove)
-    editor.on("component:drag:start", onDragStart)
-    editor.on("component:drag:end", onDragEnd)
 
     return () => {
       editor.off("component:hovered", onHover)
@@ -43,8 +40,6 @@ export function FloatingBadge() {
       editor.off("component:selected", onSelect)
       editor.off("component:deselected", onDeselect)
       editor.off("component:remove", onRemove)
-      editor.off("component:drag:start", onDragStart)
-      editor.off("component:drag:end", onDragEnd)
     }
   }, [editor])
 

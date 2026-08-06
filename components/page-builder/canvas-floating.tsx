@@ -15,6 +15,13 @@ import type { Component } from "grapesjs"
 type Props = {
   /** Component to anchor to. Pass `null` to unmount the floating element. */
   target: Component | null
+  /**
+   * Screen-coordinate point to anchor to instead of `target`'s box. Used by
+   * <DragBadge />, which tracks the pointer rather than a component rect;
+   * `target` still gates mounting. Keep the object identity stable between
+   * position changes — it drives the reposition effect.
+   */
+  point?: { x: number; y: number } | null
   placement?: Placement
   fallbacks?: Placement[]
   /**
@@ -35,6 +42,7 @@ const DEFAULT_FALLBACKS: Placement[] = ["bottom-end", "right"]
 // element stays glued to the component.
 export function CanvasFloating({
   target,
+  point = null,
   placement = "top-end",
   fallbacks = DEFAULT_FALLBACKS,
   pointerEvents = "auto",
@@ -57,8 +65,18 @@ export function CanvasFloating({
     duration: 150,
   })
 
+  // Point anchoring: a zero-size reference at the given screen coordinates.
+  // Kept in its own effect so pointer tracking doesn't churn the canvas event
+  // subscriptions below on every move.
   useEffect(() => {
-    if (!editor) return
+    if (!point) return
+    setPositionReference({
+      getBoundingClientRect: () => new DOMRect(point.x, point.y, 0, 0),
+    })
+  }, [point, setPositionReference])
+
+  useEffect(() => {
+    if (!editor || point) return
 
     const updateRect = () => {
       const el = target?.getEl()
@@ -93,7 +111,7 @@ export function CanvasFloating({
       editor.off("component:update canvas:update", onUpdate)
       frameEl?.contentWindow?.removeEventListener("scroll", onUpdate, true)
     }
-  }, [editor, target, setPositionReference])
+  }, [editor, target, point, setPositionReference])
 
   if (!editor || !isMounted || !target) return null
   const spotsEl = editor.Canvas.getSpotsEl()
