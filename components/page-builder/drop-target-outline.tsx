@@ -85,9 +85,13 @@ export function DropTargetOutline() {
     spots.map((spot) => (
       <div
         key={spot.id}
-        // Dashed + tinted so it reads as "this will receive the drop" rather
-        // than the solid selection outline drawn inside the frame.
-        className="bg-primary/5 outline-2 -outline-offset-2 outline-primary outline-dashed"
+        // Amber rather than the chrome's primary, so "this will receive the
+        // drop" can't be mistaken for the solid primary selection outline
+        // drawn inside the frame — the same reason GrapesJS gave its drag
+        // highlight a warning colour. amber-600 over amber-500 for legibility
+        // against the light canvas. Dashed + tinted to further separate it
+        // from a selection.
+        className="bg-amber-500/10 outline-2 -outline-offset-2 outline-amber-600 outline-dashed"
         style={spot.getStyle() as React.CSSProperties}
       />
     )),
