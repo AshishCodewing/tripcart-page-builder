@@ -20,6 +20,7 @@ import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
 import { postFieldsPlugin } from "@/lib/plugins/post-fields"
 import type { Template } from "@/lib/schema"
 
+import { CANVAS_CHROME_CSS } from "./canvas-chrome-css"
 import { STYLE_SECTORS } from "./style-sectors"
 
 // Stylesheets the GrapesJS canvas iframe loads. The Open Props files are
@@ -52,6 +53,14 @@ export const buildGjsOptions = (
   options: { allowPostFields: boolean }
 ): EditorConfig => ({
   height: "100%",
+  // The built-in component toolbar (GrapesJS' own action bar over the
+  // selection) is replaced by <FloatingToolbar />. `showToolbar` is the
+  // supported switch for it; ComponentView also drops the toolbar when the
+  // `select` canvas spot is customized, but that path has side effects we
+  // don't want — see canvas-chrome-css.ts.
+  showToolbar: false,
+  // Our own selection / hover outlines, injected into the frame.
+  canvasCss: CANVAS_CHROME_CSS,
   // Seed the canvas from server-rendered data (`draftData ?? data`). With
   // `projectData` set, GrapesJS skips the initial storage load entirely
   // (see grapesjs Storage docs "Skip initial load").
@@ -147,6 +156,11 @@ export const buildGjsOptions = (
   ],
   canvas: {
     styles: CANVAS_STYLE_URLS,
-    customSpots: {},
+    // Turn off the built-in `hover` spot rendering — the `.gjs-highlighter`
+    // overlay and the blue name badge — in favor of <FloatingBadge /> and the
+    // `.gjs-hovered` rule in CANVAS_CHROME_CSS. GrapesJS still tracks the spot
+    // and still applies the `gjs-hovered` class; only its own drawing stops.
+    // `select` / `target` / `spacing` / `resize` keep their default rendering.
+    customSpots: { hover: true },
   },
 })
