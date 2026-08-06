@@ -41,6 +41,7 @@ import RightPanel from "./right-panel/right-panel"
 import TopBar from "./top-bar/top-bar"
 import type { EditorContent } from "./types"
 import { DragBadge } from "./drag-badge"
+import { DropTargetOutline } from "./drop-target-outline"
 import { FloatingBadge } from "./floating-badge"
 import { FloatingToolbar } from "./floating-toolbar"
 import { RteToolbar } from "./rte-toolbar"
@@ -490,6 +491,7 @@ function EditorShellInner({
                       <FloatingToolbar />
                       <FloatingBadge />
                       <DragBadge />
+                      <DropTargetOutline />
                       <RteToolbar />
                       <ContentSlotDeleteGuard />
                     </SidebarInset>
