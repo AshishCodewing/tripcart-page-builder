@@ -125,6 +125,20 @@ export const contentTenantId = (content: EditorContent): string | null => {
   }
 }
 
+// Primary key of the edited record, whichever kind it is. Together with
+// `kind` this identifies the entity a copilot conversation belongs to (see
+// lib/ai/thread-id.ts).
+export const contentId = (content: EditorContent): string => {
+  switch (content.kind) {
+    case "page":
+      return content.page.id
+    case "post":
+      return content.post.id
+    case "template":
+      return content.template.id
+  }
+}
+
 // Display title surfaced in the top-bar middle crumb.
 export const contentTitle = (content: EditorContent): string => {
   switch (content.kind) {

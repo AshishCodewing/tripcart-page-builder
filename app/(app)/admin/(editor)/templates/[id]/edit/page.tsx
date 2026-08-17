@@ -2,6 +2,7 @@ import type { ProjectData } from "grapesjs"
 import { notFound } from "next/navigation"
 
 import EditorShell from "@/components/page-builder/editor-shell"
+import { resolveLatestThreadId } from "@/lib/ai/conversations"
 import type { TemplateRecord } from "@/components/page-builder/types"
 import {
   getPartChromeAssignments,
@@ -114,6 +115,7 @@ export default async function EditTemplatePage({
 
   return (
     <EditorShell
+      chatThreadId={await resolveLatestThreadId("template", id)}
       content={{ kind: "template", template: record }}
       tenantTheme={tenantTheme}
       initialProjectData={initialProjectData}

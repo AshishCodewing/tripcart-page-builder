@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm"
 
 import { db } from "@/lib/db"
 import { posts } from "@/lib/schema"
+import { deleteThreadsForContent } from "@/lib/ai/persistence"
 
 import { cacheTags } from "./cache-tags"
 import { validateSlug } from "./path"
@@ -90,6 +91,7 @@ export async function deletePost(id: string): Promise<void> {
   })
   if (!post) return
   await db.delete(posts).where(eq(posts.id, id))
+  await deleteThreadsForContent("post", id)
   updateTag(cacheTags.post(post.slug))
   if (post.status === "PUBLISHED") updateTag(cacheTags.postIndex)
   redirect(`/admin/tenants/${post.tenantId}`)

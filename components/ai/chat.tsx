@@ -8,12 +8,29 @@ import { useEditorMaybe } from "@grapesjs/react"
 import type { Editor } from "grapesjs"
 import {
   ArrowUpIcon,
+  Check,
+  History,
   Loader2,
   MessageCircleDashedIcon,
+  Plus,
   Square,
   Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { RelativeTime } from "@/components/relative-time"
+import {
+  createConversationAction,
+  deleteConversationAction,
+  listConversationsAction,
+} from "@/lib/ai/conversation-actions"
+import type { ConversationSummary } from "@/lib/ai/conversations"
 import {
   Empty,
   EmptyContent,
@@ -28,7 +45,10 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
-import { useEditorTenantId } from "@/components/page-builder/editor-tenant-context"
+import {
+  useEditorTenantId,
+  useEditorThreadId,
+} from "@/components/page-builder/editor-tenant-context"
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -111,6 +131,12 @@ async function fetchCredits(tenantId: string): Promise<number | null> {
   }
 }
 
+// The tenant the caller claims, sent as a header so it reaches the hydration
+// GET and the clear DELETE as well as the streaming POST body.
+function tenantHeaders(tenantId: string | null): Record<string, string> {
+  return tenantId ? { "x-tc-tenant-id": tenantId } : {}
+}
+
 export default function Chat() {
   const [input, setInput] = useState("")
 
@@ -120,6 +146,13 @@ export default function Chat() {
   // Billed tenant (null = unmetered, e.g. global templates); forwarded with
   // every chat request and codegen call so the server can meter usage.
   const tenantId = useEditorTenantId()
+  // Conversation being shown. Seeded from the server with this record's most
+  // recent chat, then swapped by the history dropdown. `useChat` rebuilds its
+  // client (and re-hydrates from the server) whenever this changes, which is
+  // exactly what switching conversations needs — and why it must already be
+  // defined on the first render, or the first paint would hydrate a throwaway.
+  const initialThreadId = useEditorThreadId()
+  const [threadId, setThreadId] = useState(initialThreadId)
 
   // `useChat` snapshots `connection` at first mount and never re-reads it, so
   // the resolver must NOT close over `editor`/`tenantId` directly: this panel
@@ -139,6 +172,10 @@ export default function Chat() {
         editorContext: gatherEditorContext(editorRef.current),
         tenantId: tenantIdRef.current,
       },
+      // Also reaches the hydration GET (the connection forwards headers to
+      // it, but not the body), which is where the server checks the claimed
+      // tenant against the thread's real owner.
+      headers: tenantHeaders(tenantIdRef.current),
     }),
     []
   )
@@ -181,6 +218,10 @@ export default function Chat() {
     error,
     addToolApprovalResponse,
   } = useChat({
+    threadId,
+    // Server-authoritative history: the browser caches no transcript, and on
+    // mount the client hydrates this thread from GET /api/chat.
+    persistence: true,
     // Options resolver runs per request (not during render), so each message
     // carries a fresh editor snapshot read from the refs above; `body` is
     // merged into the server's `forwardedProps`.
@@ -213,10 +254,85 @@ export default function Chat() {
     }
   }, [tenantId, error])
 
+  // ── Conversation history ───────────────────────────────────────────────────
+  const [historyOpen, setHistoryOpen] = useState(false)
+
+  // `null` = never loaded, which is not the same as "no conversations" — the
+  // difference is what stops the dropdown flashing an empty-state message
+  // while its first fetch is still in flight.
+  const [conversations, setConversations] =
+    useState<Array<ConversationSummary> | null>(null)
+
+  // Fetched on mount so the first open is already populated, and again on each
+  // open so a conversation that just gained its first message is titled
+  // correctly and the ordering stays fresh.
+  useEffect(() => {
+    let cancelled = false
+    void listConversationsAction(threadId)
+      .then((rows) => {
+        if (!cancelled) setConversations(rows)
+      })
+      .catch(() => {
+        // Best-effort: a failed list leaves the previous rows in place rather
+        // than blanking a dropdown the user is looking at.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [historyOpen, threadId])
+
+  /** Point the panel at another conversation. Local-only — nothing is deleted. */
+  function switchTo(nextThreadId: string) {
+    setHistoryOpen(false)
+    if (nextThreadId === threadId) return
+    // Usage is keyed by message id and belongs to the conversation being left.
+    pendingUsageRef.current = undefined
+    setUsageByMessageId({})
+    setThreadId(nextThreadId)
+  }
+
+  async function handleNewConversation() {
+    switchTo(await createConversationAction(threadId))
+  }
+
+  /**
+   * Remove one conversation. Deliberately leaves the dropdown open so a few can
+   * be cleared in a row, and only moves the panel when the conversation being
+   * deleted is the one on screen.
+   */
+  async function handleDeleteConversation(target: string) {
+    const remaining = (conversations ?? []).filter((c) => c.threadId !== target)
+    setConversations(remaining)
+
+    if (target === threadId) {
+      // Never leave the panel showing a transcript that no longer exists.
+      // Prefer the next most recent chat; fall back to an empty one.
+      const next =
+        remaining[0]?.threadId ?? (await createConversationAction(target))
+      pendingUsageRef.current = undefined
+      setUsageByMessageId({})
+      setThreadId(next)
+    }
+
+    try {
+      await deleteConversationAction(target)
+    } catch {
+      // The optimistic removal was a lie — put the real list back rather than
+      // leaving a deleted-looking conversation that returns on next open.
+      setConversations(await listConversationsAction(threadId))
+    }
+  }
+
   function handleClear() {
     pendingUsageRef.current = undefined
     setUsageByMessageId({})
     clear()
+    // `clear()` only empties local state. The transcript lives on the server,
+    // so without this the next mount would hydrate everything straight back.
+    void fetch(`/api/chat?threadId=${encodeURIComponent(threadId)}`, {
+      method: "DELETE",
+      headers: tenantHeaders(tenantId),
+    }).catch(() => {})
   }
 
   // The assistant is "thinking" between submit and its first token — i.e.
@@ -257,21 +373,105 @@ export default function Chat() {
               </TooltipContent>
             </Tooltip>
           ) : null}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleClear}
-                >
-                  <Trash2 />
-                </Button>
-              }
-            />
-            <TooltipContent>Clear Conversation</TooltipContent>
-          </Tooltip>
+          <div className="ml-auto flex items-center gap-0.5">
+            <DropdownMenu open={historyOpen} onOpenChange={setHistoryOpen}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button type="button" variant="ghost" size="icon-sm">
+                          <History />
+                        </Button>
+                      }
+                    />
+                  }
+                />
+                <TooltipContent>Chat history</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuItem onClick={handleNewConversation}>
+                  <Plus />
+                  New chat
+                </DropdownMenuItem>
+                {conversations?.length ? <DropdownMenuSeparator /> : null}
+                {(conversations ?? []).map((conversation) => {
+                  const isActive = conversation.threadId === threadId
+                  return (
+                    // The delete control is a sibling of the menu item, not a
+                    // button nested inside one: a menu item is itself a button,
+                    // and nesting would be invalid markup that swallows the
+                    // click before it can stop the item from firing.
+                    <div
+                      key={conversation.threadId}
+                      className="group/row relative"
+                    >
+                      <DropdownMenuItem
+                        className="pr-8"
+                        onClick={() => switchTo(conversation.threadId)}
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate text-sm">
+                            {conversation.title || "New chat"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            <RelativeTime date={conversation.updatedAt} />
+                          </span>
+                        </div>
+                        {isActive ? (
+                          // The row is two lines but the item is `items-center`,
+                          // so pin the affordances to the title line instead of
+                          // letting them float against the timestamp.
+                          <Check className="mt-0.5 size-4 shrink-0 self-start text-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                      <button
+                        type="button"
+                        aria-label={`Delete conversation${
+                          conversation.title ? `: ${conversation.title}` : ""
+                        }`}
+                        className="absolute top-1 right-1 hidden rounded-sm p-1 text-muted-foreground group-hover/row:block hover:bg-destructive/10 hover:text-destructive focus-visible:block focus-visible:outline-2"
+                        onClick={(event) => {
+                          // Without this the click reaches the menu item behind
+                          // it and switches to the conversation being removed.
+                          event.stopPropagation()
+                          event.preventDefault()
+                          void handleDeleteConversation(conversation.threadId)
+                        }}
+                      >
+                        {/* Same box as the check so both icon centres land on
+                            the title's baseline row: 4px offset + 4px padding
+                            + half of 16px == 6px item padding + 2px + half of
+                            16px. */}
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+                {conversations?.length === 0 ? (
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No past conversations yet.
+                  </p>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleClear}
+                  >
+                    <Trash2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>Clear Conversation</TooltipContent>
+            </Tooltip>
+          </div>
         </header>
 
         <div className="min-h-0 flex-1">

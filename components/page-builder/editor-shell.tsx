@@ -17,7 +17,7 @@ import { DEFAULT_SINGLE_POST_SEED } from "@/lib/plugins/post-fields"
 import { useRouter } from "next/navigation"
 import { Component as ComponentIcon } from "lucide-react"
 import type { Template } from "@/lib/schema"
-import { EditorTenantProvider } from "./editor-tenant-context"
+import { EditorSessionProvider } from "./editor-tenant-context"
 import { contentTenantId } from "./types"
 import { ConvertTemplateDialog } from "./convert-template-dialog"
 import {
@@ -131,6 +131,14 @@ type Props = {
    * canvas is empty, so reloading the seeded URL won't double-insert.
    */
   seedBlockId?: string
+  /**
+   * Signed copilot conversation id for this record, minted server-side by
+   * `buildThreadId` in the editor route. Stable across reloads, which is what
+   * lets the assistant restore its history; it must be a prop rather than
+   * derived here, because it doubles as the capability that authorizes
+   * reading that transcript back.
+   */
+  chatThreadId: string
 }
 
 export default function EditorShell(props: Props) {
@@ -143,11 +151,14 @@ export default function EditorShell(props: Props) {
   if (!useIsClient()) return null
 
   return (
-    <EditorTenantProvider tenantId={contentTenantId(props.content)}>
+    <EditorSessionProvider
+      tenantId={contentTenantId(props.content)}
+      threadId={props.chatThreadId}
+    >
       <LeftPanelProvider initialOpen={false}>
         <EditorShellInner {...props} />
       </LeftPanelProvider>
-    </EditorTenantProvider>
+    </EditorSessionProvider>
   )
 }
 
