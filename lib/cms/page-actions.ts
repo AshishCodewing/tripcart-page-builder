@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm"
 
 import { db } from "@/lib/db"
 import { pages } from "@/lib/schema"
+import { deleteThreadsForContent } from "@/lib/ai/persistence"
 
 import { cacheTags } from "./cache-tags"
 import {
@@ -130,6 +131,7 @@ export async function deletePage(id: string): Promise<void> {
     )
   }
   await db.delete(pages).where(eq(pages.id, id))
+  await deleteThreadsForContent("page", id)
   updateTag(cacheTags.page(page.path))
   if (page.status === "PUBLISHED") updateTag(cacheTags.nav)
   redirect(`/admin/tenants/${page.tenantId}`)

@@ -5,8 +5,8 @@ import { useEditorMaybe } from "@grapesjs/react"
 import { Trash2 } from "lucide-react"
 
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog"
-import { useIsClient } from "@/hooks/use-is-client"
 import { formatTemplateRefUsage } from "@/lib/cms/template-ref-usage"
+import { RelativeTime } from "@/components/relative-time"
 import { ChromeAssignmentSelect } from "@/components/page-builder/right-panel/chrome-assignment-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,32 +48,6 @@ type Props = {
   content: EditorContent
   /** Server action bound to the record id. */
   deleteAction: () => Promise<void>
-}
-
-const RTF = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
-
-function formatRelative(date: Date): string {
-  const diffMs = date.getTime() - Date.now()
-  const absSec = Math.abs(diffMs) / 1000
-  if (absSec < 60) return RTF.format(Math.round(diffMs / 1000), "second")
-  if (absSec < 3600) return RTF.format(Math.round(diffMs / 60_000), "minute")
-  if (absSec < 86_400) return RTF.format(Math.round(diffMs / 3_600_000), "hour")
-  return RTF.format(Math.round(diffMs / 86_400_000), "day")
-}
-
-function RelativeTime({ date }: { date: Date }) {
-  // `formatRelative` reads `Date.now()`, which differs between server and
-  // client, so render an empty string until hydrated to avoid a mismatch.
-  const isClient = useIsClient()
-  // Re-render every 30s to keep the relative label fresh. The tick is a
-  // timer callback (not a synchronous effect-body setState), and the label
-  // itself is derived during render rather than mirrored into state.
-  const [, tick] = React.useReducer((n: number) => n + 1, 0)
-  React.useEffect(() => {
-    const id = setInterval(tick, 30_000)
-    return () => clearInterval(id)
-  }, [])
-  return <>{isClient ? formatRelative(date) : ""}</>
 }
 
 function FieldRow({

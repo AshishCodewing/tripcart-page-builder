@@ -5,6 +5,7 @@ import EditorShell from "@/components/page-builder/editor-shell"
 import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import { deletePage, savePage } from "@/lib/cms/page-actions"
 import { getPageById, listPageParents } from "@/lib/cms/pages"
+import { resolveLatestThreadId } from "@/lib/ai/conversations"
 import { listTemplates } from "@/lib/cms/templates"
 import { getTenantTheme } from "@/lib/cms/tenants"
 
@@ -34,6 +35,7 @@ export default async function EditPagePage({
 
   return (
     <EditorShell
+      chatThreadId={await resolveLatestThreadId("page", id)}
       content={{ kind: "page", page, parentOptions }}
       tenantTheme={tenantTheme}
       initialProjectData={initialProjectData}

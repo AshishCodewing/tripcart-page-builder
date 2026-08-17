@@ -19,6 +19,7 @@ import {
 import { getHierarchyEntry, isHierarchySlug } from "./template-hierarchy"
 import { BUILTIN_PATTERNS } from "@/lib/plugins/patterns/manifest"
 import { defaultFooter, defaultHeader } from "@/lib/plugins/parts"
+import { deleteThreadsForContent } from "@/lib/ai/persistence"
 import {
   parseSelectionForm,
   parseTemplateBody,
@@ -426,6 +427,7 @@ export async function deleteTemplate(id: string): Promise<void> {
   if (!tpl) return
 
   await db.delete(templates).where(eq(templates.id, id))
+  await deleteThreadsForContent("template", id)
   updateTag(cacheTags.template(tpl.slug))
 
   if (!tpl.tenantId) redirect("/admin/tenants")
@@ -447,6 +449,7 @@ export async function bulkDeleteTemplates(ids: string[]): Promise<void> {
     columns: { slug: true },
   })
   await db.delete(templates).where(inArray(templates.id, ids))
+  for (const id of ids) await deleteThreadsForContent("template", id)
   for (const row of rows) updateTag(cacheTags.template(row.slug))
 }
 

@@ -5,6 +5,7 @@ import EditorShell from "@/components/page-builder/editor-shell"
 import { saveEditorDraft } from "@/lib/cms/editor-draft-actions"
 import { deletePost, savePost } from "@/lib/cms/post-actions"
 import { getPostById } from "@/lib/cms/posts"
+import { resolveLatestThreadId } from "@/lib/ai/conversations"
 import { listTemplates } from "@/lib/cms/templates"
 import { getTenantTheme } from "@/lib/cms/tenants"
 
@@ -29,6 +30,7 @@ export default async function EditPostPage({
 
   return (
     <EditorShell
+      chatThreadId={await resolveLatestThreadId("post", id)}
       content={{
         kind: "post",
         post: {
