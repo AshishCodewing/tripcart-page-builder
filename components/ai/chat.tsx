@@ -27,6 +27,7 @@ import {
 import { RelativeTime } from "@/components/relative-time"
 import {
   createConversationAction,
+  deleteConversationAction,
   listConversationsAction,
 } from "@/lib/ai/conversation-actions"
 import type { ConversationSummary } from "@/lib/ai/conversations"
@@ -294,6 +295,34 @@ export default function Chat() {
     switchTo(await createConversationAction(threadId))
   }
 
+  /**
+   * Remove one conversation. Deliberately leaves the dropdown open so a few can
+   * be cleared in a row, and only moves the panel when the conversation being
+   * deleted is the one on screen.
+   */
+  async function handleDeleteConversation(target: string) {
+    const remaining = (conversations ?? []).filter((c) => c.threadId !== target)
+    setConversations(remaining)
+
+    if (target === threadId) {
+      // Never leave the panel showing a transcript that no longer exists.
+      // Prefer the next most recent chat; fall back to an empty one.
+      const next =
+        remaining[0]?.threadId ?? (await createConversationAction(target))
+      pendingUsageRef.current = undefined
+      setUsageByMessageId({})
+      setThreadId(next)
+    }
+
+    try {
+      await deleteConversationAction(target)
+    } catch {
+      // The optimistic removal was a lie — put the real list back rather than
+      // leaving a deleted-looking conversation that returns on next open.
+      setConversations(await listConversationsAction(threadId))
+    }
+  }
+
   function handleClear() {
     pendingUsageRef.current = undefined
     setUsageByMessageId({})
@@ -369,22 +398,54 @@ export default function Chat() {
                 {(conversations ?? []).map((conversation) => {
                   const isActive = conversation.threadId === threadId
                   return (
-                    <DropdownMenuItem
+                    // The delete control is a sibling of the menu item, not a
+                    // button nested inside one: a menu item is itself a button,
+                    // and nesting would be invalid markup that swallows the
+                    // click before it can stop the item from firing.
+                    <div
                       key={conversation.threadId}
-                      onClick={() => switchTo(conversation.threadId)}
+                      className="group/row relative"
                     >
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="truncate text-sm">
-                          {conversation.title || "New chat"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          <RelativeTime date={conversation.updatedAt} />
-                        </span>
-                      </div>
-                      {isActive ? (
-                        <Check className="size-4 shrink-0 text-primary" />
-                      ) : null}
-                    </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="pr-8"
+                        onClick={() => switchTo(conversation.threadId)}
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate text-sm">
+                            {conversation.title || "New chat"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            <RelativeTime date={conversation.updatedAt} />
+                          </span>
+                        </div>
+                        {isActive ? (
+                          // The row is two lines but the item is `items-center`,
+                          // so pin the affordances to the title line instead of
+                          // letting them float against the timestamp.
+                          <Check className="mt-0.5 size-4 shrink-0 self-start text-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                      <button
+                        type="button"
+                        aria-label={`Delete conversation${
+                          conversation.title ? `: ${conversation.title}` : ""
+                        }`}
+                        className="absolute top-1 right-1 hidden rounded-sm p-1 text-muted-foreground group-hover/row:block hover:bg-destructive/10 hover:text-destructive focus-visible:block focus-visible:outline-2"
+                        onClick={(event) => {
+                          // Without this the click reaches the menu item behind
+                          // it and switches to the conversation being removed.
+                          event.stopPropagation()
+                          event.preventDefault()
+                          void handleDeleteConversation(conversation.threadId)
+                        }}
+                      >
+                        {/* Same box as the check so both icon centres land on
+                            the title's baseline row: 4px offset + 4px padding
+                            + half of 16px == 6px item padding + 2px + half of
+                            16px. */}
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   )
                 })}
                 {conversations?.length === 0 ? (

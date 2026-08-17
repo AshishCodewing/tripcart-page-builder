@@ -5,6 +5,8 @@ import {
   siblingThreadId,
   type ConversationSummary,
 } from "./conversations"
+import { deleteThread } from "./persistence"
+import { parseThreadId } from "./thread-id"
 
 /**
  * Actions backing the assistant's history dropdown.
@@ -31,4 +33,17 @@ export async function createConversationAction(
   // No row is written here — `ensureThread` creates one on the first save, so
   // abandoning a new chat without sending anything leaves nothing behind.
   return siblingThreadId(threadId)
+}
+
+/**
+ * Delete one conversation from the history list.
+ *
+ * `parseThreadId` throws on an id this server did not sign, and that throw IS
+ * the authorization check — it runs before anything touches the database.
+ */
+export async function deleteConversationAction(
+  threadId: string
+): Promise<void> {
+  parseThreadId(threadId)
+  await deleteThread(threadId)
 }
