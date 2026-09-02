@@ -21,8 +21,10 @@ import { CanvasFloating } from "./canvas-floating"
 // Scope note: this covers component drags — dragging on the canvas and the
 // floating toolbar's Move action — matching what the built-in badge covered.
 // New blocks dragged in from the Block Manager emit `block:drag:*` instead and
-// are not handled here. GrapesJS emits the same events for Layer Manager
-// reordering, so that panel is covered for free once it's built.
+// are not handled here. Neither are Layers-panel drags: that tree runs on
+// @dnd-kit (`layerManager: { custom: true }` means GrapesJS' own sorter is
+// never built), it emits no `component:drag*`, and it draws its own drop
+// indicator inside the panel.
 
 type DragState = {
   /** The component being dragged. Also gates mounting. */

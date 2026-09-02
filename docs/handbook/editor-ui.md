@@ -8,7 +8,7 @@ build a WordPress-style chrome in React on top, talking to GrapesJS through
 
 ```
 ┌──────────────── Top Bar ─────────────────────────────────────┐
-│ insert · undo/redo · layers │  title  │ device · save/publish │
+│ insert · undo/redo · outline│  title  │ device · save/publish │
 ├──────────┬──────────────────────────────┬────────────────────┤
 │  Left    │                              │   Right            │
 │  Panel   │      Canvas (iframe)         │   Panel            │
@@ -23,7 +23,7 @@ build a WordPress-style chrome in React on top, talking to GrapesJS through
 - **Left panel** — tabbed Blocks (the inserter) and Layers.
 - **Right panel** — for the selected component: **Style** (CSS) and **Settings**
   (traits/attributes).
-- **Top bar** — insert, undo/redo, layers toggle, device switching, save/publish.
+- **Top bar** — insert, undo/redo, outline, device switching, save/publish.
 - **Floating toolbar/badge** — selection chrome drawn over the canvas (move, dup,
   delete, "edit original" for template refs, convert-to-pattern).
 
@@ -66,6 +66,12 @@ per trait type (text, number, select, checkbox, color, button).
 The Blocks tab lists everything draggable — basic blocks, our **patterns**, columns,
 and tenant **templates** — split into Blocks vs Patterns. Drag onto the canvas, or
 use the floating toolbar's insert picker to place relative to the selection.
+
+The Layers tab is the component tree. Click a row to select it on the canvas, hover
+to highlight it, and drag a row to move a component anywhere in the tree — drag
+sideways to change how deeply it nests. Each row also has an eye and a lock. The eye
+really hides the element (it sets `display: none`, which is saved and published, not
+just an editor preview); the lock stops the element being selected on the canvas.
 
 For the file map, the field-type catalog, and the manager→field→model data flow, see
 [editor-ui.technical.md](editor-ui.technical.md).
