@@ -35,7 +35,7 @@ in as props.
 | Area | Files |
 |---|---|
 | Shell + types | `editor-shell.tsx`, `types.ts` (`EditorContent` discriminated union + helpers) |
-| Left panel | `left-panel/{left-panel,left-panel-context,block-inserter,layers-panel}.tsx` |
+| Left panel | `left-panel/{left-panel,left-panel-context,block-inserter,layers-panel}.tsx`, `left-panel/layers/*` |
 | Right panel | `right-panel/right-panel.tsx`, `managers/block-settings.tsx` (Style/Settings tabs) |
 | Top bar | `top-bar/{top-bar,top-bar-left,top-bar-right}.tsx` |
 | Managers (provider consumers) | `managers/{style-manager,trait-manager,selector-manager,block-manager}.tsx` |
@@ -87,6 +87,24 @@ blur/Enter).
   `dragStart`/`dragStop`). `block-inserter.tsx` splits Blocks vs Patterns via
   `isPatternBlock`. `insert-block-picker.tsx` inserts relative to selection
   (before/inside-first/inside-last/after) wrapped in `UndoManager.start/stop`.
+- **Layers** is our own React tree, not GrapesJS'. `build-options.ts` sets
+  `layerManager: { custom: true }`, which stops GrapesJS building both its layer
+  DOM and the sorter behind it (that sorter reads models off jQuery
+  `.data('model')` on `.gjs-layer` rows, so it could never drive a React tree).
+  - `layers/use-layer-tree.ts` flattens `Layers.getComponents()` (which already
+    drops `layerable: false` nodes) into rows, and rebuilds on the same event set
+    GrapesJS' own Layer Manager listens to.
+  - `layers/drop-projection.ts` is pure: flat rows + horizontal pointer travel →
+    `{ parentId, depth, beforeId }`. It names a **reference sibling**, not an
+    index, so nothing downstream has to reason about pre- vs post-removal
+    positions.
+  - `layers/move-layer.ts` turns that into `Components.canMove()` + a single
+    `Component.move(parent, { at })` inside `UndoManager.start/stop`.
+  - Row writes all go through `Layers.setLayerData`, whose `fromLayers: true`
+    flag stops the change bouncing back as a rebuild. Note the eye toggle writes
+    `display: none` into the component's style — it persists to published pages.
+  - Layer drags are panel-local: no `component:drag*`, so `drag-badge.tsx` and
+    `drop-target-outline.tsx` stay idle during them.
 - `floating-toolbar.tsx` / `floating-badge.tsx` use `canvas-floating.tsx`
   (floating-ui + portal into `Canvas.getSpotsEl()`), mapping iframe-local rects to
   screen coords and tracking `component:update`/`canvas:update`/scroll. Actions gate
@@ -95,8 +113,8 @@ blur/Enter).
 
 ## Top bar
 
-- Left: insert (toggles blocks panel), undo/redo (`UndoManager`), layers toggle,
-  outline command.
+- Left: insert (toggles blocks panel), undo/redo (`UndoManager`), outline
+  command. There is no layers toggle here — Layers is a left-rail tab.
 - Right: `DevicesProvider` device switch; Save/Publish via `useFormStatus`; primary
   label driven by `contentStatus` + `useIsDirty()` (Publish vs Update vs Save draft).
   Templates render a plain Save (no publish lifecycle).

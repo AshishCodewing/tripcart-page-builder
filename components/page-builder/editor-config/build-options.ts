@@ -91,6 +91,12 @@ export const buildGjsOptions = (
   styleManager: {
     sectors: STYLE_SECTORS,
   },
+  // The Layers tab is our own React tree (left-panel/layers/). `custom: true`
+  // stops GrapesJS from building its layer DOM *and* the sorter that drives it
+  // — that sorter resolves models from jQuery `.data('model')` on `.gjs-layer`
+  // rows, so it could never see a React tree. Reordering runs on @dnd-kit and
+  // lands via `Component.move()`; see left-panel/layers/move-layer.ts.
+  layerManager: { custom: true },
   // The RTE engine is ProseMirror, swapped in via `editor.setCustomRte(...)`
   // inside `rtePlugin`. GrapesJS renders no action bar of its own for a custom
   // RTE — <RteToolbar /> positions the shadcn UI itself over the edited node.
