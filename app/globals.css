@@ -99,8 +99,8 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.204 0.004 264.5);
 
-    /* Primary — brand.500 / White */
-    --primary: oklch(0.631 0.2 257.6);
+    /* Primary — brand.500 (#003819) / White */
+    --primary: oklch(0.2985 0.0776 152.5);
     --primary-foreground: oklch(1 0 0);
 
     /* Secondary — neutral.100 / neutral.800 */
@@ -133,14 +133,14 @@
     --input: oklch(0.929 0.013 255.5);
 
     /* Ring — brand.500 (focus ring) */
-    --ring: oklch(0.631 0.2 257.6);
+    --ring: oklch(0.2985 0.0776 152.5);
 
     /* Chart colors — brand, green, orange, red, brand.300 */
-    --chart-1: oklch(0.631 0.2 257.6);
+    --chart-1: oklch(0.2985 0.0776 152.5);
     --chart-2: oklch(0.673 0.16 155.6);
     --chart-3: oklch(0.747 0.17 62.1);
     --chart-4: oklch(0.637 0.21 28.5);
-    --chart-5: oklch(0.767 0.12 255.8);
+    --chart-5: oklch(0.767 0.055 152.5);
 
     /* Toast tint backgrounds — Figma alert bg tokens, fully opaque */
     --toast-success: oklch(0.979 0.022 160.5);
@@ -154,12 +154,12 @@
     /* Sidebar — bg-surface / heading-default / brand */
     --sidebar: oklch(0.981 0.005 258.3);
     --sidebar-foreground: oklch(0.204 0.004 264.5);
-    --sidebar-primary: oklch(0.631 0.2 257.6);
+    --sidebar-primary: oklch(0.2985 0.0776 152.5);
     --sidebar-primary-foreground: oklch(1 0 0);
     --sidebar-accent: oklch(0.956 0.011 256.7);
     --sidebar-accent-foreground: oklch(0.204 0.004 264.5);
     --sidebar-border: oklch(0.929 0.013 255.5);
-    --sidebar-ring: oklch(0.631 0.2 257.6);
+    --sidebar-ring: oklch(0.2985 0.0776 152.5);
 }
 
 .dark {
@@ -177,9 +177,9 @@
     --popover: oklch(0.248 0.006 258);
     --popover-foreground: oklch(0.97 0.003 258);
 
-    /* Primary — pulled back from the eye-watering 0.631/0.2.
-       Lower lightness + lower chroma reads as confident, not neon. */
-    --primary: oklch(0.575 0.155 257.6);
+    /* Primary — the brand green lifted off its #003819 base; at 0.2985
+       lightness it would barely separate from the 0.19 background. */
+    --primary: oklch(0.575 0.105 152.5);
     --primary-foreground: oklch(0.99 0 0);
 
     /* Secondary / muted / accent — interactive surface tier */
@@ -201,14 +201,14 @@
        the lifted background without drawing attention */
     --border: oklch(1 0 0 / 12%);
     --input: oklch(1 0 0 / 16%);
-    --ring: oklch(0.575 0.155 257.6);
+    --ring: oklch(0.575 0.105 152.5);
 
     /* Charts — brand-aligned, restrained chroma for dark surfaces */
-    --chart-1: oklch(0.575 0.155 257.6);
+    --chart-1: oklch(0.575 0.105 152.5);
     --chart-2: oklch(0.66 0.145 155.6);
     --chart-3: oklch(0.73 0.155 62.1);
     --chart-4: oklch(0.62 0.19 28.5);
-    --chart-5: oklch(0.7 0.1 257.6);
+    --chart-5: oklch(0.7 0.07 152.5);
 
     /* Toast tints — deep, low-chroma washes that sit on bg without glowing */
     --toast-success: oklch(0.245 0.025 155.6);
@@ -219,12 +219,12 @@
     /* Sidebar — matches card tier so it reads as a panel, not a void */
     --sidebar: oklch(0.215 0.006 258);
     --sidebar-foreground: oklch(0.97 0.003 258);
-    --sidebar-primary: oklch(0.575 0.155 257.6);
+    --sidebar-primary: oklch(0.575 0.105 152.5);
     --sidebar-primary-foreground: oklch(0.99 0 0);
     --sidebar-accent: oklch(0.288 0.007 258);
     --sidebar-accent-foreground: oklch(0.97 0.003 258);
     --sidebar-border: oklch(1 0 0 / 12%);
-    --sidebar-ring: oklch(0.575 0.155 257.6);
+    --sidebar-ring: oklch(0.575 0.105 152.5);
 }
 
 @layer components {
