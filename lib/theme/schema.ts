@@ -33,8 +33,11 @@ import type {
   boxStyleSchema,
   colorStyleSchema,
   colorTokenSchema,
+  componentStyleSchema,
+  elementStyleSchema,
   elementsSchema,
   fontSizeTokenSchema,
+  partStyleSchema,
   pseudoStyleBlockSchema,
   spacingStyleSchema,
   styleBlockSchema,
@@ -82,17 +85,34 @@ export type StyleBlock = z.infer<typeof styleBlockSchema>
 export type PseudoStyleBlock = z.infer<typeof pseudoStyleBlockSchema>
 
 /**
- * Mirrors WP's supported element list. Each compiles to a bare tag
- * selector (`heading` → `h1, …, h6`, `link` → `a`, `caption` →
- * `figcaption`, everything else the tag as-is) — see `elementSelector`
- * in `./compile.ts`. Derived from the elements schema's key set.
+ * A `PseudoStyleBlock` plus optional `variations` — named looks that
+ * compile to `<selector>.is-style-<slug>` (WP's block style variations).
+ */
+export type ElementStyleBlock = z.infer<typeof elementStyleSchema>
+
+/**
+ * Mirrors WP's supported element list. Each compiles to a tag selector
+ * (`heading` → `h1, …, h6`, `link` → `a`, `caption` → `figcaption`,
+ * everything else the tag as-is) except `button`, which targets only the
+ * opt-in `.tc-element-button` marker class (WP's `.wp-element-button`) so
+ * `<a>`-rendered buttons receive it and raw `<button>`s are left alone —
+ * see `elementSelectors` in `./style-selectors.ts`. Derived from the elements
+ * schema's key set.
  */
 export type ElementName = keyof z.infer<typeof elementsSchema>
 
+/** One part of a block: a StyleBlock plus `states` keyed by selector suffix. */
+export type PartStyleBlock = z.infer<typeof partStyleSchema>
+
+/** A block's theme styles: root declarations plus named `parts`. */
+export type ComponentStyleBlock = z.infer<typeof componentStyleSchema>
+
 /**
- * `components` is keyed by GrapesJS component `type`. Open-ended (no
- * fixed enum) so new patterns/blocks register without a schema bump. The
- * compiler targets each type via its `[data-gjs-type="<type>"]` selector.
+ * `components` is keyed by GrapesJS component `type` (WP's
+ * `styles.blocks.<name>`). Each type's parts, states and allowed style
+ * groups come from its `StyleSurface` (`./style-surfaces.ts`); the schema
+ * validates against it and the compiler emits on the declared selectors.
+ * A type with no surface is accepted but compiles to nothing.
  */
 export type StyleDefaults = z.infer<typeof styleDefaultsSchema>
 

@@ -6,6 +6,7 @@ import {
   presetVarName,
   resolveStyleRef,
 } from "@/lib/theme/compile"
+import { ELEMENT_BUTTON_CLASS } from "@/lib/theme/style-selectors"
 import type { Theme } from "@/lib/theme/schema"
 
 const theme: Theme = {
@@ -57,6 +58,120 @@ describe("compileTheme", () => {
     expect(darkVars[bg]).toBe("hsl(0 0% 10%)")
     // A token without `dark` is absent from darkVars entirely.
     expect(darkVars[presetVarName("color", "primary")]).toBeUndefined()
+  })
+})
+
+describe("compileTheme element rules", () => {
+  const elementsTheme: Theme = {
+    ...theme,
+    styles: {
+      elements: {
+        heading: { ":hover": { color: { text: "red" } } },
+        button: {
+          color: { background: "var:preset|color|primary" },
+          ":hover": { color: { background: "blue" } },
+          variations: {
+            outline: {
+              color: { background: "transparent" },
+              ":hover": { color: { text: "blue" } },
+            },
+          },
+        },
+      },
+    },
+  }
+
+  it("targets only the .tc-element-button badge, never the bare button tag", () => {
+    const { rules } = compileTheme(elementsTheme)
+    const base = rules.find((r) => r.selector === `.${ELEMENT_BUTTON_CLASS}`)
+    expect(base?.style).toEqual({
+      "background-color": `var(${presetVarName("color", "primary")})`,
+    })
+    for (const { selector } of rules) {
+      expect(selector).not.toMatch(/(^|,\s*)button\b/)
+    }
+  })
+
+  it("suffixes pseudo states onto every selector in the list", () => {
+    const selectors = compileTheme(elementsTheme).rules.map((r) => r.selector)
+    expect(selectors).toContain(
+      "h1:hover, h2:hover, h3:hover, h4:hover, h5:hover, h6:hover"
+    )
+    expect(selectors).toContain(`.${ELEMENT_BUTTON_CLASS}:hover`)
+  })
+
+  it("emits each variation as an is-style-<slug> rule set after the base", () => {
+    const selectors = compileTheme(elementsTheme).rules.map((r) => r.selector)
+    const base = selectors.indexOf(`.${ELEMENT_BUTTON_CLASS}`)
+    const outline = selectors.indexOf(
+      `.${ELEMENT_BUTTON_CLASS}.is-style-outline`
+    )
+    expect(base).toBeGreaterThanOrEqual(0)
+    expect(outline).toBeGreaterThan(base)
+    expect(selectors).toContain(
+      `.${ELEMENT_BUTTON_CLASS}.is-style-outline:hover`
+    )
+  })
+
+  it("keeps raw values like transparent in a variation", () => {
+    const { rules } = compileTheme(elementsTheme)
+    const outline = rules.find((r) => r.selector.endsWith(".is-style-outline"))
+    expect(outline?.style).toEqual({ "background-color": "transparent" })
+  })
+})
+
+describe("compileTheme component rules", () => {
+  const componentsTheme: Theme = {
+    ...theme,
+    styles: {
+      components: {
+        "tc-tabs": {
+          border: { color: "var:preset|color|primary" },
+          parts: {
+            tab: {
+              typography: { fontWeight: "600" },
+              states: {
+                ":hover": { color: { text: "red" } },
+                '[aria-selected="true"]': {
+                  color: { text: "var:preset|color|primary" },
+                },
+              },
+            },
+          },
+        },
+        "tc-retired-block": { color: { text: "red" } },
+      },
+    },
+  }
+
+  it("emits root declarations on the surface's root selector", () => {
+    const { rules } = compileTheme(componentsTheme)
+    expect(rules).toContainEqual({
+      selector: "tc-tabs",
+      style: { "border-color": `var(${presetVarName("color", "primary")})` },
+    })
+  })
+
+  it("emits each part on its declared selector, states as suffixes", () => {
+    const { rules } = compileTheme(componentsTheme)
+    expect(rules).toContainEqual({
+      selector: 'tc-tabs [role="tab"]',
+      style: { "font-weight": "600" },
+    })
+    expect(rules).toContainEqual({
+      selector: 'tc-tabs [role="tab"]:hover',
+      style: { color: "red" },
+    })
+    expect(rules).toContainEqual({
+      selector: 'tc-tabs [role="tab"][aria-selected="true"]',
+      style: { color: `var(${presetVarName("color", "primary")})` },
+    })
+  })
+
+  it("emits nothing for a type with no registered surface", () => {
+    const selectors = compileTheme(componentsTheme).rules.map((r) => r.selector)
+    expect(selectors.some((s) => s.includes("tc-retired-block"))).toBe(false)
+    expect(selectors.some((s) => s.includes("data-gjs-type"))).toBe(false)
   })
 })
 

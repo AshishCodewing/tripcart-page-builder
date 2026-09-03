@@ -41,6 +41,10 @@ export default function PreviewRootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${fontMono.variable}`}
+      // Same as the app layout: browser extensions stamp data-* attributes
+      // on <html> before hydration, which is noise, not a bug. Scoped to
+      // this element's attributes only — children still report mismatches.
+      suppressHydrationWarning
       // Sans fallback + smoothing, replacing what Tailwind's preflight used to
       // provide. Set on <html> (not <body>) so the theme's own body font-family
       // rule wins by normal inheritance when a tenant picks a font.

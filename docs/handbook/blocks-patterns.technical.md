@@ -65,6 +65,23 @@ patterns just re-render with new props (no listeners needed).
 Replaces `grapesjs-blocks-basic`'s table/flex columns (which is why `gjsBlocksBasic`
 is configured with only `["text","link","image","video","map"]`).
 
+## button/index.ts
+
+`buttonPlugin` registers the `tc-button` type (extends the built-in `link`, renders as
+`<a>`) and a "Button" block in "Basic". It follows WordPress's split:
+
+- **Structure in the plugin.** `defaults.styles` holds display/padding/font/cursor/focus
+  rules, all in `:where(.tc-button)` (specificity 0-0-0).
+- **Look in the theme.** The block wears `.tc-element-button` (WP's `.wp-element-button`),
+  the only selector `styles.elements.button` targets — never the bare `button` tag, so
+  tab buttons and toggles keep their own CSS. Colors, radius, border and text-decoration
+  come from there. Any block that should look like a call to action wears the badge.
+- **Variants are theme-defined.** The `variant` select trait (`changeProp`) only toggles
+  `is-style-outline`; `elements.button.variations.outline` in the theme supplies the CSS
+  (`lib/tokens/index.ts`). Fill is the unclassed default.
+- `init` re-adds both identity classes: parsed HTML replaces the default class list
+  wholesale (GrapesJS `initClasses`), so `<a class="tc-button">` alone must still resolve.
+
 ## Conventions
 
 - Folder per pattern; `register<Name>(editor)` export; `tc-*` class + `tc-<name>`
@@ -73,3 +90,11 @@ is configured with only `["text","link","image","video","map"]`).
   on descendant combinators). For descendant hover/state, set a CSS var on the parent
   and read it on the child (see `cards.ts`, `trips-block.ts`).
 - Block `media` is an inline SVG thumbnail.
+- **Themeable parts → declare a `StyleSurface`.** A block whose controls a tenant should be
+  able to restyle from the theme (tabs, accordion, dropdown) ships a pure-data
+  `<block>.surface.ts` next to the plugin (no GrapesJS import — the theme compiler runs it
+  server-side) and lists it in `STYLE_SURFACES` (`lib/theme/style-surfaces.ts`). Each part
+  names a stable selector (roles/attributes, never author classes, real specificity so it
+  beats the plugin's `:where()` defaults) and the state suffixes it allows. Every style
+  group is offered by default; narrow `supports` only where a group would genuinely break
+  the block, never on taste. Model: `lib/plugins/interactive/tabs.surface.ts`.

@@ -34,8 +34,12 @@ import type { Theme } from "@/lib/theme/schema"
 import type { Preset } from "@/lib/theme/presets"
 import { getGroup, withGroup } from "@/lib/theme/token-paths"
 import { clearActiveFor, mergePresetTokens } from "@/lib/theme/theme-mutations"
-
-export type { ActivePresetId } from "@/lib/tokens"
+import type { Path } from "@/lib/theme/style-paths"
+import {
+  resetStyleBlock as resetStyleBlockIn,
+  setStyleValue as setStyleValueIn,
+  type StyleTarget,
+} from "@/lib/theme/style-targets"
 
 export type ThemeSnapshot = {
   theme: Theme
@@ -52,6 +56,14 @@ const listeners = new Set<Listener>()
 
 const emit = (): void => {
   for (const fn of listeners) fn(snapshot)
+}
+
+// Style mutations return the same theme when nothing changed; only a real
+// change should reach subscribers.
+const commitTheme = (theme: Theme): void => {
+  if (theme === snapshot.theme) return
+  snapshot = { ...snapshot, theme }
+  emit()
 }
 
 export const themeStore = {
@@ -78,6 +90,27 @@ export const themeStore = {
       activePresetId: clearActiveFor(snapshot.activePresetId, category),
     }
     emit()
+  },
+
+  /**
+   * Write one declaration on a style target (`styles.elements.*` /
+   * `styles.components.*`); `undefined` clears it. `activePresetId` is
+   * untouched — presets only describe `settings` tokens.
+   */
+  setStyleValue(
+    target: StyleTarget,
+    path: Path,
+    value: string | undefined
+  ): void {
+    commitTheme(setStyleValueIn(snapshot.theme, target, path, value))
+  },
+
+  /**
+   * Put a whole element or component back to the bundled defaults — every
+   * variation, part and state of it. The draft-level undo is `Discard`.
+   */
+  resetStyleBlock(target: StyleTarget): void {
+    commitTheme(resetStyleBlockIn(snapshot.theme, target, defaultTheme))
   },
 
   /**

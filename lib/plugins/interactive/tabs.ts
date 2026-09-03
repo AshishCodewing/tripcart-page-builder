@@ -44,7 +44,11 @@ type TabCmp = Cmp & {
   getUnlinkedPanel(): Component | undefined
 }
 type TabsCmp = Cmp & {
-  __onTab(tab: Component, v?: unknown, opts?: { avoidStore?: boolean; temporary?: boolean }): void
+  __onTab(
+    tab: Component,
+    v?: unknown,
+    opts?: { avoidStore?: boolean; temporary?: boolean }
+  ): void
   getListType(): Component | undefined
   getPanelsType(): Component
   findTabs(): Component[]
@@ -135,7 +139,8 @@ export const tabsPlugin = (editor: Editor): void => {
   // ── tc-tab (role=tab) — editable label; owns its paired panel ───────────
   dc.addType(T_TAB, {
     isComponent: (el) =>
-      el.tagName?.toLowerCase() === "button" && el.getAttribute?.("role") === "tab",
+      el.tagName?.toLowerCase() === "button" &&
+      el.getAttribute?.("role") === "tab",
     model: {
       defaults: {
         name: "Tab",
@@ -449,7 +454,12 @@ export const tabsPlugin = (editor: Editor): void => {
         if (list) this.listenTo(list.components(), "add", this.__onTab)
       },
 
-      __onTab(this: TabsCmp, tab: Component, _v?: unknown, opts: { avoidStore?: boolean; temporary?: boolean } = {}) {
+      __onTab(
+        this: TabsCmp,
+        tab: Component,
+        _v?: unknown,
+        opts: { avoidStore?: boolean; temporary?: boolean } = {}
+      ) {
         const t = tab as TabCmp
         if (!opts.avoidStore && !opts.temporary && t.__initTab) t.__initTab()
       },
@@ -472,7 +482,10 @@ export const tabsPlugin = (editor: Editor): void => {
 
       addTab(this: TabsCmp, content?: unknown) {
         const list = this.getListType()
-        list?.append({ type: T_TAB, components: content ?? "<span>New tab</span>" })
+        list?.append({
+          type: T_TAB,
+          components: content ?? "<span>New tab</span>",
+        })
       },
     },
     view: {
@@ -488,7 +501,9 @@ export const tabsPlugin = (editor: Editor): void => {
     run(ed) {
       const sel = ed.getSelected() as TabsCmp | undefined
       if (!sel) return
-      const tabs = (sel.is(T_TABS) ? sel : sel.closestType(T_TABS)) as TabsCmp | undefined
+      const tabs = (sel.is(T_TABS) ? sel : sel.closestType(T_TABS)) as
+        | TabsCmp
+        | undefined
       tabs?.addTab()
     },
   })

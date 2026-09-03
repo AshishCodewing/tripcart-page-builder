@@ -18,6 +18,12 @@
 
 import { z } from "zod"
 
+import {
+  getStyleSurface,
+  STYLE_GROUPS,
+  type StylePart,
+} from "@/lib/theme/style-surfaces"
+
 export const tokenSchema = z.object({
   slug: z.string().min(1),
   name: z.string(),
@@ -115,6 +121,16 @@ export const boxStyleSchema = z.object({
 export const spacingStyleSchema = z.object({
   padding: boxStyleSchema.optional(),
   margin: boxStyleSchema.optional(),
+})
+
+/**
+ * Root-only spacing. `blockGap` is WP's vertical rhythm between stacked blocks
+ * — it compiles to the `--tc--style--block-gap` variable that drives the
+ * `.tc-entry-content` flow spacing in tc-normalize.css, NOT to a CSS `gap`
+ * declaration. Flex/grid gap on a block is `layout.gap`, which is a different
+ * thing, so `blockGap` lives only where it means something.
+ */
+export const rootSpacingStyleSchema = spacingStyleSchema.extend({
   blockGap: z.string().optional(),
 })
 
@@ -125,12 +141,58 @@ export const borderStyleSchema = z.object({
   width: z.string().optional(),
 })
 
+// Layout. Container side: `display` so a block can be made flex or full-width,
+// then the flex box-alignment properties. Child side, for a part that sits
+// inside a flex parent (a tab button in the tab bar): how it aligns itself,
+// its order, and the `flex` shorthand (grow / shrink / basis). Grid tracks,
+// position and float are per-instance decisions and stay in the page editor.
+export const layoutStyleSchema = z.object({
+  display: z.string().optional(),
+  flexDirection: z.string().optional(),
+  flexWrap: z.string().optional(),
+  gap: z.string().optional(),
+  justifyContent: z.string().optional(),
+  alignItems: z.string().optional(),
+  alignContent: z.string().optional(),
+  alignSelf: z.string().optional(),
+  order: z.string().optional(),
+  flex: z.string().optional(),
+})
+
+// Background layers, as the editor's background stack writes them: five
+// longhands, each a comma-separated list with one entry per layer. The colour
+// itself stays under `color.background`, mirroring WP.
+export const backgroundStyleSchema = z.object({
+  image: z.string().optional(),
+  repeat: z.string().optional(),
+  position: z.string().optional(),
+  attachment: z.string().optional(),
+  size: z.string().optional(),
+})
+
+// Effects a brand plausibly sets once: a hover transition on every button, a
+// text shadow on every heading. Each is a single composed string, which is how
+// the editor's stacks (`text-shadow`, `transition`, `transform`) and the filter
+// plugin write them. `box-shadow` predates this group and lives at `shadow`.
+export const effectsStyleSchema = z.object({
+  opacity: z.string().optional(),
+  cursor: z.string().optional(),
+  textShadow: z.string().optional(),
+  filter: z.string().optional(),
+  backdropFilter: z.string().optional(),
+  transition: z.string().optional(),
+  transform: z.string().optional(),
+})
+
 export const styleBlockSchema = z.object({
+  layout: layoutStyleSchema.optional(),
   color: colorStyleSchema.optional(),
   typography: typographyStyleSchema.optional(),
   spacing: spacingStyleSchema.optional(),
+  background: backgroundStyleSchema.optional(),
   border: borderStyleSchema.optional(),
   shadow: z.string().optional(),
+  effects: effectsStyleSchema.optional(),
 })
 
 export const pseudoStyleBlockSchema = styleBlockSchema.extend({
@@ -140,23 +202,108 @@ export const pseudoStyleBlockSchema = styleBlockSchema.extend({
   ":visited": styleBlockSchema.optional(),
 })
 
-export const elementsSchema = z.object({
-  button: pseudoStyleBlockSchema.optional(),
-  link: pseudoStyleBlockSchema.optional(),
-  heading: pseudoStyleBlockSchema.optional(),
-  h1: pseudoStyleBlockSchema.optional(),
-  h2: pseudoStyleBlockSchema.optional(),
-  h3: pseudoStyleBlockSchema.optional(),
-  h4: pseudoStyleBlockSchema.optional(),
-  h5: pseudoStyleBlockSchema.optional(),
-  h6: pseudoStyleBlockSchema.optional(),
-  caption: pseudoStyleBlockSchema.optional(),
-  cite: pseudoStyleBlockSchema.optional(),
+// WP-style block style variations (`is-style-<slug>`): the theme owns the
+// look of each named variant; a block only toggles the class.
+export const elementStyleSchema = pseudoStyleBlockSchema.extend({
+  variations: z.record(z.string(), pseudoStyleBlockSchema).optional(),
 })
 
+export const elementsSchema = z.object({
+  button: elementStyleSchema.optional(),
+  link: elementStyleSchema.optional(),
+  heading: elementStyleSchema.optional(),
+  h1: elementStyleSchema.optional(),
+  h2: elementStyleSchema.optional(),
+  h3: elementStyleSchema.optional(),
+  h4: elementStyleSchema.optional(),
+  h5: elementStyleSchema.optional(),
+  h6: elementStyleSchema.optional(),
+  caption: elementStyleSchema.optional(),
+  cite: elementStyleSchema.optional(),
+})
+
+// Per-block styles (WP's `styles.blocks.<name>`). A block declares its
+// parts, allowed style groups and state suffixes in a `StyleSurface`;
+// `states` keys are those suffixes (`:hover`, `[aria-selected="true"]`).
+export const partStyleSchema = styleBlockSchema.extend({
+  states: z.record(z.string(), styleBlockSchema).optional(),
+})
+
+export const componentStyleSchema = partStyleSchema.extend({
+  parts: z.record(z.string(), partStyleSchema).optional(),
+})
+
+type PartStyle = z.infer<typeof partStyleSchema>
+
+const checkPartAgainstSurface = (
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+  block: PartStyle,
+  decl: StylePart
+): void => {
+  const { states, ...base } = block
+  // Absent `supports` means every group; a part narrows it only where a group
+  // would break the block.
+  const supports = decl.supports ?? STYLE_GROUPS
+  const rejectGroups = (
+    b: z.infer<typeof styleBlockSchema>,
+    at: typeof path
+  ) => {
+    for (const group of STYLE_GROUPS) {
+      if (b[group] !== undefined && !supports.includes(group)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [...at, group],
+          message: `"${decl.label}" does not support "${group}" (supports: ${supports.join(", ")})`,
+        })
+      }
+    }
+  }
+  rejectGroups(base, path)
+  for (const [state, stateBlock] of Object.entries(states ?? {})) {
+    if (!decl.states.includes(state)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, "states", state],
+        message: `"${decl.label}" has no state "${state}" (states: ${decl.states.join(", ") || "none"})`,
+      })
+      continue
+    }
+    rejectGroups(stateBlock, [...path, "states", state])
+  }
+}
+
+// Types without a registered surface pass through untouched: the compiler
+// emits nothing for them, and rejecting them would block a tenant whose
+// saved theme still names a retired block from saving anything at all.
+export const componentsSchema = z
+  .record(z.string(), componentStyleSchema)
+  .superRefine((components, ctx) => {
+    for (const [type, block] of Object.entries(components)) {
+      const surface = getStyleSurface(type)
+      if (!surface) continue
+      const { parts, ...root } = block
+      checkPartAgainstSurface(ctx, [type], root, surface.root)
+      for (const [name, part] of Object.entries(parts ?? {})) {
+        const decl = surface.parts[name]
+        if (!decl) {
+          ctx.addIssue({
+            code: "custom",
+            path: [type, "parts", name],
+            message: `"${surface.label}" has no part "${name}" (parts: ${Object.keys(surface.parts).join(", ")})`,
+          })
+          continue
+        }
+        checkPartAgainstSurface(ctx, [type, "parts", name], part, decl)
+      }
+    }
+  })
+
 export const styleDefaultsSchema = styleBlockSchema.extend({
+  // Widened for `blockGap`, which only the root block can express.
+  spacing: rootSpacingStyleSchema.optional(),
   elements: elementsSchema.optional(),
-  components: z.record(z.string(), pseudoStyleBlockSchema).optional(),
+  components: componentsSchema.optional(),
 })
 
 // Recursive types still need a hand-written shape — Zod can't infer a

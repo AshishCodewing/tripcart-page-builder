@@ -288,12 +288,37 @@ export const defaultTheme: Theme = {
           textTransform: "uppercase",
         },
       },
+      // Targets only the opt-in `.tc-element-button` badge (compile.ts), so
+      // raw `<button>`s (tabs, toggles) are untouched. The base carries a
+      // border the same color as its background so Fill and Outline render
+      // at the same box size. `textDecoration: none` on base + :hover is
+      // what beats the `a:hover` underline for `<a>`-rendered buttons
+      // (0-2-0 vs 0-1-1).
       button: {
         color: {
           text: "var:preset|color|primaryForeground",
           background: "var:preset|color|primary",
         },
-        border: { radius: "var:preset|radius|md" },
+        typography: {
+          fontWeight: "var:preset|font-weight|medium",
+          textDecoration: "none",
+        },
+        border: {
+          radius: "var:preset|radius|md",
+          width: "var:preset|border-width|thin",
+          style: "solid",
+          color: "var:preset|color|primary",
+        },
+        ":hover": { typography: { textDecoration: "none" } },
+        variations: {
+          outline: {
+            color: {
+              text: "var:preset|color|primary",
+              background: "transparent",
+            },
+            border: { color: "var:preset|color|primary" },
+          },
+        },
       },
       link: {
         color: { text: "var:preset|color|primary" },

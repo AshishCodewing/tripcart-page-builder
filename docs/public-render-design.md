@@ -72,12 +72,13 @@ The publish lifecycle exists end-to-end on the **write** side and serves
     page are resolved **separately** — this is exactly the independent-
     chrome property the cache design exploits below.
 
-- **Theme is served version-keyed + immutable** at
+- **Theme is served content-keyed + immutable** at
   `app/api/preview/theme/[tenantId]/[version]/theme.css/route.ts`. The
   `[version]` segment is a cache-buster (always serves *current* theme);
-  `updateTenantTheme` bumps `Tenant.themeVersion` so the embedded URL
-  rotates on edit. The route name contains `preview/` — a wart if reused
-  verbatim in cached public HTML (see Open Questions).
+  the preview layout fills it with a hash of the compiled CSS
+  (`themeStylesheetKey`), so the URL rotates on a tenant edit, a compiler
+  change, or a defaults change alike. The route name contains `preview/` —
+  a wart if reused verbatim in cached public HTML (see Open Questions).
 
 - **Publish-time CSS artifacts (Option B future-proofing) shipped** — see
   `docs/plans/023-css-artifact-pipeline.md`. Every `data` write bakes a
