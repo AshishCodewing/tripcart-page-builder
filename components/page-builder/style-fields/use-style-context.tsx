@@ -39,8 +39,16 @@ export function useStyleContext(): StyleContext {
 
 export function StyleContextProvider({
   children,
+  override,
 }: {
   children: React.ReactNode
+  /**
+   * Forces part of the context instead of reading it off the selection. The
+   * theme admin's Blocks screen styles rules, not components, so nothing is
+   * ever selected there and every layout-gated property (`gap`) would be
+   * filtered out — it declares the context its targets actually have.
+   */
+  override?: Partial<StyleContext>
 }) {
   const editor = useEditor()
   const [ctx, setCtx] = React.useState<StyleContext>(DEFAULT_CONTEXT)
@@ -95,7 +103,14 @@ export function StyleContextProvider({
     }
   }, [editor])
 
+  const value = React.useMemo(
+    () => (override ? { ...ctx, ...override } : ctx),
+    [ctx, override]
+  )
+
   return (
-    <StyleContextCtx.Provider value={ctx}>{children}</StyleContextCtx.Provider>
+    <StyleContextCtx.Provider value={value}>
+      {children}
+    </StyleContextCtx.Provider>
   )
 }

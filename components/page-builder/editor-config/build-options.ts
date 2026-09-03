@@ -20,6 +20,7 @@ import { templateRefPlugin } from "@/lib/plugins/template-ref"
 import { templateBlocksPlugin } from "@/lib/plugins/template-blocks"
 import { postFieldsPlugin } from "@/lib/plugins/post-fields"
 import type { Template } from "@/lib/schema"
+import { CONTENT_STYLE_URLS } from "@/lib/theme/content-style-urls"
 
 import { CANVAS_CHROME_CSS } from "./canvas-chrome-css"
 import { STYLE_SECTORS } from "./style-sectors"
@@ -36,9 +37,8 @@ import { STYLE_SECTORS } from "./style-sectors"
 // specificity 0-0-0, so it sits under both the theme's :root vars (injected via
 // CssComposer) and any authored styles regardless of load order.
 const CANVAS_STYLE_URLS = [
-  "/vendor/open-props.min.css",
-  "/vendor/open-props-colors-hsl.min.css",
-  "/tc-normalize.css",
+  // Shared with the theme admin's style-book iframe so the two can't drift.
+  ...CONTENT_STYLE_URLS,
   // prosemirror-view's base CSS (white-space: pre-wrap on `.ProseMirror`, gap
   // cursor, selected-node outline). The RTE mounts inside this iframe, so the
   // engine needs its stylesheet here — see scripts/sync-vendor-css.mjs.

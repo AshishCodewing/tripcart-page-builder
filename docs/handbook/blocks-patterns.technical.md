@@ -95,6 +95,6 @@ is configured with only `["text","link","image","video","map"]`).
   `<block>.surface.ts` next to the plugin (no GrapesJS import — the theme compiler runs it
   server-side) and lists it in `STYLE_SURFACES` (`lib/theme/style-surfaces.ts`). Each part
   names a stable selector (roles/attributes, never author classes, real specificity so it
-  beats the plugin's `:where()` defaults), the style groups it accepts, and the state
-  suffixes it allows. Leave layout out of `supports` — a theme must not be able to break the
-  block's behaviour. Model: `lib/plugins/interactive/tabs.surface.ts`.
+  beats the plugin's `:where()` defaults) and the state suffixes it allows. Every style
+  group is offered by default; narrow `supports` only where a group would genuinely break
+  the block, never on taste. Model: `lib/plugins/interactive/tabs.surface.ts`.

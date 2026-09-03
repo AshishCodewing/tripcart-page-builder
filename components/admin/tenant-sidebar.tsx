@@ -70,6 +70,7 @@ export function TenantSidebar({
           children: [
             { label: "Color palettes", href: `${base}/theme/colors` },
             { label: "Typography", href: `${base}/theme/typography` },
+            { label: "Blocks", href: `${base}/theme/blocks` },
           ],
         },
       ],

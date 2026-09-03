@@ -16,8 +16,10 @@ export default async function ThemeLayout({
 
   const theme = await getTenantTheme(id)
 
+  // Full width: the Blocks page is a two-pane style book. The form-shaped
+  // pages (colors, typography) cap their own width.
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 p-6">
+    <div className="w-full space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Theme</h1>
         <p className="text-sm text-muted-foreground">

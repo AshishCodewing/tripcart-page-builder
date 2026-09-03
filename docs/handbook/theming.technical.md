@@ -39,7 +39,8 @@ Read [theming.md](theming.md) first. This maps the code.
   style block merges onto `body`.
 - `styles.components.<type>` — per-block styles (WP's `styles.blocks.<name>`). The block
   declares a `StyleSurface` (`lib/theme/style-surfaces.ts`: root + named `parts`, each with a
-  real-specificity selector, allowed style groups and allowed `states` suffixes). Top-level
+  real-specificity selector and allowed `states` suffixes; `supports` optionally narrows the
+  style groups, all of them by default). Top-level
   declarations land on the root selector, `parts.<name>` on that part's selector, `states`
   keys are appended verbatim (`tc-tabs [role="tab"][aria-selected="true"]`). The schema
   rejects undeclared parts, states and groups on write; a type with no surface is accepted
