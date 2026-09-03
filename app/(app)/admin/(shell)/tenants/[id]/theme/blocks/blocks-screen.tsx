@@ -9,11 +9,15 @@ import {
   specimenIdFor,
 } from "@/lib/theme/style-book"
 import type { ElementPseudoKey, StyleTarget } from "@/lib/theme/style-targets"
+import { getStylePart } from "@/lib/theme/style-surfaces"
 
 import BlockDetail from "./block-detail"
 import BlockList from "./block-list"
 import StyleBookEditor from "./style-book-editor"
-import { useSpecimenSelection } from "./use-specimen-selection"
+import {
+  useSpecimenSelection,
+  type SpecimenHighlight,
+} from "./use-specimen-selection"
 import { useThemeStyleSync } from "./use-theme-style-sync"
 
 type PanelState = {
@@ -69,9 +73,17 @@ export default function BlocksScreen() {
     }
   }, [entry, panel.variation, panel.part, panel.state])
 
-  const highlight = entry
-    ? (specimenIdFor(entry, panel.variation) ?? null)
-    : null
+  const highlight = React.useMemo<SpecimenHighlight | null>(() => {
+    if (!entry) return null
+    const specimenId = specimenIdFor(entry, panel.variation)
+    if (!specimenId) return null
+    // Only a named part gets its own outline: the root is the whole specimen.
+    const partSelector =
+      entry.kind === "component" && panel.part
+        ? getStylePart(entry.type, panel.part)?.selector
+        : undefined
+    return { specimenId, partSelector }
+  }, [entry, panel.variation, panel.part])
 
   const selectSpecimen = React.useCallback((specimenId: string): void => {
     const found = findSpecimen(specimenId)

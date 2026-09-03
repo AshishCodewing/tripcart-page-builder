@@ -3,11 +3,28 @@
 import * as React from "react"
 import type { Editor } from "grapesjs"
 
-import { SELECTED_ATTR, SPECIMEN_ATTR } from "@/lib/theme/style-book"
+import {
+  SELECTED_ATTR,
+  SELECTED_PART_ATTR,
+  SPECIMEN_ATTR,
+} from "@/lib/theme/style-book"
+
+export type SpecimenHighlight = {
+  /** Specimen to outline. */
+  specimenId: string
+  /**
+   * For a component part, the selector its theme rule targets — the very
+   * elements an edit will change get their own outline inside the specimen.
+   * Absent for an element target or a component's root, where the specimen
+   * outline already says it all.
+   */
+  partSelector?: string
+}
 
 /**
- * Outlines the specimen the panel is editing, and lets a click in the canvas
- * pick one.
+ * Outlines the specimen the panel is editing — and, for a component part, the
+ * elements inside it that the part's selector matches — and lets a click in
+ * the canvas pick a specimen.
  *
  * Selection is ours rather than GrapesJS's because what the panel edits is a
  * theme rule, not a component: the Fill and Outline buttons are two blocks of
@@ -16,7 +33,7 @@ import { SELECTED_ATTR, SPECIMEN_ATTR } from "@/lib/theme/style-book"
  */
 export const useSpecimenSelection = (
   editor: Editor | null,
-  highlight: string | null,
+  highlight: SpecimenHighlight | null,
   onSelect: (specimenId: string) => void
 ): void => {
   const onSelectRef = React.useRef(onSelect)
@@ -53,14 +70,27 @@ export const useSpecimenSelection = (
     }
   }, [editor])
 
+  const specimenId = highlight?.specimenId ?? null
+  const partSelector = highlight?.partSelector ?? null
+
   React.useEffect(() => {
     const doc = editor?.Canvas.getDocument()
     if (!doc) return
+    for (const el of doc.querySelectorAll(`[${SELECTED_PART_ATTR}]`)) {
+      el.removeAttribute(SELECTED_PART_ATTR)
+    }
     let next: Element | null = null
     for (const el of doc.querySelectorAll(`[${SPECIMEN_ATTR}]`)) {
       el.removeAttribute(SELECTED_ATTR)
-      if (el.getAttribute(SPECIMEN_ATTR) === highlight) next = el
+      if (el.getAttribute(SPECIMEN_ATTR) === specimenId) next = el
     }
-    next?.setAttribute(SELECTED_ATTR, "")
-  }, [editor, highlight])
+    if (!next) return
+    next.setAttribute(SELECTED_ATTR, "")
+    if (!partSelector) return
+    // The part's selector is written for the page (`tc-tabs [role="tab"]`),
+    // so it resolves inside the specimen exactly as the theme rule will.
+    for (const el of next.querySelectorAll(partSelector)) {
+      el.setAttribute(SELECTED_PART_ATTR, "")
+    }
+  }, [editor, specimenId, partSelector])
 }

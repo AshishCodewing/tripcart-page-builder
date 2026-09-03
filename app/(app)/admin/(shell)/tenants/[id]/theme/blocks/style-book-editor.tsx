@@ -23,6 +23,7 @@ import { tabsPlugin } from "@/lib/plugins/interactive"
 import { CONTENT_STYLE_URLS } from "@/lib/theme/content-style-urls"
 import {
   SELECTED_ATTR,
+  SELECTED_PART_ATTR,
   SPECIMEN_ATTR,
   styleBookHtml,
 } from "@/lib/theme/style-book"
@@ -43,6 +44,12 @@ body { padding: var(--size-5, 1.5rem); }
 [${SPECIMEN_ATTR}][${SELECTED_ATTR}] {
   outline: 2px solid oklch(0.631 0.2 257.6);
   outline-offset: -2px;
+}
+/* The part being edited, inside the selected specimen: a dashed outline in
+   the same accent, offset outward so it doesn't hide the part's own border. */
+[${SELECTED_PART_ATTR}] {
+  outline: 2px dashed oklch(0.631 0.2 257.6);
+  outline-offset: 2px;
 }
 .tc-book-label {
   font: 500 0.6875rem/1 ui-sans-serif, system-ui, sans-serif;

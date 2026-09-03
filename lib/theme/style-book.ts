@@ -112,6 +112,8 @@ export const findSpecimen = (
 
 export const SPECIMEN_ATTR = "data-specimen"
 export const SELECTED_ATTR = "data-selected"
+/** Set on the elements a component part's selector matches, inside the selected specimen. */
+export const SELECTED_PART_ATTR = "data-selected-part"
 
 /**
  * Canvas contents for the style book: one section per specimen, tagged so a
