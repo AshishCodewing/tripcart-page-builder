@@ -29,6 +29,9 @@ export const CSS_TO_PATH: Record<string, Path> = {
   "justify-content": ["layout", "justifyContent"],
   "align-items": ["layout", "alignItems"],
   "align-content": ["layout", "alignContent"],
+  "align-self": ["layout", "alignSelf"],
+  order: ["layout", "order"],
+  flex: ["layout", "flex"],
 
   color: ["color", "text"],
   "background-color": ["color", "background"],

@@ -36,6 +36,9 @@ const everything: Theme = {
           justifyContent: "center",
           alignItems: "center",
           alignContent: "center",
+          alignSelf: "center",
+          order: "1",
+          flex: "1 1 auto",
         },
         color: { text: "red", background: "blue" },
         typography: {

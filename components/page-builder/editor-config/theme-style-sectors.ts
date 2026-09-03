@@ -18,11 +18,11 @@
 //     `box-shadow`, `text-shadow`, `transition`, `transform` and `filter` need
 //     no such treatment: they compose to a single declaration, which is exactly
 //     what the theme keeps. The background stack is detached by the plugin.
-//   - the flex alignment properties drop `requires: { display: [...] }`. That
-//     gate reads `display` off the rule being edited, and a part that is flex
-//     through its own structural CSS (the tab bar) has no `display` in the
-//     theme — its alignment rows would stay hidden until a tenant redundantly
-//     set one.
+//   - the flex alignment properties drop `requires: { display: [...] }`, and
+//     `align-self` its `requiresParent`. Those gates read `display` off the
+//     rule being edited (or its parent's), and a part that is flex through its
+//     own structural CSS (the tab bar) has no `display` in the theme — its
+//     alignment rows would stay hidden until a tenant redundantly set one.
 
 import type { EditorConfig } from "grapesjs"
 
@@ -72,9 +72,10 @@ const editorProperty = (
 }
 
 const detached = { detached: true }
-// `requires` is inherited from the built-in when extending; clearing it here
-// makes the row visible on a rule that doesn't itself declare `display`.
+// `requires` / `requiresParent` are inherited from the built-in when extending;
+// clearing them makes the row visible on a rule with no `display` of its own.
 const noDisplayGate = { requires: undefined }
+const noParentGate = { requiresParent: undefined }
 
 /** Which theme style groups each sector's properties are stored under. */
 export const SECTOR_GROUPS: Record<string, readonly StyleGroup[]> = {
@@ -99,6 +100,10 @@ export const THEME_STYLE_SECTORS: StyleSectors = [
       editorProperty("justify-content", noDisplayGate),
       editorProperty("align-items", noDisplayGate),
       editorProperty("align-content", noDisplayGate),
+      // Child side, for a part inside a flex parent (a tab button in its bar).
+      editorProperty("align-self", noParentGate),
+      editorProperty("order"),
+      editorProperty("flex"),
     ],
   },
   {

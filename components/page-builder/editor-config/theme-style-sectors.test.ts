@@ -54,12 +54,25 @@ describe("theme style sectors", () => {
     expect(byName.get("border-radius")?.detached).toBeUndefined()
   })
 
-  it("ungates the flex alignment rows, which have no component to read display from", () => {
-    const layout = declsOf("layout") as (Decl & { requires?: unknown })[]
+  it("ungates the flex rows, which have no component to read display from", () => {
+    const layout = declsOf("layout") as (Decl & {
+      requires?: unknown
+      requiresParent?: unknown
+    })[]
     for (const name of ["justify-content", "align-items", "align-content"]) {
       const decl = layout.find((d) => nameOf(d) === name)
       expect(decl, name).toBeDefined()
       expect(decl?.requires).toBeUndefined()
     }
+    const alignSelf = layout.find((d) => nameOf(d) === "align-self")
+    expect(alignSelf).toBeDefined()
+    expect(alignSelf?.requiresParent).toBeUndefined()
+  })
+
+  it("offers the flex child properties alongside the container ones", () => {
+    const names = declsOf("layout").map(nameOf)
+    expect(names).toEqual(
+      expect.arrayContaining(["align-self", "order", "flex"])
+    )
   })
 })

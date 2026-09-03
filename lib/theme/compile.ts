@@ -184,6 +184,9 @@ const compileBlock = (block: StyleBlock): Record<string, string> => {
     setIfRef(decls, "justify-content", l.justifyContent)
     setIfRef(decls, "align-items", l.alignItems)
     setIfRef(decls, "align-content", l.alignContent)
+    setIfRef(decls, "align-self", l.alignSelf)
+    setIfRef(decls, "order", l.order)
+    setIfRef(decls, "flex", l.flex)
   }
 
   if (block.color) {

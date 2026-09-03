@@ -20,11 +20,12 @@ import { supportsFor, type StyleTarget } from "@/lib/theme/style-targets"
  */
 // Nothing is ever selected in the style book (the panel edits a rule, not a
 // component), so the layout context would be the static default and every
-// flex-gated row — `gap`, the alignment properties — would be filtered out.
-// Several themeable parts are flex containers — the tab bar is one. `flexWrap`
-// is declared too because `align-content` is gated on a wrapping container,
-// which a theme may well set.
-const STYLE_CONTEXT = { isFlex: true, flexWrap: "wrap" }
+// flex-gated row — `gap`, the alignment properties, the child properties —
+// would be filtered out. Themeable parts are flex containers (the tab bar) and
+// flex children (the tab button in it), so declare both. `flexWrap` is set too
+// because `align-content` is gated on a wrapping container, which a theme may
+// well set.
+const STYLE_CONTEXT = { isFlex: true, parentIsFlex: true, flexWrap: "wrap" }
 
 export default function ThemeStylePanel({ target }: { target: StyleTarget }) {
   // Single-open accordion, same as the editor panel. Typography (which holds

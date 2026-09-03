@@ -141,10 +141,11 @@ export const borderStyleSchema = z.object({
   width: z.string().optional(),
 })
 
-// Container layout. Deliberately narrow: the flex box-alignment properties a
-// theme can meaningfully default, and `display` so a block can be made flex or
-// full-width. Grid tracks, position and float are per-instance decisions and
-// stay in the page editor.
+// Layout. Container side: `display` so a block can be made flex or full-width,
+// then the flex box-alignment properties. Child side, for a part that sits
+// inside a flex parent (a tab button in the tab bar): how it aligns itself,
+// its order, and the `flex` shorthand (grow / shrink / basis). Grid tracks,
+// position and float are per-instance decisions and stay in the page editor.
 export const layoutStyleSchema = z.object({
   display: z.string().optional(),
   flexDirection: z.string().optional(),
@@ -153,6 +154,9 @@ export const layoutStyleSchema = z.object({
   justifyContent: z.string().optional(),
   alignItems: z.string().optional(),
   alignContent: z.string().optional(),
+  alignSelf: z.string().optional(),
+  order: z.string().optional(),
+  flex: z.string().optional(),
 })
 
 // Background layers, as the editor's background stack writes them: five
