@@ -8,6 +8,7 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 
+import { buttonPlugin } from "@/lib/plugins/button"
 import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
 import { tabsPlugin } from "@/lib/plugins/interactive"
@@ -127,6 +128,11 @@ export const buildGjsOptions = (
       gjsBlocksBasic(editor, {
         blocks: ["text", "link", "image", "video", "map"],
       }),
+    // Button block (`tc-button`, extends the built-in `link`). Directly after
+    // gjsBlocksBasic so it lands next to Text/Link/Image in "Basic" — the
+    // inserter keeps registration order — and after designSystemPlugin so
+    // the theme's `.tc-element-button` rules exist alongside its own.
+    buttonPlugin,
     // The opt-in Rich Text block (`rich-text` type). Registers after
     // gjsBlocksBasic so the base `text` type it extends and the "Basic" block
     // category both exist; the ProseMirror router (rtePlugin) scopes the

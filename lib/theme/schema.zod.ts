@@ -18,6 +18,12 @@
 
 import { z } from "zod"
 
+import {
+  getStyleSurface,
+  STYLE_GROUPS,
+  type StylePart,
+} from "@/lib/theme/style-surfaces"
+
 export const tokenSchema = z.object({
   slug: z.string().min(1),
   name: z.string(),
@@ -140,23 +146,105 @@ export const pseudoStyleBlockSchema = styleBlockSchema.extend({
   ":visited": styleBlockSchema.optional(),
 })
 
-export const elementsSchema = z.object({
-  button: pseudoStyleBlockSchema.optional(),
-  link: pseudoStyleBlockSchema.optional(),
-  heading: pseudoStyleBlockSchema.optional(),
-  h1: pseudoStyleBlockSchema.optional(),
-  h2: pseudoStyleBlockSchema.optional(),
-  h3: pseudoStyleBlockSchema.optional(),
-  h4: pseudoStyleBlockSchema.optional(),
-  h5: pseudoStyleBlockSchema.optional(),
-  h6: pseudoStyleBlockSchema.optional(),
-  caption: pseudoStyleBlockSchema.optional(),
-  cite: pseudoStyleBlockSchema.optional(),
+// WP-style block style variations (`is-style-<slug>`): the theme owns the
+// look of each named variant; a block only toggles the class.
+export const elementStyleSchema = pseudoStyleBlockSchema.extend({
+  variations: z.record(z.string(), pseudoStyleBlockSchema).optional(),
 })
+
+export const elementsSchema = z.object({
+  button: elementStyleSchema.optional(),
+  link: elementStyleSchema.optional(),
+  heading: elementStyleSchema.optional(),
+  h1: elementStyleSchema.optional(),
+  h2: elementStyleSchema.optional(),
+  h3: elementStyleSchema.optional(),
+  h4: elementStyleSchema.optional(),
+  h5: elementStyleSchema.optional(),
+  h6: elementStyleSchema.optional(),
+  caption: elementStyleSchema.optional(),
+  cite: elementStyleSchema.optional(),
+})
+
+// Per-block styles (WP's `styles.blocks.<name>`). A block declares its
+// parts, allowed style groups and state suffixes in a `StyleSurface`;
+// `states` keys are those suffixes (`:hover`, `[aria-selected="true"]`).
+export const partStyleSchema = styleBlockSchema.extend({
+  states: z.record(z.string(), styleBlockSchema).optional(),
+})
+
+export const componentStyleSchema = partStyleSchema.extend({
+  parts: z.record(z.string(), partStyleSchema).optional(),
+})
+
+type PartStyle = z.infer<typeof partStyleSchema>
+
+const checkPartAgainstSurface = (
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+  block: PartStyle,
+  decl: StylePart
+): void => {
+  const groupsIn = (b: z.infer<typeof styleBlockSchema>) =>
+    STYLE_GROUPS.filter((g) => b[g] !== undefined)
+  const { states, ...base } = block
+  const rejectGroups = (
+    b: z.infer<typeof styleBlockSchema>,
+    at: typeof path
+  ) => {
+    for (const group of groupsIn(b)) {
+      if (!decl.supports.includes(group)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [...at, group],
+          message: `"${decl.label}" does not support "${group}" (supports: ${decl.supports.join(", ")})`,
+        })
+      }
+    }
+  }
+  rejectGroups(base, path)
+  for (const [state, stateBlock] of Object.entries(states ?? {})) {
+    if (!decl.states.includes(state)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, "states", state],
+        message: `"${decl.label}" has no state "${state}" (states: ${decl.states.join(", ") || "none"})`,
+      })
+      continue
+    }
+    rejectGroups(stateBlock, [...path, "states", state])
+  }
+}
+
+// Types without a registered surface pass through untouched: the compiler
+// emits nothing for them, and rejecting them would block a tenant whose
+// saved theme still names a retired block from saving anything at all.
+export const componentsSchema = z
+  .record(z.string(), componentStyleSchema)
+  .superRefine((components, ctx) => {
+    for (const [type, block] of Object.entries(components)) {
+      const surface = getStyleSurface(type)
+      if (!surface) continue
+      const { parts, ...root } = block
+      checkPartAgainstSurface(ctx, [type], root, surface.root)
+      for (const [name, part] of Object.entries(parts ?? {})) {
+        const decl = surface.parts[name]
+        if (!decl) {
+          ctx.addIssue({
+            code: "custom",
+            path: [type, "parts", name],
+            message: `"${surface.label}" has no part "${name}" (parts: ${Object.keys(surface.parts).join(", ")})`,
+          })
+          continue
+        }
+        checkPartAgainstSurface(ctx, [type, "parts", name], part, decl)
+      }
+    }
+  })
 
 export const styleDefaultsSchema = styleBlockSchema.extend({
   elements: elementsSchema.optional(),
-  components: z.record(z.string(), pseudoStyleBlockSchema).optional(),
+  components: componentsSchema.optional(),
 })
 
 // Recursive types still need a hand-written shape — Zod can't infer a

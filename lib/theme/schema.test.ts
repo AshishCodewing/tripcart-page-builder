@@ -61,13 +61,27 @@ const themeFixture: Theme = {
       button: {
         color: { background: "var:preset|color|primary" },
         ":hover": { color: { background: "var:preset|color|surface" } },
+        variations: {
+          outline: {
+            color: { background: "transparent" },
+            ":hover": { color: { text: "var:preset|color|primary" } },
+          },
+        },
       },
       h1: { typography: { fontSize: "var:preset|typography|xl" } },
     },
     components: {
-      "tc-hero": {
-        color: { text: "white" },
-        ":focus": { border: { color: "var:preset|color|primary" } },
+      "tc-tabs": {
+        border: { color: "var:preset|color|primary" },
+        parts: {
+          tab: {
+            typography: { fontWeight: "600" },
+            states: {
+              ":hover": { color: { text: "var:preset|color|primary" } },
+              '[aria-selected="true"]': { border: { width: "2px" } },
+            },
+          },
+        },
       },
     },
   },
@@ -97,6 +111,63 @@ describe("themeSchema", () => {
       },
     }
     expect(themeSchema.safeParse(broken).success).toBe(false)
+  })
+
+  it("rejects a variation that is not a style block", () => {
+    const broken = {
+      ...themeFixture,
+      styles: {
+        elements: { button: { variations: { outline: "transparent" } } },
+      },
+    }
+    expect(themeSchema.safeParse(broken).success).toBe(false)
+  })
+
+  const componentIssues = (components: unknown): string => {
+    const parsed = themeSchema.safeParse({
+      ...themeFixture,
+      styles: { components },
+    })
+    expect(parsed.success).toBe(false)
+    return (parsed.error?.issues ?? []).map((i) => i.message).join("\n")
+  }
+
+  it("rejects a part the block's surface does not declare", () => {
+    expect(
+      componentIssues({
+        "tc-tabs": { parts: { handle: { color: { text: "red" } } } },
+      })
+    ).toContain('no part "handle"')
+  })
+
+  it("rejects a state the part does not declare", () => {
+    expect(
+      componentIssues({
+        "tc-tabs": {
+          parts: {
+            tab: { states: { ":visited": { color: { text: "red" } } } },
+          },
+        },
+      })
+    ).toContain('no state ":visited"')
+  })
+
+  it("rejects a style group the part does not support", () => {
+    expect(
+      componentIssues({
+        "tc-tabs": { parts: { tab: { shadow: "var:preset|shadow|sm" } } },
+      })
+    ).toContain('does not support "shadow"')
+  })
+
+  it("accepts a component type with no registered surface", () => {
+    const parsed = themeSchema.safeParse({
+      ...themeFixture,
+      styles: {
+        components: { "tc-retired-block": { color: { text: "red" } } },
+      },
+    })
+    expect(parsed.success).toBe(true)
   })
 
   it("rejects a custom leaf that is not a string", () => {

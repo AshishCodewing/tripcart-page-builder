@@ -8,10 +8,16 @@
  *   - `rootVars` — `:root` declarations from `settings` + `custom`.
  *   - `rules`    — scoped CssRule descriptors from `styles`. Root
  *                  defaults land on `body`; `styles.elements.<name>` on
- *                  the matching tag selector (`heading` expands across
- *                  h1–h6); `styles.components.<type>` on
- *                  `[data-gjs-type="<type>"]`. Pseudo blocks become
- *                  separate rules, mirroring WP's behavior.
+ *                  the matching selectors (`heading` expands across
+ *                  h1–h6; `button` targets only `.tc-element-button`, the
+ *                  opt-in marker class — WP's `.wp-element-button` — never
+ *                  the bare tag); `styles.components.<type>` on the
+ *                  selectors the block's `StyleSurface` declares (root and
+ *                  named `parts`, each with allowed `states`), and nothing
+ *                  for a type with no surface. Pseudo/state blocks become
+ *                  separate rules, and an element's `variations` become
+ *                  `<selector>.is-style-<slug>` rules emitted after the
+ *                  base, mirroring WP's behavior.
  *
  * Variable naming mirrors WP:
  *   `--tc--preset--<category>--<slug>`   for registered tokens
@@ -21,14 +27,31 @@
 import { toKebab } from "@/lib/toKebab"
 import type {
   ColorToken,
+  ComponentStyleBlock,
   CustomTree,
   ElementName,
+  ElementStyleBlock,
   FontSizeToken,
+  PartStyleBlock,
   PseudoStyleBlock,
   StyleBlock,
   Theme,
   Token,
 } from "@/lib/theme/schema"
+import { getStyleSurface, type StylePart } from "@/lib/theme/style-surfaces"
+
+/**
+ * Marker class for "anything that looks like a button" regardless of tag
+ * (`<a>`, `<button>`, …). `styles.elements.button` targets ONLY this class,
+ * never the bare `button` tag — same as WP's `.wp-element-button` — so tab
+ * buttons, toggles and other raw `<button>`s keep their own styling unless
+ * they opt in. Blocks add it themselves (see lib/plugins/button).
+ */
+export const ELEMENT_BUTTON_CLASS = "tc-element-button"
+
+/** Class a block toggles to opt into a theme-defined style variation. */
+export const variationClass = (slug: string): string =>
+  `is-style-${toKebab(slug)}`
 
 /**
  * Kebab-case segment that appears in `--tc--preset--<category>--<slug>`.
@@ -142,24 +165,28 @@ const writeCustomVars = (
 }
 
 /**
- * Tag selector(s) targeted by a given `styles.elements.<name>` entry.
+ * Selectors targeted by a given `styles.elements.<name>` entry.
  * `heading` expands to `h1, h2, …, h6` (cascade-stacked so explicit
- * `h1`/`h2`/… overrides win).
+ * `h1`/`h2`/… overrides win). Kept as a list so pseudo and variation
+ * suffixes attach to every member, not just the last.
  */
-const elementSelector = (name: ElementName): string => {
+const elementSelectors = (name: ElementName): string[] => {
   switch (name) {
     case "heading":
-      return "h1, h2, h3, h4, h5, h6"
+      return ["h1", "h2", "h3", "h4", "h5", "h6"]
     case "link":
-      return "a"
+      return ["a"]
     case "caption":
-      return "figcaption"
+      return ["figcaption"]
+    case "button":
+      return [`.${ELEMENT_BUTTON_CLASS}`]
     default:
-      return name
+      return [name]
   }
 }
 
-const PSEUDO_KEYS = [":hover", ":focus", ":active", ":visited"] as const
+const joinWithSuffix = (selectors: readonly string[], suffix: string): string =>
+  selectors.map((s) => `${s}${suffix}`).join(", ")
 
 const setIfRef = (
   out: Record<string, string>,
@@ -226,12 +253,33 @@ const compileBlock = (block: StyleBlock): Record<string, string> => {
 }
 
 /**
- * Emit one rule for the base block plus one rule per defined pseudo
- * state. Empty declaration maps are skipped so the canvas isn't
- * polluted with no-op selectors.
+ * Emit one rule for the base block plus one rule per state, where a state
+ * is a selector suffix (`:hover`, `[aria-selected="true"]`) appended to
+ * every selector in the list. Empty declaration maps are skipped so the
+ * canvas isn't polluted with no-op selectors.
  */
+const emitStates = (
+  selectors: readonly string[],
+  base: StyleBlock,
+  states: Readonly<Record<string, StyleBlock | undefined>>,
+  out: CompiledRule[]
+): void => {
+  const baseDecls = compileBlock(base)
+  if (Object.keys(baseDecls).length > 0) {
+    out.push({ selector: joinWithSuffix(selectors, ""), style: baseDecls })
+  }
+  for (const [suffix, block] of Object.entries(states)) {
+    if (!block) continue
+    const decls = compileBlock(block)
+    if (Object.keys(decls).length > 0) {
+      out.push({ selector: joinWithSuffix(selectors, suffix), style: decls })
+    }
+  }
+}
+
+/** Elements address states through the fixed WP pseudo keys. */
 const emitWithPseudos = (
-  selector: string,
+  selectors: readonly string[],
   block: PseudoStyleBlock,
   out: CompiledRule[]
 ): void => {
@@ -242,25 +290,67 @@ const emitWithPseudos = (
     ":visited": v,
     ...base
   } = block
-  const baseDecls = compileBlock(base)
-  if (Object.keys(baseDecls).length > 0) {
-    out.push({ selector, style: baseDecls })
-  }
+  emitStates(
+    selectors,
+    base,
+    { ":hover": h, ":focus": f, ":active": a, ":visited": v },
+    out
+  )
+}
 
-  const pseudos: Record<(typeof PSEUDO_KEYS)[number], StyleBlock | undefined> =
-    {
-      ":hover": h,
-      ":focus": f,
-      ":active": a,
-      ":visited": v,
-    }
-  for (const key of PSEUDO_KEYS) {
-    const b = pseudos[key]
-    if (!b) continue
-    const decls = compileBlock(b)
-    if (Object.keys(decls).length > 0) {
-      out.push({ selector: `${selector}${key}`, style: decls })
-    }
+const emitPart = (
+  decl: StylePart,
+  block: PartStyleBlock,
+  out: CompiledRule[]
+): void => {
+  const { states, ...base } = block
+  emitStates([decl.selector], base, states ?? {}, out)
+}
+
+/**
+ * A block's theme styles land on the selectors its `StyleSurface`
+ * declares: top-level declarations on the root part, `parts.<name>` on
+ * that part. Types without a surface are skipped — the schema already
+ * validated part names, states and style groups for registered ones.
+ */
+const emitComponent = (
+  type: string,
+  block: ComponentStyleBlock,
+  out: CompiledRule[]
+): void => {
+  const surface = getStyleSurface(type)
+  if (!surface) return
+  const { parts, ...root } = block
+  emitPart(surface.root, root, out)
+  for (const [name, part] of Object.entries(parts ?? {})) {
+    const decl = surface.parts[name]
+    if (!decl || !part) continue
+    emitPart(decl, part, out)
+  }
+}
+
+/**
+ * Emit an element's base + pseudo rules, then one rule set per named
+ * variation on `<selector>.is-style-<slug>`. Variations follow the base
+ * in output order and carry one extra class of specificity, so they win
+ * over the base regardless of how the consumer orders injected rules.
+ */
+const emitElement = (
+  name: ElementName,
+  block: ElementStyleBlock,
+  out: CompiledRule[]
+): void => {
+  const selectors = elementSelectors(name)
+  const { variations, ...base } = block
+  emitWithPseudos(selectors, base, out)
+  for (const [slug, variation] of Object.entries(variations ?? {})) {
+    if (!variation) continue
+    const suffix = `.${variationClass(slug)}`
+    emitWithPseudos(
+      selectors.map((s) => `${s}${suffix}`),
+      variation,
+      out
+    )
   }
 }
 
@@ -387,14 +477,14 @@ export const compileTheme = (theme: Theme): CompiledTheme => {
       for (const name of order) {
         const block = elements[name]
         if (!block) continue
-        emitWithPseudos(elementSelector(name), block, rules)
+        emitElement(name, block, rules)
       }
     }
 
     if (components) {
       for (const [type, block] of Object.entries(components)) {
         if (!block) continue
-        emitWithPseudos(`[data-gjs-type="${type}"]`, block, rules)
+        emitComponent(type, block, rules)
       }
     }
   }

@@ -29,9 +29,20 @@ Read [theming.md](theming.md) first. This maps the code.
 
 `compileTheme` output:
 - `rootVars` — the `:root` declaration map.
-- `rules` — scoped selectors for `styles.elements.*` (e.g. `heading` → `h1,…,h6`) and
-  `styles.components.*` (→ `[data-gjs-type="<type>"]`), including `:hover/:focus/...`
-  pseudo variants. The root style block merges onto `body`.
+- `rules` — scoped selectors for `styles.elements.*` (e.g. `heading` → `h1,…,h6`;
+  `button` → `.tc-element-button` only, the opt-in badge blocks wear — WP's
+  `.wp-element-button`; raw `<button>`s are never themed), including `:hover/:focus/...`
+  pseudo variants suffixed onto every selector in the list. An element's `variations.<slug>`
+  compiles to `<selector>.is-style-<slug>` (plus pseudos), emitted after the base rule and
+  one class heavier, so a block only toggles the class — see `lib/plugins/button`. The root
+  style block merges onto `body`.
+- `styles.components.<type>` — per-block styles (WP's `styles.blocks.<name>`). The block
+  declares a `StyleSurface` (`lib/theme/style-surfaces.ts`: root + named `parts`, each with a
+  real-specificity selector, allowed style groups and allowed `states` suffixes). Top-level
+  declarations land on the root selector, `parts.<name>` on that part's selector, `states`
+  keys are appended verbatim (`tc-tabs [role="tab"][aria-selected="true"]`). The schema
+  rejects undeclared parts, states and groups on write; a type with no surface is accepted
+  and compiles to nothing. First surface: `lib/plugins/interactive/tabs.surface.ts`.
 
 ## Canvas injection (design-system-plugin.ts)
 
@@ -64,9 +75,12 @@ the current tokens after a server round-trip.
 
 ## End-to-end flow
 
-DB `Tenant.theme` → (editor) `themeStore.setTheme(tenantTheme)` in `editor-shell.tsx`
-→ `designSystemPlugin` injects canvas CSS + `useApplyThemeVars` mirrors to document
-root. Edit a token → store emits → both layers update. Save → `updateTenantTheme`
+DB `Tenant.theme` → `getTenantTheme` layers it over `defaultTheme`
+(`lib/theme/merge-defaults.ts`: objects recurse, stored keys win, token arrays replace
+wholesale — so a default added later still reaches every tenant, and a tenant can
+override but never delete a default key) → (editor) `themeStore.setTheme(tenantTheme)`
+in `editor-shell.tsx` → `designSystemPlugin` injects canvas CSS + `useApplyThemeVars`
+mirrors to document root. Edit a token → store emits → both layers update. Save → `updateTenantTheme`
 (Zod + version bump). Render → preview layout links the versioned stylesheet;
 authored content's `var(--tc--preset--*)` references resolve against it.
 
