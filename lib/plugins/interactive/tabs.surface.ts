@@ -7,9 +7,10 @@
 // consequence: a theme `color` on the tab part also recolors the selected
 // tab unless the theme sets the `[aria-selected="true"]` state too.
 //
-// Layout groups are deliberately absent from `supports`: display, flex
-// direction and the vertical-orientation classes are the plugin's, and a
-// theme changing them would break the tabs behaviour.
+// No part narrows `supports`: every style group is valid CSS on every one of
+// these elements, and a tenant restyling their tabs shouldn't hit a different
+// set of controls per part. `supports` stays available for a part where a group
+// would genuinely break the block.
 
 import type { StyleSurface } from "@/lib/theme/style-surfaces"
 
@@ -19,26 +20,22 @@ export const tabsStyleSurface: StyleSurface = {
   root: {
     label: "Tabs container",
     selector: "tc-tabs",
-    supports: ["color", "spacing", "border", "shadow"],
     states: [],
   },
   parts: {
     list: {
       label: "Tab bar",
       selector: 'tc-tabs [role="tablist"]',
-      supports: ["color", "spacing", "border"],
       states: [],
     },
     tab: {
       label: "Tab button",
       selector: 'tc-tabs [role="tab"]',
-      supports: ["color", "typography", "spacing", "border"],
       states: [":hover", ":focus-visible", '[aria-selected="true"]'],
     },
     panel: {
       label: "Tab panel",
       selector: 'tc-tabs [role="tabpanel"]',
-      supports: ["color", "typography", "spacing", "border"],
       states: [],
     },
   },

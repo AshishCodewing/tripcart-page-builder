@@ -121,6 +121,16 @@ export const boxStyleSchema = z.object({
 export const spacingStyleSchema = z.object({
   padding: boxStyleSchema.optional(),
   margin: boxStyleSchema.optional(),
+})
+
+/**
+ * Root-only spacing. `blockGap` is WP's vertical rhythm between stacked blocks
+ * — it compiles to the `--tc--style--block-gap` variable that drives the
+ * `.tc-entry-content` flow spacing in tc-normalize.css, NOT to a CSS `gap`
+ * declaration. Flex/grid gap on a block is `layout.gap`, which is a different
+ * thing, so `blockGap` lives only where it means something.
+ */
+export const rootSpacingStyleSchema = spacingStyleSchema.extend({
   blockGap: z.string().optional(),
 })
 
@@ -131,12 +141,54 @@ export const borderStyleSchema = z.object({
   width: z.string().optional(),
 })
 
+// Container layout. Deliberately narrow: the flex box-alignment properties a
+// theme can meaningfully default, and `display` so a block can be made flex or
+// full-width. Grid tracks, position and float are per-instance decisions and
+// stay in the page editor.
+export const layoutStyleSchema = z.object({
+  display: z.string().optional(),
+  flexDirection: z.string().optional(),
+  flexWrap: z.string().optional(),
+  gap: z.string().optional(),
+  justifyContent: z.string().optional(),
+  alignItems: z.string().optional(),
+  alignContent: z.string().optional(),
+})
+
+// Background layers, as the editor's background stack writes them: five
+// longhands, each a comma-separated list with one entry per layer. The colour
+// itself stays under `color.background`, mirroring WP.
+export const backgroundStyleSchema = z.object({
+  image: z.string().optional(),
+  repeat: z.string().optional(),
+  position: z.string().optional(),
+  attachment: z.string().optional(),
+  size: z.string().optional(),
+})
+
+// Effects a brand plausibly sets once: a hover transition on every button, a
+// text shadow on every heading. Each is a single composed string, which is how
+// the editor's stacks (`text-shadow`, `transition`, `transform`) and the filter
+// plugin write them. `box-shadow` predates this group and lives at `shadow`.
+export const effectsStyleSchema = z.object({
+  opacity: z.string().optional(),
+  cursor: z.string().optional(),
+  textShadow: z.string().optional(),
+  filter: z.string().optional(),
+  backdropFilter: z.string().optional(),
+  transition: z.string().optional(),
+  transform: z.string().optional(),
+})
+
 export const styleBlockSchema = z.object({
+  layout: layoutStyleSchema.optional(),
   color: colorStyleSchema.optional(),
   typography: typographyStyleSchema.optional(),
   spacing: spacingStyleSchema.optional(),
+  background: backgroundStyleSchema.optional(),
   border: borderStyleSchema.optional(),
   shadow: z.string().optional(),
+  effects: effectsStyleSchema.optional(),
 })
 
 export const pseudoStyleBlockSchema = styleBlockSchema.extend({
@@ -185,19 +237,20 @@ const checkPartAgainstSurface = (
   block: PartStyle,
   decl: StylePart
 ): void => {
-  const groupsIn = (b: z.infer<typeof styleBlockSchema>) =>
-    STYLE_GROUPS.filter((g) => b[g] !== undefined)
   const { states, ...base } = block
+  // Absent `supports` means every group; a part narrows it only where a group
+  // would break the block.
+  const supports = decl.supports ?? STYLE_GROUPS
   const rejectGroups = (
     b: z.infer<typeof styleBlockSchema>,
     at: typeof path
   ) => {
-    for (const group of groupsIn(b)) {
-      if (!decl.supports.includes(group)) {
+    for (const group of STYLE_GROUPS) {
+      if (b[group] !== undefined && !supports.includes(group)) {
         ctx.addIssue({
           code: "custom",
           path: [...at, group],
-          message: `"${decl.label}" does not support "${group}" (supports: ${decl.supports.join(", ")})`,
+          message: `"${decl.label}" does not support "${group}" (supports: ${supports.join(", ")})`,
         })
       }
     }
@@ -243,6 +296,8 @@ export const componentsSchema = z
   })
 
 export const styleDefaultsSchema = styleBlockSchema.extend({
+  // Widened for `blockGap`, which only the root block can express.
+  spacing: rootSpacingStyleSchema.optional(),
   elements: elementsSchema.optional(),
   components: componentsSchema.optional(),
 })

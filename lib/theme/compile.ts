@@ -33,25 +33,16 @@ import type {
   ElementStyleBlock,
   FontSizeToken,
   PartStyleBlock,
-  PseudoStyleBlock,
   StyleBlock,
   Theme,
   Token,
 } from "@/lib/theme/schema"
 import { getStyleSurface, type StylePart } from "@/lib/theme/style-surfaces"
-
-/**
- * Marker class for "anything that looks like a button" regardless of tag
- * (`<a>`, `<button>`, …). `styles.elements.button` targets ONLY this class,
- * never the bare `button` tag — same as WP's `.wp-element-button` — so tab
- * buttons, toggles and other raw `<button>`s keep their own styling unless
- * they opt in. Blocks add it themselves (see lib/plugins/button).
- */
-export const ELEMENT_BUTTON_CLASS = "tc-element-button"
-
-/** Class a block toggles to opt into a theme-defined style variation. */
-export const variationClass = (slug: string): string =>
-  `is-style-${toKebab(slug)}`
+import {
+  ELEMENT_PSEUDO_KEYS,
+  elementSelectors,
+  joinWithSuffix,
+} from "@/lib/theme/style-selectors"
 
 /**
  * Kebab-case segment that appears in `--tc--preset--<category>--<slug>`.
@@ -164,30 +155,6 @@ const writeCustomVars = (
   }
 }
 
-/**
- * Selectors targeted by a given `styles.elements.<name>` entry.
- * `heading` expands to `h1, h2, …, h6` (cascade-stacked so explicit
- * `h1`/`h2`/… overrides win). Kept as a list so pseudo and variation
- * suffixes attach to every member, not just the last.
- */
-const elementSelectors = (name: ElementName): string[] => {
-  switch (name) {
-    case "heading":
-      return ["h1", "h2", "h3", "h4", "h5", "h6"]
-    case "link":
-      return ["a"]
-    case "caption":
-      return ["figcaption"]
-    case "button":
-      return [`.${ELEMENT_BUTTON_CLASS}`]
-    default:
-      return [name]
-  }
-}
-
-const joinWithSuffix = (selectors: readonly string[], suffix: string): string =>
-  selectors.map((s) => `${s}${suffix}`).join(", ")
-
 const setIfRef = (
   out: Record<string, string>,
   prop: string,
@@ -197,13 +164,27 @@ const setIfRef = (
 }
 
 /**
- * Flatten a single `StyleBlock` (no pseudo branches) into a CSS
- * declaration map. Each StyleRef is resolved against the preset/custom
- * naming. Properties absent from the block don't appear in the output —
- * an empty block returns `{}` and the caller skips emitting the rule.
+ * Flatten a single `StyleBlock` into a CSS declaration map. Reads only the
+ * style groups, so a caller may pass a block that also carries `:hover`,
+ * `variations`, `parts` or `states` — those keys are simply ignored, which is
+ * what lets the emitters below skip destructuring them away. Each StyleRef is
+ * resolved against the preset/custom naming. Properties absent from the block
+ * don't appear in the output — an empty block returns `{}` and the caller
+ * skips emitting the rule.
  */
 const compileBlock = (block: StyleBlock): Record<string, string> => {
   const decls: Record<string, string> = {}
+
+  if (block.layout) {
+    const l = block.layout
+    setIfRef(decls, "display", l.display)
+    setIfRef(decls, "flex-direction", l.flexDirection)
+    setIfRef(decls, "flex-wrap", l.flexWrap)
+    setIfRef(decls, "gap", l.gap)
+    setIfRef(decls, "justify-content", l.justifyContent)
+    setIfRef(decls, "align-items", l.alignItems)
+    setIfRef(decls, "align-content", l.alignContent)
+  }
 
   if (block.color) {
     setIfRef(decls, "color", block.color.text)
@@ -237,7 +218,15 @@ const compileBlock = (block: StyleBlock): Record<string, string> => {
       setIfRef(decls, "margin-bottom", m.bottom)
       setIfRef(decls, "margin-left", m.left)
     }
-    setIfRef(decls, "gap", block.spacing.blockGap)
+  }
+
+  if (block.background) {
+    const bg = block.background
+    setIfRef(decls, "background-image", bg.image)
+    setIfRef(decls, "background-repeat", bg.repeat)
+    setIfRef(decls, "background-position", bg.position)
+    setIfRef(decls, "background-attachment", bg.attachment)
+    setIfRef(decls, "background-size", bg.size)
   }
 
   if (block.border) {
@@ -248,6 +237,17 @@ const compileBlock = (block: StyleBlock): Record<string, string> => {
   }
 
   setIfRef(decls, "box-shadow", block.shadow)
+
+  if (block.effects) {
+    const fx = block.effects
+    setIfRef(decls, "opacity", fx.opacity)
+    setIfRef(decls, "cursor", fx.cursor)
+    setIfRef(decls, "text-shadow", fx.textShadow)
+    setIfRef(decls, "filter", fx.filter)
+    setIfRef(decls, "backdrop-filter", fx.backdropFilter)
+    setIfRef(decls, "transition", fx.transition)
+    setIfRef(decls, "transform", fx.transform)
+  }
 
   return decls
 }
@@ -280,22 +280,13 @@ const emitStates = (
 /** Elements address states through the fixed WP pseudo keys. */
 const emitWithPseudos = (
   selectors: readonly string[],
-  block: PseudoStyleBlock,
+  block: ElementStyleBlock,
   out: CompiledRule[]
 ): void => {
-  const {
-    ":hover": h,
-    ":focus": f,
-    ":active": a,
-    ":visited": v,
-    ...base
-  } = block
-  emitStates(
-    selectors,
-    base,
-    { ":hover": h, ":focus": f, ":active": a, ":visited": v },
-    out
+  const states = Object.fromEntries(
+    ELEMENT_PSEUDO_KEYS.map((key) => [key, block[key]])
   )
+  emitStates(selectors, block, states, out)
 }
 
 const emitPart = (
@@ -303,8 +294,7 @@ const emitPart = (
   block: PartStyleBlock,
   out: CompiledRule[]
 ): void => {
-  const { states, ...base } = block
-  emitStates([decl.selector], base, states ?? {}, out)
+  emitStates([decl.selector], block, block.states ?? {}, out)
 }
 
 /**
@@ -320,9 +310,8 @@ const emitComponent = (
 ): void => {
   const surface = getStyleSurface(type)
   if (!surface) return
-  const { parts, ...root } = block
-  emitPart(surface.root, root, out)
-  for (const [name, part] of Object.entries(parts ?? {})) {
+  emitPart(surface.root, block, out)
+  for (const [name, part] of Object.entries(block.parts ?? {})) {
     const decl = surface.parts[name]
     if (!decl || !part) continue
     emitPart(decl, part, out)
@@ -340,17 +329,10 @@ const emitElement = (
   block: ElementStyleBlock,
   out: CompiledRule[]
 ): void => {
-  const selectors = elementSelectors(name)
-  const { variations, ...base } = block
-  emitWithPseudos(selectors, base, out)
-  for (const [slug, variation] of Object.entries(variations ?? {})) {
+  emitWithPseudos(elementSelectors(name), block, out)
+  for (const [slug, variation] of Object.entries(block.variations ?? {})) {
     if (!variation) continue
-    const suffix = `.${variationClass(slug)}`
-    emitWithPseudos(
-      selectors.map((s) => `${s}${suffix}`),
-      variation,
-      out
-    )
+    emitWithPseudos(elementSelectors(name, slug), variation, out)
   }
 }
 
@@ -439,12 +421,13 @@ export const compileTheme = (theme: Theme): CompiledTheme => {
     // rule doesn't accidentally absorb element/component selectors.
     const { elements, components, ...rootBlock } = styles
 
-    // Root-level blockGap hoists to the WP-style `--tc--style--block-gap`
-    // custom property on :root — consumed by the `.tc-entry-content`
-    // flow owl in tc-normalize.css — rather than becoming a no-op `gap`
-    // on the body rule (`gap` does nothing in normal block flow). Per-
-    // component/element blockGap still compiles to `gap` (flex/grid) via
-    // compileBlock; only the root block is hoisted here.
+    // `blockGap` is the root's vertical rhythm between stacked blocks, and it
+    // hoists to the WP-style `--tc--style--block-gap` custom property on :root
+    // — consumed by the `.tc-entry-content` flow owl in tc-normalize.css —
+    // rather than becoming a no-op `gap` on the body rule (`gap` does nothing
+    // in normal block flow). A flex/grid gap on a block is a different thing
+    // and lives in `layout.gap`, which the schema allows on every block while
+    // `blockGap` exists only here.
     const { blockGap: rootBlockGap, ...rootSpacing } = rootBlock.spacing ?? {}
     if (rootBlockGap) {
       rootVars["--tc--style--block-gap"] = resolveStyleRef(rootBlockGap)

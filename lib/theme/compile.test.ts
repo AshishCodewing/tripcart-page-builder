@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  ELEMENT_BUTTON_CLASS,
   compileTheme,
   compiledThemeToCss,
   presetVarName,
   resolveStyleRef,
 } from "@/lib/theme/compile"
+import { ELEMENT_BUTTON_CLASS } from "@/lib/theme/style-selectors"
 import type { Theme } from "@/lib/theme/schema"
 
 const theme: Theme = {

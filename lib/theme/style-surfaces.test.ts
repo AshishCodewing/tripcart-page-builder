@@ -26,7 +26,9 @@ describe("style surfaces", () => {
         expect(part.label.length).toBeGreaterThan(0)
         expect(part.selector.trim().length).toBeGreaterThan(0)
         expect(part.selector).not.toContain(":where(")
-        for (const group of part.supports) {
+        // `supports` is optional — absent means every group. When a part does
+        // narrow it, the names must be real groups.
+        for (const group of part.supports ?? []) {
           expect(STYLE_GROUPS).toContain(group)
         }
         expect(new Set(part.states).size).toBe(part.states.length)

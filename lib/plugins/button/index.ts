@@ -17,18 +17,15 @@
 
 import type { Component, Editor, Plugin } from "grapesjs"
 
-import { ELEMENT_BUTTON_CLASS, variationClass } from "@/lib/theme/compile"
+import {
+  ELEMENT_BUTTON_CLASS,
+  variationClass,
+} from "@/lib/theme/style-selectors"
 
 export const BUTTON_TYPE = "tc-button"
 
 const TYPE_CLASS = "tc-button"
 const OUTLINE_CLASS = variationClass("outline")
-
-export type ButtonVariant = "fill" | "outline"
-
-type ButtonModel = Component & {
-  syncVariant(): void
-}
 
 // Structural only — colors, radius, border width/color and text-decoration
 // come from the theme's `elements.button` rules.
@@ -54,6 +51,10 @@ const buttonCss = `
   outline-offset: 2px;
 }
 `
+
+type ButtonModel = Component & {
+  syncVariant(): void
+}
 
 const ICON = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="10" rx="3"/><path d="M8 12h8"/></svg>`
 

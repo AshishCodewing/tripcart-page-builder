@@ -2,7 +2,7 @@
 import grapesjs, { type ComponentDefinition, type Editor } from "grapesjs"
 import { afterEach, describe, expect, it } from "vitest"
 
-import { ELEMENT_BUTTON_CLASS } from "@/lib/theme/compile"
+import { ELEMENT_BUTTON_CLASS } from "@/lib/theme/style-selectors"
 
 import { BUTTON_TYPE, buttonPlugin } from "./index"
 

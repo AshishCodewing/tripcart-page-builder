@@ -96,7 +96,7 @@ export type ElementStyleBlock = z.infer<typeof elementStyleSchema>
  * everything else the tag as-is) except `button`, which targets only the
  * opt-in `.tc-element-button` marker class (WP's `.wp-element-button`) so
  * `<a>`-rendered buttons receive it and raw `<button>`s are left alone —
- * see `elementSelectors` in `./compile.ts`. Derived from the elements
+ * see `elementSelectors` in `./style-selectors.ts`. Derived from the elements
  * schema's key set.
  */
 export type ElementName = keyof z.infer<typeof elementsSchema>

@@ -152,12 +152,25 @@ describe("themeSchema", () => {
     ).toContain('no state ":visited"')
   })
 
-  it("rejects a style group the part does not support", () => {
-    expect(
-      componentIssues({
-        "tc-tabs": { parts: { tab: { shadow: "var:preset|shadow|sm" } } },
-      })
-    ).toContain('does not support "shadow"')
+  // No shipped part narrows `supports`, so every group is allowed everywhere.
+  // The narrowing path itself is covered by `supportsFor` in style-targets.
+  it("accepts any style group on a part that doesn't narrow supports", () => {
+    const parsed = themeSchema.safeParse({
+      ...themeFixture,
+      styles: {
+        components: {
+          "tc-tabs": {
+            parts: {
+              tab: {
+                shadow: "var:preset|shadow|low",
+                layout: { display: "flex" },
+              },
+            },
+          },
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
   })
 
   it("accepts a component type with no registered surface", () => {

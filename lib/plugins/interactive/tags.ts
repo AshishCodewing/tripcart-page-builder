@@ -28,8 +28,8 @@ export const INTERACTIVE_BLOCKS: InteractiveBlock[] = [
     example: [
       "<tc-tabs>",
       '  <div role="tablist">',
-      "    <button role=\"tab\"><span>Overview</span></button>",
-      "    <button role=\"tab\"><span>Pricing</span></button>",
+      '    <button role="tab"><span>Overview</span></button>',
+      '    <button role="tab"><span>Pricing</span></button>',
       "  </div>",
       '  <div class="tc-tabs__panels">',
       '    <div role="tabpanel"><p>Overview content…</p></div>',
@@ -56,5 +56,7 @@ export function usesInteractiveComponents(projectData: unknown): boolean {
  * only — the full emit contract lives in the code-gen prompt). Empty string
  * when there are no blocks. */
 export function describeInteractiveBlocks(): string {
-  return INTERACTIVE_BLOCKS.map((b) => `- ${b.label}: ${b.whenToUse}`).join("\n")
+  return INTERACTIVE_BLOCKS.map((b) => `- ${b.label}: ${b.whenToUse}`).join(
+    "\n"
+  )
 }
