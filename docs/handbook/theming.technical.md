@@ -16,7 +16,8 @@ Read [theming.md](theming.md) first. This maps the code.
 | `hooks/use-apply-theme-vars.ts` | Mirrors tokens onto `document.documentElement` for the outer UI; cleans up on unmount. |
 | `hooks/use-theme.ts` | `useTheme()` (full) + `useThemeSelector(fn)` (granular, ref-equality cached). |
 | `app/api/preview/theme/[tenantId]/[version]/theme.css/route.ts` | Serves compiled theme CSS, `cache-control: immutable`. |
-| `lib/cms/tenants.ts` / `tenant-actions.ts` | `getTenantTheme` (read, `{}`→`defaultTheme`); `updateTenantTheme` (Zod validate, write, bump `themeVersion`, invalidate tags). |
+| `lib/cms/tenants.ts` / `tenant-actions.ts` | `findTenantTheme` / `getTenantTheme` (read, stored row layered over `defaultTheme` via `lib/theme/merge-defaults.ts`); `updateTenantTheme` (Zod validate, write, bump `themeVersion`, invalidate tags). |
+| `lib/theme/stylesheet-key.ts` | `themeStylesheetKey(theme)` — content hash of the compiled CSS, the preview stylesheet's cache key. |
 
 ## The variable naming scheme (compile.ts)
 
@@ -55,16 +56,19 @@ selectors so stale ones are cleared on the next compile.
 **Protected** is the linchpin: `filterProtectedStyles` (storage adapter) strips these
 on save, so the theme is never duplicated into page blobs.
 
-## Versioned CSS cache contract
+## Content-keyed CSS cache contract
 
-1. `updateTenantTheme` bumps `Tenant.themeVersion`.
-2. Preview layout emits `<link href=".../theme/[tenantId]/[version]/theme.css">` with
-   the current version.
-3. The route serves compiled CSS as `immutable`. A theme edit rotates the URL, so the
-   browser/CDN fetches fresh; the old URL is harmlessly abandoned. No purge needed.
+1. The preview layout resolves the tenant theme (`findTenantTheme`), compiles it, and
+   hashes the CSS (`themeStylesheetKey`).
+2. It emits `<link href=".../theme/[tenantId]/<hash>/theme.css">`.
+3. The route serves compiled CSS as `immutable`. Anything that changes the compiled CSS —
+   a tenant save, a compiler change, a change to the bundled defaults — changes the hash,
+   so the browser/CDN fetches fresh; the old URL is harmlessly abandoned. No purge needed.
 
-(The `[version]` segment is a cache key only — the route always serves the *current*
-theme.)
+The `[version]` segment is a cache key only — the route always serves the *current*
+theme. `Tenant.themeVersion` still increments on save but no longer drives the URL: keyed
+on it alone, a compiler or defaults change left browsers on stale CSS until the tenant
+happened to save (seen 2026-09-03: preview kept the removed `button` tag rule).
 
 ## Store mechanics (theme-store.ts)
 

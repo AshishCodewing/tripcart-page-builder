@@ -8,16 +8,19 @@ import { compiledThemeToCss, compileTheme } from "@/lib/theme/compile"
 // The `[version]` URL segment is a cache key, not a content selector —
 // this handler always serves the *current* theme. The contract is:
 //
-//   1. `updateTenantTheme` bumps `Tenant.themeVersion`.
-//   2. The next preview render reads the new version and emits a new
-//      stylesheet URL.
+//   1. The preview layout compiles the tenant theme and hashes the CSS
+//      (`themeStylesheetKey`) into the stylesheet URL.
+//   2. Any change that alters the compiled CSS — a tenant save, a
+//      compiler change, a change to the bundled defaults — yields a new
+//      hash, hence a new URL.
 //   3. Browser/CDN cache miss, fetches origin, gets the new theme.
 //   4. The old URL's cached response stays cached forever (`immutable`),
 //      but nothing requests it anymore.
 //
 // This works because preview HTML is always server-rendered fresh
-// (draft mode → dynamic), so the URL the browser sees is always the
-// current version. No purges or tag invalidation needed.
+// (draft mode → dynamic), so the URL the browser sees always carries the
+// current hash. No purges or tag invalidation needed. `Tenant.themeVersion`
+// still increments on save but no longer drives this URL.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ tenantId: string; version: string }> }

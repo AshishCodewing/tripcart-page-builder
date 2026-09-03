@@ -1,10 +1,8 @@
 import { draftMode } from "next/headers"
 import { notFound } from "next/navigation"
 
-import { eq } from "drizzle-orm"
-
-import { db } from "@/lib/db"
-import { tenants } from "@/lib/schema"
+import { findTenantTheme } from "@/lib/cms/tenants"
+import { themeStylesheetKey } from "@/lib/theme/stylesheet-key"
 
 // Shared layout for every preview route. Reads `tenantId` from the URL
 // segment (set by `/api/preview` when the editor launches a preview
@@ -13,10 +11,12 @@ import { tenants } from "@/lib/schema"
 // Per-page previews (`PagePreview`) only emit their own page-scoped CSS
 // on top.
 //
-// `themeVersion` rides on the URL as an immutable cache key —
-// `updateTenantTheme` bumps it on every write, so the URL the browser
-// sees rotates on each edit and the old cached stylesheet is harmlessly
-// abandoned. See the route handler for the full contract.
+// The `[version]` segment is a content hash of the compiled CSS
+// (`themeStylesheetKey`), used as an immutable cache key. Hashing the
+// output — rather than reading `Tenant.themeVersion` — means the URL also
+// rotates when the compiler or the bundled defaults change, not only when
+// the tenant saves; the version counter alone left browsers on stale CSS
+// after such deploys. See the route handler for the full contract.
 //
 // This is the server-side mirror of what `designSystemPlugin` does in
 // the editor canvas: a single `:root` rule plus body / element /
@@ -52,17 +52,14 @@ export default async function PreviewLayout({
   // Bad/stale tenant IDs land here too — skip the link rather than 404
   // the layout, since the page below will notFound() with the right
   // context.
-  const tenant = await db.query.tenants.findFirst({
-    where: eq(tenants.id, tenantId),
-    columns: { themeVersion: true },
-  })
+  const theme = await findTenantTheme(tenantId)
 
   return (
     <>
-      {tenant && (
+      {theme && (
         <link
           rel="stylesheet"
-          href={`/api/preview/theme/${tenantId}/${tenant.themeVersion}/theme.css`}
+          href={`/api/preview/theme/${tenantId}/${themeStylesheetKey(theme)}/theme.css`}
           precedence="default"
         />
       )}
