@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm"
 
 import { db } from "@/lib/db"
 import { tenants } from "@/lib/schema"
-import { defaultTheme } from "@/lib/tokens"
+import { mergeThemeOverDefaults } from "@/lib/theme/merge-defaults"
 import type { Theme } from "@/lib/theme/schema"
 
 export async function listTenants() {
@@ -29,10 +29,12 @@ export async function getTenantBySlug(slug: string) {
 /**
  * Resolve the active `Theme` document for a tenant.
  *
- * The DB stores `{}` as the "no overrides yet" sentinel — in that case
- * we return the bundled `defaultTheme` so the editor and renderer get a
- * complete document. A populated row is trusted (Zod-validated on write
- * by `updateTenantTheme`), so we just cast on read.
+ * The stored row is a set of overrides layered over the bundled
+ * `defaultTheme` (`mergeThemeOverDefaults`), so a default added after the
+ * tenant last saved — a new element style or `variations` entry — still
+ * reaches them. `{}` / null (the "no overrides yet" sentinel) therefore
+ * yields the defaults unchanged. A populated row is trusted (Zod-validated
+ * on write by `updateTenantTheme`), so we cast rather than re-parse.
  */
 export async function getTenantTheme(tenantId: string): Promise<Theme> {
   const tenant = await db.query.tenants.findFirst({
@@ -41,10 +43,5 @@ export async function getTenantTheme(tenantId: string): Promise<Theme> {
   })
   if (!tenant) throw new Error(`Tenant ${tenantId} not found.`)
 
-  const stored = tenant.theme
-  const isEmpty =
-    stored == null ||
-    (typeof stored === "object" && Object.keys(stored).length === 0)
-
-  return isEmpty ? defaultTheme : (stored as unknown as Theme)
+  return mergeThemeOverDefaults((tenant.theme ?? {}) as unknown as Theme)
 }
