@@ -43,6 +43,7 @@ export {
   insertHorizontalRule,
   insertHardBreak,
   removeFormat,
+  wrapForStyling,
   undoCmd,
   redoCmd,
   type LinkAttrs,

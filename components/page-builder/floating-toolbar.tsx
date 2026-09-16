@@ -1,7 +1,14 @@
 import { useEditorMaybe } from "@grapesjs/react"
 import { useEffect, useState } from "react"
 import type { Component } from "grapesjs"
-import { Copy, Trash2, ArrowUp, Move, MoreVertical, Pencil } from "lucide-react"
+import {
+  Copy,
+  Trash2,
+  ArrowUp,
+  Move,
+  MoreVertical,
+  Pencil,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
 import {
@@ -55,6 +62,19 @@ export function FloatingToolbar() {
 
   const canConvert = isConvertibleSelection(selected)
   const isContentSlot = selected.get("type") === CONTENT_SLOT_TYPE
+
+  // Text editing is otherwise double-click only, which is undiscoverable.
+  // "Does this component edit text" is a question about its VIEW, not its type
+  // name: `tc-button` extends `link`, which renders a text view but does not
+  // report `isInstanceOf("text")`. GrapesJS answers it the same way — a view
+  // with a `disableEditing` method is a text view (BaseComponentNode). The
+  // other two clauses mirror `ComponentTextView.canActivate`: editable, and not
+  // an inner run of another text component (those delegate to their parent).
+  const view = selected.getView() as { disableEditing?: unknown } | undefined
+  const canEditText =
+    typeof view?.disableEditing === "function" &&
+    !!selected.get("editable") &&
+    !selected.isChildOf("text")
 
   // Mirror GrapesJS' default toolbar gating (Component.getToolbar): each action
   // is shown only when the component declares the matching capability. The
@@ -116,6 +136,29 @@ export function FloatingToolbar() {
                   }
                 />
                 <TooltipContent>Edit Original</TooltipContent>
+              </Tooltip>
+            )}
+            {canEditText && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={btnClass}
+                      aria-label="Edit text"
+                      // Keep DOM focus off the button so the RTE keeps the
+                      // caret it takes on enable.
+                      onMouseDownCapture={(e) => e.preventDefault()}
+                      // `active` is the event ComponentView binds to its
+                      // `onActive` — the same entry point double-click uses.
+                      onClick={() => selected.trigger("active")}
+                    >
+                      <Pencil />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Edit text</TooltipContent>
               </Tooltip>
             )}
             {canMove && (

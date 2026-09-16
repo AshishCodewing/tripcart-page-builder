@@ -110,6 +110,28 @@ blur/Enter).
   screen coords and tracking `component:update`/`canvas:update`/scroll. Actions gate
   on `draggable`/`copyable`/`removable`; template-refs get a violet accent + "edit
   original".
+  - "Edit text" fires `selected.trigger("active")` — the event `ComponentView` binds
+    to its `onActive`, so it is the same entry point as double-click. It gates on the
+    selection's **view** having a `disableEditing` method (how GrapesJS itself decides
+    "this is a text view" — see `BaseComponentNode.disableEditing`), plus `editable`
+    and not being an inner run of another text component. The type name is not enough:
+    `tc-button` extends `link`, which is a text view but does not report
+    `isInstanceOf("text")`.
+  - Activation with no originating event (this button; the re-mount after a Heading
+    size change) puts the caret at the end of the text rather than at offset 0 — see
+    the `opts.event` branch in `lib/plugins/rte/prosemirror-rte.ts`.
+- `rte-toolbar.tsx` / `rte-toolbar-fields.tsx` is the text toolbar (ProseMirror, see
+  `lib/plugins/rte`). Two things are component-aware rather than document-aware:
+  - `HeadingLevelSelect` writes the Heading block's `level` prop, and replaces
+    `FontSizeSelect` on a heading. It holds the pick until base-ui reports the popup
+    fully closed (`onOpenChangeComplete`) — applying it from `onValueChange` tears the
+    toolbar down while the popup is still closing, and React and base-ui then both
+    remove the same portalled node (`removeChild ... not a child`), which takes the
+    canvas with it.
+  - `WrapStyleControl` ("Wrap for styling") applies the `textStyle` mark with a fresh
+    id (`wrapForStyling` in `lib/plugins/rte/commands.ts`), ends the edit session so
+    GrapesJS re-parses the content, then selects the `<span>` that fell out of it. It
+    is disabled on a collapsed caret.
 
 ## Top bar
 

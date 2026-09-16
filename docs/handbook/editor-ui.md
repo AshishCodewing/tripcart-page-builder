@@ -24,8 +24,16 @@ build a WordPress-style chrome in React on top, talking to GrapesJS through
 - **Right panel** — for the selected component: **Style** (CSS) and **Settings**
   (traits/attributes).
 - **Top bar** — insert, undo/redo, outline, device switching, save/publish.
-- **Floating toolbar/badge** — selection chrome drawn over the canvas (move, dup,
-  delete, "edit original" for template refs, convert-to-pattern).
+- **Floating toolbar/badge** — selection chrome drawn over the canvas (edit text,
+  move, dup, delete, "edit original" for template refs, convert-to-pattern). **Edit
+  text** starts an editing session on the selection — the same thing double-clicking
+  does, but visible. It shows for anything that edits text: the Text block, Rich Text,
+  Heading and Button.
+- **Text toolbar** — floats over the text you are editing: bold/italic/underline/
+  strike, link, colours, and **Wrap for styling**, which puts the selected words in a
+  `<span>` of their own and selects it, so you can style just that run in the Style
+  panel. On a Heading the toolbar shows the **Size** (heading level) picker instead of
+  the font-size menu — a heading's size is its level.
 
 ## How React talks to GrapesJS
 
@@ -43,7 +51,7 @@ and **on user input → call the GrapesJS model API** (`property.upValue`,
 
 ## The custom Style Manager
 
-This is the biggest piece of UI. GrapesJS provides the *data* (sectors → properties);
+This is the biggest piece of UI. GrapesJS provides the _data_ (sectors → properties);
 we render each property with a bespoke React **field** instead of GrapesJS's default
 inputs.
 

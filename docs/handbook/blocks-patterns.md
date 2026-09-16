@@ -2,7 +2,13 @@
 
 The draggable building blocks in the inserter. Two custom plugins provide them:
 **patterns** (sections like Hero, CTA, Cards) and **columns** (a layout grid). Basic
-blocks (text, link, image, video, map) come from `grapesjs-blocks-basic`.
+blocks (text, link, image, video, map) come from `grapesjs-blocks-basic`; **Heading**,
+**Button** and **Rich Text** are ours and sit in the same "Basic" group.
+
+A **Heading** is one block, not six. Its "Size" setting (Heading One …
+Heading Six) picks the `h1`-`h6` tag, and it appears in two places: the Properties
+panel on the right, and the text toolbar that floats over the heading while you edit
+it. The tenant theme styles `h1`-`h6`, so a heading looks right with no styling work.
 
 ## Patterns
 
