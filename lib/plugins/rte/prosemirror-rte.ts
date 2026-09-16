@@ -39,7 +39,7 @@ import {
   sinkListItem,
   splitListItem,
 } from "prosemirror-schema-list"
-import { EditorState } from "prosemirror-state"
+import { EditorState, Selection } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
 
 import { RTE_REPAINT_EVENT } from "@/lib/plugins/react-renderer"
@@ -191,6 +191,15 @@ export const rtePlugin: Plugin = (editor: Editor) => {
           },
         }
       )
+      // Programmatic activation — the toolbar's Edit button, or the re-mount
+      // after a component re-render — carries no originating event, so there is
+      // no click position to derive a caret from and ProseMirror would land at
+      // offset 0, in front of the existing text. Put it at the end instead,
+      // where an author expects to resume. Double-click keeps its own caret.
+      if (!opts?.event) {
+        const { state } = created
+        created.dispatch(state.tr.setSelection(Selection.atEnd(state.doc)))
+      }
       const component = (opts?.view?.model ??
         editor.getEditing()) as Component
       elToEntry.set(el, {

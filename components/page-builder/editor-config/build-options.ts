@@ -11,6 +11,7 @@ import styleFilterPlugin from "grapesjs-style-filter"
 import { buttonPlugin } from "@/lib/plugins/button"
 import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
+import { headingPlugin } from "@/lib/plugins/heading"
 import { tabsPlugin } from "@/lib/plugins/interactive"
 import { patternComponents, patternsPlugin } from "@/lib/plugins/patterns"
 import reactRendererPlugin from "@/lib/plugins/react-renderer"
@@ -128,6 +129,10 @@ export const buildGjsOptions = (
       gjsBlocksBasic(editor, {
         blocks: ["text", "link", "image", "video", "map"],
       }),
+    // Heading block (`tc-heading`, extends the built-in `text`). Right after
+    // gjsBlocksBasic so it lands next to Text in "Basic" — the inserter keeps
+    // registration order.
+    headingPlugin,
     // Button block (`tc-button`, extends the built-in `link`). Directly after
     // gjsBlocksBasic so it lands next to Text/Link/Image in "Basic" — the
     // inserter keeps registration order — and after designSystemPlugin so

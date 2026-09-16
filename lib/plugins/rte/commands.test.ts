@@ -20,6 +20,7 @@ import {
   setBlockFormat,
   toggleInlineMark,
   toggleList,
+  wrapForStyling,
 } from "./commands"
 import { parseElement, schema, serializeDoc } from "./schema"
 
@@ -244,6 +245,38 @@ describe("textStyle merge", () => {
       '<p><span style="color:red;font-size:var(--tc--preset--font-size--lg)">t</span></p>'
     )
     expect(html.match(/<span/g)?.length).toBe(1)
+  })
+})
+
+describe("wrapForStyling", () => {
+  it("wraps the selection in a span carrying the id", () => {
+    const view = fakeView(selectFirstBlock(stateFrom("<p>run</p>")))
+    expect(wrapForStyling(view, "iwrap1")).toBe(true)
+    expect(serializeDoc(view.state.doc)).toBe(
+      '<p><span id="iwrap1">run</span></p>'
+    )
+  })
+
+  it("keeps colour and size the selection already carries", () => {
+    const view = fakeView(selectFirstBlock(stateFrom("<p>run</p>")))
+    applyTextStyle(view, "color", "red")
+    view.state = selectFirstBlock(view.state)
+    wrapForStyling(view, "iwrap2")
+    const html = norm(serializeDoc(view.state.doc))
+    expect(html).toBe('<p><span style="color:red" id="iwrap2">run</span></p>')
+  })
+
+  it("does nothing with an empty selection", () => {
+    const view = fakeView(stateFrom("<p>run</p>", 2))
+    expect(wrapForStyling(view, "iwrap3")).toBe(false)
+    expect(serializeDoc(view.state.doc)).toBe("<p>run</p>")
+  })
+
+  it("round-trips: the wrapped span survives a re-parse", () => {
+    const view = fakeView(selectFirstBlock(stateFrom("<p>run</p>")))
+    wrapForStyling(view, "iwrap4")
+    const html = serializeDoc(view.state.doc)
+    expect(serializeDoc(parseElement(el(html)))).toBe(html)
   })
 })
 

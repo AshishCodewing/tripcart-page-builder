@@ -331,6 +331,28 @@ export const applyTextStyle = (
   view.dispatch(tr)
 }
 
+/**
+ * Wrap the current selection in a `<span>` carrying `id`.
+ *
+ * This rides the `textStyle` mark, which already serializes to `<span id=…>`
+ * and re-parses it — so once the edit session ends and GrapesJS re-parses the
+ * content, the span is a child component of its own that the Style Manager can
+ * target. Any colour / size the selection already carries is preserved.
+ *
+ * Returns `false` on an empty selection: there is nothing to wrap.
+ */
+export const wrapForStyling = (view: EditorView, id: string): boolean => {
+  view.focus()
+  const { state } = view
+  const { from, to, empty, $from } = state.selection
+  if (empty) return false
+  const type = state.schema.marks.textStyle
+  const existing = type.isInSet($from.marks())
+  const mark = type.create({ ...(existing?.attrs || {}), id })
+  view.dispatch(state.tr.removeMark(from, to, type).addMark(from, to, mark))
+  return true
+}
+
 // --- misc -----------------------------------------------------------------
 
 export const insertHorizontalRule: Command = (state, dispatch) => {

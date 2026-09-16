@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createId } from "@paralleldrive/cuid2"
 import type { Component, Editor } from "grapesjs"
 import type { EditorView } from "prosemirror-view"
 import {
@@ -10,8 +11,17 @@ import {
   AlignRight,
   Image as ImageIcon,
   Link as LinkIcon,
+  Tag as TagIcon,
 } from "lucide-react"
 
+import {
+  HEADING_LEVELS,
+  HEADING_LEVEL_LABELS,
+  headingLevel,
+  setHeadingLevel,
+  toHeadingLevel,
+  type HeadingLevel,
+} from "@/lib/plugins/heading"
 import {
   ALIGNMENTS,
   BLOCK_FORMATS,
@@ -25,6 +35,7 @@ import {
   runCmd,
   setAlign,
   setBlockFormat,
+  wrapForStyling,
   type TextStyleAttr,
 } from "@/lib/plugins/rte"
 import { Button } from "@/components/ui/button"
@@ -121,6 +132,132 @@ export function BlockFormatSelect({ view }: RteFieldProps) {
         ))}
       </SelectContent>
     </Select>
+  )
+}
+
+/**
+ * Heading level for the Heading block, shown only while one is being edited.
+ *
+ * This writes to the component model, not the ProseMirror document: a heading
+ * edits through the inline schema, where the level is the component's tag, not
+ * a node type. `setHeadingLevel` handles ending and resuming the edit session
+ * around the re-render the tag swap causes.
+ */
+export function HeadingLevelSelect({
+  editor,
+  component,
+}: {
+  editor: Editor
+  component: Component
+}) {
+  const current = headingLevel(component)
+  // Applying the level ends the edit session, which unmounts this whole
+  // toolbar. Done from `onValueChange` that lands while the Select popup is
+  // still closing, so React and base-ui both try to remove the same portalled
+  // node — a `removeChild ... not a child` throw that takes the canvas down
+  // with it. Hold the pick until the popup has finished closing instead.
+  const picked = React.useRef<HeadingLevel | null>(null)
+
+  return (
+    <Select
+      value={String(current)}
+      onValueChange={(next) => {
+        if (typeof next !== "string" || !next) return
+        picked.current = toHeadingLevel(next)
+      }}
+      onOpenChangeComplete={(open) => {
+        const level = picked.current
+        picked.current = null
+        if (open || level === null) return
+        setHeadingLevel(editor, component, level)
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        className="h-8 w-44 text-xs"
+        aria-label="Heading size"
+      >
+        <SelectValue>
+          {(val) => HEADING_LEVEL_LABELS[toHeadingLevel(val)]}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent onMouseDown={keepEditing}>
+        {HEADING_LEVELS.map((level) => (
+          <SelectItem key={level} value={String(level)} className="text-xs">
+            {HEADING_LEVEL_LABELS[level]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/**
+ * A fresh id for the wrapper span, in GrapesJS' own shape (`i` + 4 chars) so the
+ * published markup doesn't stand out. GrapesJS' generator is private
+ * (`Components._createId`), so mint one here and re-roll on a clash —
+ * `allById()` is the public view of every id it has handed out.
+ */
+const newWrapId = (editor: Editor): string => {
+  const taken = editor.Components.allById()
+  let id: string
+  do {
+    id = `i${createId().slice(0, 4)}`
+  } while (id in taken)
+  return id
+}
+
+/**
+ * Wrap the selected text in a `<span>` of its own so the Style Manager can
+ * target just that run — GrapesJS Studio's "Wrap for styling".
+ *
+ * The span is only a ProseMirror mark until the edit session ends; GrapesJS
+ * turns it into a real child component when it re-parses the content during
+ * the disable pass. So this ends editing, then selects the new component.
+ */
+export function WrapStyleControl({
+  view,
+  editor,
+  component,
+}: RteFieldProps & { editor: Editor; component: Component }) {
+  // Re-read on render: the toolbar re-renders on every `tc-rte:update`, so
+  // this follows the live selection.
+  const disabled = view.state.selection.empty
+
+  const wrap = () => {
+    const id = newWrapId(editor)
+    if (!wrapForStyling(view, id)) return
+    component.once("rte:disable", () => {
+      // Deferred out of GrapesJS' disable pass: that pass tears this toolbar
+      // down, and selecting from inside it puts a React update in the middle
+      // of one already running.
+      requestAnimationFrame(() => {
+        const wrapped = component.find(`#${id}`)[0]
+        if (wrapped) editor.select(wrapped)
+      })
+    })
+    component.trigger("disable")
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={ICON_BTN}
+            aria-label="Wrap for styling"
+            disabled={disabled}
+            onMouseDownCapture={(e) => e.preventDefault()}
+            onClick={wrap}
+          >
+            <TagIcon />
+          </Button>
+        }
+      />
+      <TooltipContent>Wrap for styling</TooltipContent>
+    </Tooltip>
   )
 }
 

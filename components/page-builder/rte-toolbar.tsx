@@ -17,6 +17,7 @@ import {
   Underline,
 } from "lucide-react"
 
+import { isHeading } from "@/lib/plugins/heading"
 import {
   MARK_COMMANDS,
   indent,
@@ -43,8 +44,10 @@ import {
   BlockFormatSelect,
   ColorControl,
   FontSizeSelect,
+  HeadingLevelSelect,
   ImageControl,
   LinkControl,
+  WrapStyleControl,
 } from "./rte-toolbar-fields"
 
 // GrapesJS stops `mousedown` bubbling out of its own toolbar; ours lives
@@ -293,7 +296,18 @@ export function RteToolbar() {
           <Divider />
           {!inline && <AlignSelect {...fieldProps} />}
           {!inline && <BlockFormatSelect {...fieldProps} />}
-          <FontSizeSelect {...fieldProps} />
+          {isHeading(component) ? (
+            // A heading's size IS its level, so the font-size token menu would
+            // be a second, conflicting answer to the same question.
+            <HeadingLevelSelect editor={editor} component={component} />
+          ) : (
+            <FontSizeSelect {...fieldProps} />
+          )}
+          <WrapStyleControl
+            view={view}
+            editor={editor}
+            component={component}
+          />
         </div>
       </TooltipProvider>
     </CanvasFloating>

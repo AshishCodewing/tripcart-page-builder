@@ -24,12 +24,13 @@ Files: `about-block/about-block.ts`, `cards/cards.ts`, `testimonial-block/`,
 (which is plain-style but builds its children via JSX → `processReactElements`).
 
 Pattern:
+
 - `DomComponents.addType(type, { isComponent, model: { defaults: { tagName, classes,
-  styles: css, components: html|fn, traits, ...trait defaults } }, init, methods } })`.
+styles: css, components: html|fn, traits, ...trait defaults } }, init, methods } })`.
 - `init` wires `this.on("change:<trait>", …)` to mutate inline styles
   (`addStyle`) or rebuild `components()`.
 - `Blocks.add(id, { label, category: "Sections", attributes: { "data-pattern": "true" },
-  activate, resetId, content: { type }, media })`.
+activate, resetId, content: { type }, media })`.
 
 `hero-block.tsx` is the richest example: a `heroVariant` trait rebuilds the child JSX
 (`buildHeroChildren` → `processReactElements`), and `syncStyles` pushes height/align/bg
@@ -41,7 +42,7 @@ Files: `cta-block/cta-block.ts` (registration + `ComponentConfig`) and
 `cta-block/cta-section.tsx` (the React component).
 
 - `ctaSectionConfig: ComponentConfig = { component: CtaSection, allowChildren: true,
-  props: () => [ ...traits ], model: { defaults: {...} } }`.
+props: () => [ ...traits ], model: { defaults: {...} } }`.
 - `props()` traits → component props (the renderer maps them).
 - `allowChildren: true` → editable GrapesJS text components (seeded in the block's
   `content.components`) render into `CtaSection`'s `{children}` — React owns the
@@ -56,6 +57,7 @@ patterns just re-render with new props (no listeners needed).
 ## columns/index.ts
 
 `columnsPlugin` registers:
+
 - `gridRow` — flex container; only accepts `[data-gjs-type=gridColumn]`; vertical
   resize writes `min-height`; "Add Column" trait runs `columns:add-column`.
 - `gridColumn` — flex item; only droppable into `gridRow`; "Center content" checkbox
@@ -64,6 +66,28 @@ patterns just re-render with new props (no listeners needed).
 
 Replaces `grapesjs-blocks-basic`'s table/flex columns (which is why `gjsBlocksBasic`
 is configured with only `["text","link","image","video","map"]`).
+
+## heading/index.ts
+
+`headingPlugin` registers the `tc-heading` type (extends the built-in `text`) and a
+"Heading" block in "Basic". The level is a component property, not a separate block:
+
+- **`level` (1-6) is the source of truth**, `tagName` is derived from it. A
+  `change:level` listener writes `h${level}`, which makes GrapesJS re-render the node
+  (`Component.tagUpdated` → `rerender`). The select trait writes the option id, a
+  string, so `syncTagName` coerces `level` back to a number before saving.
+- **No CSS of its own.** `styles.elements.heading` in the theme already compiles to
+  `h1, h2, …, h6` (`lib/theme/style-selectors.ts`), so a heading picks up the tenant's
+  type scale for free.
+- **`isComponent` requires the `.tc-heading` marker class**, like the Button block, so
+  plain `<h2>`s inside patterns keep the behavior they have today.
+- `setHeadingLevel(editor, component, level)` is the entry point for changing the level
+  from outside the Trait Manager (the RTE toolbar uses it). While the heading is being
+  edited the element carries a live ProseMirror view, so it ends the edit session, waits
+  for `rte:disable` (GrapesJS syncs the edited content back during that pass), applies
+  the level, and hands editing to whichever view the re-render produces — the re-render
+  is asynchronous and builds a _fresh_ `ComponentView`, so re-activating the view you
+  already hold does nothing.
 
 ## button/index.ts
 
