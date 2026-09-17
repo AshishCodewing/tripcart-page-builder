@@ -18,10 +18,11 @@ describe("theme style sectors", () => {
   // editor doesn't declare — so simply importing it proves every control is
   // the page editor's, not a local reinvention.
   it("mirrors the editor's sectors, minus the per-instance ones", () => {
+    const perInstance = new Set(["size", "position", "animation"])
     const editorIds = STYLE_SECTORS.map((s) => s.id)
     const themeIds = THEME_STYLE_SECTORS.map((s) => s.id)
     expect(themeIds).toEqual(
-      editorIds.filter((id) => id !== "size" && id !== "position")
+      editorIds.filter((id) => !perInstance.has(String(id)))
     )
   })
 

@@ -4,8 +4,9 @@
 // out of `STYLE_SECTORS` by property name, so a colour, a length or an
 // alignment toggle behaves and looks identical on both screens, and any later
 // improvement to a field is inherited here for free. The sectors mirror the
-// editor's too — same names, same order, same membership — minus Size and
-// Position, which are per-instance decisions the theme doesn't store.
+// editor's too — same names, same order, same membership — minus Size,
+// Position and Animation, which are per-instance decisions the theme doesn't
+// store.
 //
 // The theme decides one thing: WHICH properties it can store. `SECTOR_GROUPS`
 // says which theme style groups each sector draws from, so a part that narrows

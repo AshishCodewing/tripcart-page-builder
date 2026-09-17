@@ -10,6 +10,40 @@ Heading Six) picks the `h1`-`h6` tag, and it appears in two places: the Properti
 panel on the right, and the text toolbar that floats over the heading while you edit
 it. The tenant theme styles `h1`-`h6`, so a heading looks right with no styling work.
 
+## Animation
+
+The **Animation** group in the inserter has two blocks. **Animation** is a wrapper:
+drop anything inside it and the whole thing animates as you scroll. **Animation Group**
+holds several Animations and plays them one after another, like cards arriving in
+sequence.
+
+The animation follows the scrollbar: scroll down and it plays, scroll back up and it
+rewinds, stop halfway and it holds there. It is pure CSS, with no script on the page.
+
+Both blocks drop inside an **Animation Frame**, which trims anything that sticks out
+sideways, so a card sliding in from off-screen can't make the page scroll left and
+right. Its sides also trim the animated content's shadow, and a slide travels only
+within the frame's width. To slide a single item in from the edge of the screen, give
+its frame the full page width.
+
+The settings are in the **Animation** section of the Style panel, which only appears
+while an Animation or Animation Group is selected:
+
+- On an **Animation**: **Type** (fade, slide, scale, …) and **Timing**.
+- On an **Animation Group**: **Stagger** (how far behind each item runs the one before
+  it). Items in a group take their timeline and start/end from the group; each still
+  picks its own Type and Timing.
+- **Advanced** holds the rest. **Timeline** says what drives the animation: the element
+  coming into view (with an axis and optional insets), scrolling the nearest scrolling
+  box, the page or the element itself, plain page load, or nothing. **Start** and
+  **End** say how far into view it begins and finishes, each as a phase plus an offset
+  (by default, from when it starts entering the screen until 30% of the way through).
+  Fill mode, how many times it repeats over that distance, and direction are here too.
+  On a group, Timeline, Start and End apply to all its items.
+
+Browsers that can't do scroll-driven animation (Firefox, today) show the content in
+place, and visitors who have asked their device to reduce motion see no animation.
+
 ## Patterns
 
 A **pattern** is a ready-made section a user drags in. They live in

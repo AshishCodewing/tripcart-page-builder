@@ -89,6 +89,68 @@ is configured with only `["text","link","image","video","map"]`).
   is asynchronous and builds a _fresh_ `ComponentView`, so re-activating the view you
   already hold does nothing.
 
+## animation/index.ts, animation/sector.ts
+
+`animationPlugin` registers `tc-animation` (a plain `div` wrapper),
+`tc-animation-group` (only accepts `[data-gjs-type=tc-animation]`) and
+`tc-animation-frame`, plus a block for each of the first two in the "Animation"
+category. It is modeled on the Studio SDK's
+`animationComponent`, but CSS only: scroll-driven animations instead of an
+IntersectionObserver `script`.
+
+- **Real CSS on the component's rule**, written by the "Animation" sector
+  (`ANIMATION_SECTOR`, last in `STYLE_SECTORS`): `animation-name` (Open Props
+  keyframes), `-timing-function` (Open Props easings), `-range-start/-end`,
+  `-timeline`, `-fill-mode`, `-iteration-count`, `-direction`. The block drops with
+  `animation-timeline: view()`, `entry 0%` → `cover 30%`.
+- **One composite per multi-part value, drawn as one boxed group.** Start and End are
+  phase + offset composites over `animation-range-start/-end`. Timeline composes every
+  `animation-timeline` form, `view(<axis> <inset-start> <inset-end>)`,
+  `scroll(<nearest|root|self> <axis>)`, `auto` and `none`, omitting defaults
+  (`composeTimeline` / `parseTimeline`).
+- **Visibility is the GrapesJS `isVisible` property option.** GrapesJS hides a sector
+  with no visible property (`StyleManager.__upProps`), and `filterSectorProperties`
+  honors `property.isVisible()` so our panel does too. Timeline and range hide on an
+  Animation inside a group.
+- **Advanced fold.** An `advanced: true` declaration (`style-fields/property-hints.ts`)
+  renders inside the sector's full-width "Advanced" collapsible, in declaration order.
+- **Composite gotchas.** `getStyleFromProps` blanks every part's name *after* `toStyle`
+  runs, so a part must never share a name with a property `toStyle` writes. And
+  `fromStyle` only runs when the rule declares the composite's name or a part's name
+  (`__styleHasProps`). The group's Timeline composite is therefore named
+  `view-timeline-axis`, with parts `view-timeline-part-*`, and always writes the axis,
+  so an inset alone still reads back.
+- **Groups are a CSS-variable bridge.** `.tc-animation-group` declares
+  `view-timeline-name: --tc-animation-group` and the defaults for
+  `--tc-animation-range-*-name/-offset` and `--tc-animation-stagger`. Author values
+  land on the group's id rule and win. A nested group re-declares them instead of
+  inheriting the outer group's. The group's Timeline composite writes the real
+  `view-timeline-axis` / `view-timeline-inset` on the group. Each child wears `tc-animation--grouped` (synced on the
+  group's `add`/`remove`), whose rule sets `animation-timeline: --tc-animation-group`
+  and ranges pushed later by `(sibling-index() - 1) * var(--tc-animation-stagger)`. The
+  group's Start/End are a `detached` composite writing those custom properties. Joining
+  a group strips the child's own timeline and range. Single class tokens throughout;
+  see the flat-selector rule.
+- **Frame.** Both blocks drop as `tc-animation-frame` > Animation (or > group). The
+  frame is `overflow-x: clip`: a slide keyframe starts a full element width to one side,
+  and a transformed box still counts toward the page's scrollable overflow. It's `clip`
+  rather than `hidden` because `hidden` makes the frame a scroll container, and a view
+  timeline inside would follow a box that never scrolls. A group is framed whole,
+  because framing each child would make `sibling-index()` 1 for every child. The blocks
+  drop without `select: true`; a `block:drag:stop` listener selects what the frame
+  holds, where the Animation sector applies.
+- **Keyframes.** `tc-fade-in` stands in for Open Props' `fade-in`, which only declares
+  `to` and so animates `opacity` 1 → 1. Exits (`fade-out`, `slide-out-*`) and `ping`
+  are not offered: they end hidden.
+- **Fallbacks.** `@media (prefers-reduced-motion: reduce)` sets `animation: none
+  !important`. No `@supports` rule: a browser without scroll timelines runs the
+  animation with no duration and shows its final frame, which for every offered
+  keyframe is the content in place. (An `@supports` rule would also have to dodge two
+  GrapesJS 0.22 bugs: `grapesjs-parser-postcss` only nests `@media`/`@keyframes`, and
+  `Css.setRule(…, { atRuleType })` emits `@media`.)
+- Keyframe names resolve against `open-props.min.css`, so any surface rendering
+  authored content must load it (`CONTENT_STYLE_URLS`).
+
 ## button/index.ts
 
 `buttonPlugin` registers the `tc-button` type (extends the built-in `link`, renders as

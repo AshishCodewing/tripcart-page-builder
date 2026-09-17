@@ -6,6 +6,8 @@
 
 import type { EditorConfig, PropertyStack } from "grapesjs"
 
+import { ANIMATION_SECTOR } from "@/lib/plugins/animation/sector"
+
 import { lengthProp } from "../style-fields/length-props"
 import { layoutSector } from "../style-config/layout-sector"
 import { transformProp } from "../style-config/transform-prop"
@@ -220,4 +222,7 @@ export const STYLE_SECTORS: StyleSectors = [
       },
     ],
   },
+  // Only visible while an Animation / Animation Group is selected — every
+  // property in it gates itself with `isVisible`.
+  ANIMATION_SECTOR,
 ]

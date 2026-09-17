@@ -56,7 +56,9 @@ we render each property with a bespoke React **field** instead of GrapesJS's def
 inputs.
 
 - **Sectors** are declared in `editor-shell.tsx` (`styleManager.sectors`): Layout,
-  Size, Position, Spacing, Typography, Background, Border, Effects.
+  Size, Position, Spacing, Typography, Background, Border, Effects, Animation. A sector
+  whose properties are all hidden for the selection disappears — Animation only shows
+  for the Animation blocks. A sector can fold rarely-needed rows under **Advanced**.
 - A sector renders its properties; each property dispatches to a field component by
   type: color, number (+units), select, radio, gradient, composite (4-side
   margin/padding), stack (shadows/transitions), and more.
