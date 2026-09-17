@@ -22,6 +22,7 @@ import {
   TEMPLATE_REF_SLUG_ATTR,
   TEMPLATE_REF_TYPE,
 } from "@/lib/plugins/template-ref"
+import CssCodeEditor from "../css-code/css-code-editor"
 import StyleSector from "../style-fields/style-sector"
 import { filterSectorProperties } from "../style-fields/style-search"
 import {
@@ -29,17 +30,25 @@ import {
   useStyleContext,
 } from "../style-fields/use-style-context"
 
-export default function StyleManager() {
+export default function StyleManager({ codeView }: { codeView: boolean }) {
   return (
     <StyleContextProvider>
       <StylesProvider>
-        {({ sectors }) => <StyleManagerInner sectors={sectors} />}
+        {({ sectors }) => (
+          <StyleManagerInner sectors={sectors} codeView={codeView} />
+        )}
       </StylesProvider>
     </StyleContextProvider>
   )
 }
 
-function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
+function StyleManagerInner({
+  sectors,
+  codeView,
+}: {
+  sectors: Sector[]
+  codeView: boolean
+}) {
   const editor = useEditor()
   const [hasTarget, setHasTarget] = React.useState<boolean>(
     () => editor.StyleManager.getSelected() != null
@@ -136,72 +145,78 @@ function StyleManagerInner({ sectors }: { sectors: Sector[] }) {
 
   return (
     <div className="flex flex-col border-t">
-      <div className="border-b p-2">
-        <InputGroup className="h-8">
-          <InputGroupAddon>
-            <Search className="size-3.5" />
-          </InputGroupAddon>
-          <InputGroupInput
-            inputSize="sm"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search styles…"
-            aria-label="Search styles"
-            className="text-xs [&::-webkit-search-cancel-button]:appearance-none"
-          />
-          <InputGroupAddon align="inline-end">
-            <TooltipProvider delay={300}>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <InputGroupButton
-                      size="icon-xs"
-                      aria-pressed={modifiedOnly}
-                      aria-label="Show only modified styles"
-                      onClick={() => setModifiedOnly((v) => !v)}
-                      className={
-                        modifiedOnly
-                          ? "bg-accent text-primary"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      <Filter />
-                    </InputGroupButton>
-                  }
-                />
-                <TooltipContent>Show only modified styles</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            {searching && (
-              <InputGroupButton
-                size="icon-xs"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-              >
-                <X />
-              </InputGroupButton>
-            )}
-          </InputGroupAddon>
-        </InputGroup>
-      </div>
-      {filtering && !hasMatches ? (
-        <p className="px-3 py-4 text-xs text-muted-foreground">
-          {searching
-            ? `No styles match “${query.trim()}”.`
-            : "No styles set on this element."}
-        </p>
+      {codeView ? (
+        <CssCodeEditor />
       ) : (
-        sectors.map((sector) => (
-          <StyleSector
-            key={sector.getId()}
-            sector={sector}
-            openId={openId}
-            onOpenChange={setOpenId}
-            query={query}
-            modifiedOnly={modifiedOnly}
-          />
-        ))
+        <>
+          <div className="border-b p-2">
+            <InputGroup className="h-8">
+              <InputGroupAddon>
+                <Search className="size-3.5" />
+              </InputGroupAddon>
+              <InputGroupInput
+                inputSize="sm"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search styles…"
+                aria-label="Search styles"
+                className="text-xs [&::-webkit-search-cancel-button]:appearance-none"
+              />
+              <InputGroupAddon align="inline-end">
+                <TooltipProvider delay={300}>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <InputGroupButton
+                          size="icon-xs"
+                          aria-pressed={modifiedOnly}
+                          aria-label="Show only modified styles"
+                          onClick={() => setModifiedOnly((v) => !v)}
+                          className={
+                            modifiedOnly
+                              ? "bg-accent text-primary"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          <Filter />
+                        </InputGroupButton>
+                      }
+                    />
+                    <TooltipContent>Show only modified styles</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {searching && (
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                  >
+                    <X />
+                  </InputGroupButton>
+                )}
+              </InputGroupAddon>
+            </InputGroup>
+          </div>
+          {filtering && !hasMatches ? (
+            <p className="px-3 py-4 text-xs text-muted-foreground">
+              {searching
+                ? `No styles match “${query.trim()}”.`
+                : "No styles set on this element."}
+            </p>
+          ) : (
+            sectors.map((sector) => (
+              <StyleSector
+                key={sector.getId()}
+                sector={sector}
+                openId={openId}
+                onOpenChange={setOpenId}
+                query={query}
+                modifiedOnly={modifiedOnly}
+              />
+            ))
+          )}
+        </>
       )}
     </div>
   )

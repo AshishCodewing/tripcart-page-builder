@@ -2,16 +2,8 @@
 
 import * as React from "react"
 import { SelectorsProvider, useEditor } from "@grapesjs/react"
-import {
-  Ban,
-  Crosshair,
-  MousePointer2,
-  Move,
-  MoreVertical,
-  Plus,
-  Tag,
-} from "lucide-react"
-import type { Component, Selector, State } from "grapesjs"
+import { Move, MoreVertical, Plus, Tag } from "lucide-react"
+import type { Component, Selector } from "grapesjs"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Tooltip,
   TooltipContent,
@@ -30,29 +21,10 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-// "Neutral" maps to the empty state in GrapesJS — `selectorManager.setState("")`
-// clears the active state. Select primitive treats `""` as "no value" so we
-// use a sentinel for the option's value and unwrap it before calling setState.
-const NEUTRAL_STATE = ""
-const NEUTRAL_VALUE = "__neutral__"
-
-const STATE_ICON: Record<
-  string,
-  React.ComponentType<{ className?: string }>
-> = {
-  "": Ban,
-  hover: MousePointer2,
-  focus: Crosshair,
-}
-
 type CustomSelectorsState = {
   selectors: Selector[]
-  states: State[]
-  selectedState: string
-  targets: string[]
   addSelector: (name: string) => void
   removeSelector: (selector: Selector) => void
-  setState: (name: string) => void
 }
 
 export default function SelectorManager() {
@@ -65,11 +37,8 @@ export default function SelectorManager() {
 
 function SelectorManagerInner({
   selectors,
-  states,
-  selectedState,
   addSelector,
   removeSelector,
-  setState,
 }: CustomSelectorsState) {
   const editor = useEditor()
 
@@ -116,17 +85,6 @@ function SelectorManagerInner({
     setAdding(false)
   }
 
-  // States come back as Backbone models with accessor methods, so we project
-  // them to plain `{ name, label }` records and prepend Neutral.
-  const stateTabs = React.useMemo(
-    () => [
-      { name: NEUTRAL_STATE, label: "Neutral" },
-      ...states.map((s) => ({ name: s.getName(), label: s.getLabel() })),
-    ],
-    [states]
-  )
-
-  const activeState = selectedState ?? NEUTRAL_STATE
   const compName = selectedComp?.getName() ?? ""
   const compId = selectedComp?.getId() ?? ""
 
@@ -141,32 +99,6 @@ function SelectorManagerInner({
   return (
     <TooltipProvider delay={300}>
       <div className="flex flex-col gap-2.5">
-        <ToggleGroup
-          variant="pill"
-          value={[activeState || NEUTRAL_VALUE]}
-          onValueChange={([next]) =>
-            setState(next && next !== NEUTRAL_VALUE ? next : "")
-          }
-          aria-label="Style state"
-          className="w-full"
-        >
-          {stateTabs.map((s) => {
-            const Icon = STATE_ICON[s.name] ?? Crosshair
-            const value = s.name || NEUTRAL_VALUE
-            return (
-              <ToggleGroupItem
-                key={value}
-                value={value}
-                className="min-w-0 flex-1 px-2! py-1! text-xs"
-                aria-label={s.label}
-              >
-                <Icon className="size-3.5" aria-hidden="true" />
-                <span className="truncate">{s.label}</span>
-              </ToggleGroupItem>
-            )
-          })}
-        </ToggleGroup>
-
         <TargetRow
           active={!componentFirst}
           tooltip={
