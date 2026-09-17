@@ -73,9 +73,12 @@ export function filterSectorProperties(
   query: string,
   modifiedOnly = false
 ): ReturnType<Sector["getProperties"]> {
+  // `p.isVisible()` is GrapesJS' own verdict (`requires`, `stylable`, the
+  // `isVisible` property option), recomputed on every target change. A sector
+  // with nothing visible then drops out entirely, as GrapesJS itself hides it.
   let props = sector
     .getProperties()
-    .filter((p) => isPropertyVisible(p.getName(), ctx))
+    .filter((p) => p.isVisible() && isPropertyVisible(p.getName(), ctx))
   const q = query.trim().toLowerCase()
   // A sector-name match keeps every visible property; otherwise narrow to the
   // properties whose searchable text contains the query.

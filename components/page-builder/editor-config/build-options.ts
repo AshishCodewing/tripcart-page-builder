@@ -8,6 +8,7 @@ import parserPostCSS from "grapesjs-parser-postcss"
 import styleBgPlugin from "grapesjs-style-bg"
 import styleFilterPlugin from "grapesjs-style-filter"
 
+import { animationPlugin } from "@/lib/plugins/animation"
 import { buttonPlugin } from "@/lib/plugins/button"
 import { columnsPlugin } from "@/lib/plugins/columns"
 import { designSystemPlugin } from "@/lib/plugins/design-system-plugin"
@@ -148,6 +149,9 @@ export const buildGjsOptions = (
     // so `--tc--preset--*` resolves in the type's `defaults.styles`, and after
     // reactRendererPlugin so the block-add processor is installed.
     tabsPlugin,
+    // Animation / Animation Group blocks. Pure CSS (scroll-driven animations);
+    // their controls are the "Animation" sector in STYLE_SECTORS.
+    animationPlugin,
     patternsPlugin,
     // template-ref must register AFTER designSystemPlugin so the
     // placeholder CSS can reference --tc--preset--* vars without

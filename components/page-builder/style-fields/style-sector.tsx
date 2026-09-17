@@ -1,7 +1,8 @@
 "use client"
 
-import type { PropertyNumber, Sector } from "grapesjs"
+import type { Property, PropertyNumber, Sector } from "grapesjs"
 import { ChevronDown } from "lucide-react"
+import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +13,7 @@ import {
 
 import { CrossGrid, type Side } from "./box-sides-field"
 import PropertyField from "./property-field"
+import { hasHint } from "./property-hints"
 import { filterSectorProperties } from "./style-search"
 import { useStyleContext } from "./use-style-context"
 
@@ -85,9 +87,7 @@ export default function StyleSector({
             {sector.getId() === "position" ? (
               <PositionSectorBody properties={properties} />
             ) : (
-              properties.map((p) => (
-                <PropertyField key={p.getId()} property={p} />
-              ))
+              <SectorRows properties={properties} forceOpen={filtering} />
             )}
           </div>
         </CollapsibleContent>
@@ -131,6 +131,66 @@ function PositionSectorBody({
           <CrossGrid bySide={bySide} />
         </div>
       ) : null}
+    </>
+  )
+}
+
+// Everyday rows first, then the `advanced` ones in a fold
+// (see ./property-hints.ts).
+function splitRows(properties: Property[]) {
+  const main: Property[] = []
+  const advanced: Property[] = []
+  for (const p of properties) {
+    ;(hasHint(p, "advanced") ? advanced : main).push(p)
+  }
+  return { main, advanced }
+}
+
+function SectorRows({
+  properties,
+  forceOpen,
+}: {
+  properties: Property[]
+  forceOpen: boolean
+}) {
+  const [advancedOpen, setAdvancedOpen] = React.useState(false)
+  const { main, advanced } = splitRows(properties)
+
+  return (
+    <>
+      {main.map((p) => (
+        <PropertyField key={p.getId()} property={p} />
+      ))}
+      {advanced.length > 0 && (
+        <Collapsible
+          open={forceOpen || advancedOpen}
+          onOpenChange={(next) => !forceOpen && setAdvancedOpen(next)}
+        >
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="group/advanced h-7 w-full justify-between px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+              />
+            }
+          >
+            Advanced
+            <ChevronDown
+              className="size-3.5 transition-transform duration-150 group-data-panel-open/advanced:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-2 pt-2">
+              {advanced.map((p) => (
+                <PropertyField key={p.getId()} property={p} />
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </>
   )
 }
